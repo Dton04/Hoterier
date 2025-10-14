@@ -148,6 +148,8 @@ router.get('/:id/points/history', protect, usersController.getPointsHistory);
 router.get('/membership/level/:userId', usersController.getMembershipLevel);
 router.post('/points/accumulate', protect, usersController.accumulatePoints);
 router.put('/:id', protect, admin, usersController.updateUser);
+router.get('/allusers', protect, adminOrStaff, usersController.getAllUsers);
+router.post('/',protect,admin,usersController.createUser);
 router.post('/staff', protect, admin, usersController.createStaff);
 router.get('/staff', protect, admin, usersController.getStaff);
 router.put('/staff/:id', protect, admin, usersController.updateStaff);

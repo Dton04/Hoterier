@@ -403,7 +403,40 @@ exports.accumulatePoints = async (req, res) => {
     res.status(500).json({ message: 'Lỗi khi tích điểm', error: error.message });
   }
 };
+// Tạo user
+exports.createUser= async (req, res) => {
+  try {
+    const { name, email, password, phone } = req.body;
 
+    const normalizedEmail = email.toLowerCase();
+    const userExists = await User.findOne({ email: normalizedEmail });
+    if (userExists) {
+      return res.status(400).json({ message: 'Email đã tồn tại' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      name,
+      email: normalizedEmail,
+      password: hashedPassword,
+      isAdmin: false,
+      role: 'user',
+      phone,
+    });
+
+    res.status(201).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      phone: user.phone,
+    });
+  } catch (error) {
+    console.error('Create staff error:', error.message);
+    res.status(400).json({ message: error.message });
+  }
+};
 // Cập nhật người dùng
 exports.updateUser = async (req, res) => {
   try {
@@ -431,6 +464,33 @@ exports.updateUser = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
+
+// 🟢 Lấy toàn bộ người dùng (bao gồm user, staff, admin)
+exports.getAllUsers = async (req, res) => {
+  try {
+    let filter = { isDeleted: false };
+
+    // ✅ Nếu là staff → chỉ thấy user
+    if (req.user.role === "staff") {
+      filter.role = "user";
+    }
+
+    // ✅ Nếu là admin → chỉ thấy user + staff (ẩn admin khác)
+    if (req.user.role === "admin") {
+      filter.role = { $in: ["user", "staff"] };
+    }
+
+    const users = await User.find(filter)
+      .select("-password")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(users);
+  } catch (error) {
+    console.error("Lỗi khi lấy danh sách người dùng:", error.message);
+    res.status(500).json({ message: "Lỗi server khi lấy danh sách người dùng" });
+  }
+};
+
 
 // Tạo staff
 exports.createStaff = async (req, res) => {

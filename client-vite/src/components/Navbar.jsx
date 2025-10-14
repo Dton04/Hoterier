@@ -59,7 +59,7 @@ function Navbar() {
   };
 
   return (
-    <header className="fixed top-0 left-0 w-full bg-[#003580] text-white shadow-md z-50">
+    <header className="fixed top-0 left-0 w-full bg-[#003580] text-black shadow-md z-50">
       <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-3">
         {/* 🏨 Logo */}
         <Link
@@ -67,7 +67,7 @@ function Navbar() {
           className="text-2xl font-bold flex items-center gap-2 -ml-4 hover:opacity-90 transition"
           onClick={closeNav}
         >
-          <i className="fas fa-hotel text-[#febb02]"></i> HOTELIER
+          <i className="fas fa-hotel text-white"></i> HOTELIER
         </Link>
 
         {/* 🧭 Navigation links */}
@@ -131,15 +131,7 @@ function Navbar() {
                 <ul className="absolute right-0 mt-2 bg-white text-gray-800 border border-gray-200 rounded-lg shadow-md w-56 z-50">
                   {user.role === "admin" && (
                     <>
-                      <li>
-                        <Link
-                          to="/admin"
-                          onClick={closeNav}
-                          className="block px-4 py-2 hover:bg-gray-100"
-                        >
-                          <i className="fas fa-cog mr-2 text-blue-500"></i>Quản trị
-                        </Link>
-                      </li>
+                      
                       <li>
                         <Link
                           to="/admin/dashboard"

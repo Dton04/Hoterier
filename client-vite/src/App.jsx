@@ -14,13 +14,13 @@ import Footer from "./components/Footer";
 import Registerscreen from "./screens/Auth/Registerscreen";
 import LoginScreen from "./screens/Auth/Loginscreen";
 import StaffManagement from "./components/StaffManagement";
-import UserManagement from "./components/UserManagement";
+import UserStaffManagement from "./components/UserStaffManagement";
 import HistoryBookings from "./components/HistoryBookings";
 import UserStats from "./components/UserStats";
 import AdminBookings from "./components/AdminBookings";
 import BookingList from "./components/BookingList";
 import BookingForm from "./components/BookingForm";
-import AdminDashboard from "./components/AdminDashboard";
+import AdminDashboard from "./screens/AdminDashboard"
 import CreateRoomForm from "./components/CreateRoomForm";
 import EditRoomForm from "./components/EditRoomForm";
 import ProfileManagement from "./components/ProfileManagement";
@@ -41,7 +41,7 @@ import ReviewManagement from './components/ReviewManagement';
 import Favorites from './components/Favorites';
 import AdminRewards from "./components/AdminRewards";
 
-import AdminF from "./screens/AdminFunction";
+
 
 import HotelDetail from "./components/HotelDetail";
 
@@ -132,7 +132,7 @@ function App() {
             path="/admin"
             element={
               <AdminRoute>
-                <AdminF />
+                <AdminDashboard />
               </AdminRoute>
             }
           />
@@ -158,7 +158,7 @@ function App() {
             path="/admin/users"
             element={
               <ProtectedRoute>
-                <UserManagement />
+                <UserStaffManagement />
               </ProtectedRoute>
             }
           />
