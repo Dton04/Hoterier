@@ -1,0 +1,37 @@
+{
+  "name": "bookinghotel",
+  "version": "1.0.0",
+  "description": "dacs",
+  "homepage": "https://github.com/Dton04/BookingHotel#readme",
+  "bugs": {
+    "url": "https://github.com/Dton04/BookingHotel/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Dton04/BookingHotel.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "axios": "^1.9.0",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "moment": "^2.30.1",
+    "mongoose": "^8.13.2",
+    "multer": "^1.4.5-lts.2",
+    "nodemailer": "^7.0.2",
+    "otp-generator": "^4.0.1",
+    "passport": "^0.7.0",
+    "passport-facebook": "^3.0.0",
+    "passport-google-oauth20": "^2.0.0",
+    "router": "^2.2.0"
+  }
+}
