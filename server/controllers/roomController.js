@@ -66,7 +66,7 @@ exports.getRoomById = async (req, res) => {
 // roomController.js
 exports.createRoom = async (req, res) => {
   try {
-    const { hotelId, name, type, description, maxcount, beds, baths, rentperday, phonenumber, quantity } = req.body;
+    const { hotelId, name, type, description, maxcount, beds, baths, rentperday, phonenumber, quantity, amenities } = req.body;
 
     if (!hotelId) {
       return res.status(400).json({ message: "hotelId là bắt buộc" });
@@ -88,6 +88,7 @@ exports.createRoom = async (req, res) => {
       rentperday,
       phonenumber,
       quantity: quantity || 1,
+      amenities: amenities || [],
     });
 
     const savedRoom = await room.save();
@@ -129,7 +130,8 @@ exports.updateRoom = async (req, res) => {
       "rentperday",
       "phonenumber",
       "quantity",
-      "availabilityStatus"
+      "availabilityStatus",
+      "amenities"
     ];
 
     // lọc chỉ cho phép update các field hợp lệ

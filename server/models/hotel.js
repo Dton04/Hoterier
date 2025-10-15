@@ -28,13 +28,22 @@ const hotelSchema = new mongoose.Schema({
     required: true,
   },
   starRating: {
-  type: Number,
-  default: 3, 
-},
+    type: Number,
+    default: 3,
+  },
   description: {
     type: String,
   },
   imageurls: [String],
+  rules: {
+    type: String,
+    default: "Nhận phòng từ 14:00, trả phòng trước 12:00. Không hút thuốc trong phòng."
+  },
+  legalInfo: {
+    type: String,
+    default: "Khách sạn hoạt động theo quy định pháp luật Việt Nam, có giấy phép kinh doanh hợp lệ."
+  },
+
   createdAt: {
     type: Date,
     default: Date.now,

@@ -97,6 +97,7 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/discounts', discountRoutes);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/services', serviceRoutes);
+app.use('/api/amenities', require('./routes/amenityRoutes'));
 app.use('/api/momo', momoRoutes);
 app.use('/api/vnpay', vnpayRoutes);
 

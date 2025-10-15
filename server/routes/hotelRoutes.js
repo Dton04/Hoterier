@@ -61,19 +61,19 @@ router.post('/region', protect, admin, hotelController.assignRegion);
 // GET /api/hotels/:id/rooms - Lấy khách sạn và danh sách phòng
 router.get('/:id/rooms', hotelController.getHotelWithRooms);
 
-router.get('/', async (req, res) => {
-  try {
-    const { discountId } = req.query;
-    if (discountId) {
-      const discount = await Discount.findById(discountId).populate('applicableHotels');
-      return res.json(discount ? discount.applicableHotels : []);
-    }
-    // nếu không có filter thì trả toàn bộ hotel như cũ
-    return hotelController.getAllHotels(req, res);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
+// router.get('/', async (req, res) => {
+//   try {
+//     const { discountId } = req.query;
+//     if (discountId) {
+//       const discount = await Discount.findById(discountId).populate('applicableHotels');
+//       return res.json(discount ? discount.applicableHotels : []);
+//     }
+//     // nếu không có filter thì trả toàn bộ hotel như cũ
+//     return hotelController.getAllHotels(req, res);
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// });
 
 router.get('/festival/:id', hotelController.getHotelsByFestival);
 router.get('/:id/available-rooms', hotelController.getAvailableRoomsByHotelId);

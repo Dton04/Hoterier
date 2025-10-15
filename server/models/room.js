@@ -21,6 +21,26 @@ const roomSchema = new mongoose.Schema({
 
   imageurls: [{ type: String }],
 
+  amenities: [{
+    type: String,
+    enum: [
+      "WiFi miễn phí",
+      "Máy lạnh",
+      "TV màn hình phẳng",
+      "Ban công",
+      "Phòng tắm riêng",
+      "Bữa sáng miễn phí",
+      "Máy sấy tóc",
+      "Tủ lạnh nhỏ",
+      "Két sắt",
+      "Bồn tắm",
+      "View thành phố",
+      "Bàn làm việc",
+      "Dịch vụ phòng",
+      "Điều hòa nhiệt độ",
+    ],
+  }],
+
   availabilityStatus: {
     type: String,
     enum: ["available", "maintenance", "busy"],

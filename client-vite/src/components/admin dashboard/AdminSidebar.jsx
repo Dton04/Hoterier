@@ -6,9 +6,10 @@ const menuItems = [
   { label: "Đặt phòng", icon: "fas fa-book", path: "/admin/bookings" },
   { label: "Người dùng và nhân viên", icon: "fas fa-users", path: "/admin/users" },
   { label: "Khách sạn", icon: "fas fa-hotel", path: "/admin/hotels" },
-  { label: "Dịch vụ", icon: "fas fa-concierge-bell", path: "/admin/services" },
+  { label: "Dịch vụ khách sạn", icon: "fas fa-concierge-bell", path: "/admin/services" },
   { label: "Giảm giá", icon: "fas fa-tags", path: "/admin/discounts" },
   { label: "Đánh giá", icon: "fas fa-star", path: "/admin/reviews" },
+  { label: "Tiện nghi phòng", icon: "fas fa-star", path: "/admin/amenities" },
 ];
 
 const AdminSidebar = () => {

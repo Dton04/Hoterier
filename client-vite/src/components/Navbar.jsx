@@ -10,6 +10,8 @@ function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
   const [points, setPoints] = useState(0);
+  const [showNavbar, setShowNavbar] = useState(true); // 🟢 Trạng thái hiển thị Navbar
+  const [lastScrollY, setLastScrollY] = useState(0);
 
   // 🟢 Kiểm tra đăng nhập + lấy điểm
   const checkLoginStatus = async () => {
@@ -40,6 +42,22 @@ function Navbar() {
     checkLoginStatus();
   }, [location]);
 
+  // 🟡 Ẩn Navbar khi scroll xuống và hiện khi scroll lên
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScroll = window.scrollY;
+      if (currentScroll > lastScrollY && currentScroll > 80) {
+        setShowNavbar(false); // ẩn khi cuộn xuống
+      } else {
+        setShowNavbar(true); // hiện khi cuộn lên
+      }
+      setLastScrollY(currentScroll);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [lastScrollY]);
+
   const closeNav = () => {
     setNavOpen(false);
     setUserDropdownOpen(false);
@@ -59,7 +77,11 @@ function Navbar() {
   };
 
   return (
-    <header className="fixed top-0 left-0 w-full bg-[#003580] text-black shadow-md z-50">
+    <header
+      className={`fixed top-0 left-0 w-full bg-[#003580] text-white shadow-md z-50 transition-transform duration-300 ${
+        showNavbar ? "translate-y-0" : "-translate-y-full"
+      }`}
+    >
       <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-3">
         {/* 🏨 Logo */}
         <Link
@@ -85,9 +107,7 @@ function Navbar() {
           <Link
             to="/rooms"
             className={`pb-2 hover:text-[#febb02] ${
-              location.pathname === "/rooms"
-                ? "border-b-2 border-[#febb02]"
-                : ""
+              location.pathname === "/rooms" ? "border-b-2 border-[#febb02]" : ""
             }`}
           >
             Khách sạn & Phòng
@@ -114,60 +134,40 @@ function Navbar() {
           </Link>
         </nav>
 
-        {/* 👤 User menu / Auth */}
+        {/* 👤 User menu */}
         <div className="flex items-center gap-3">
           {isLoggedIn ? (
             <div className="relative">
               <button
-                className="flex items-center gap-2 hover:text-[#febb02] font-medium"
+                className="flex items-center gap-2 bg-[#003580] hover:bg-[#004080] hover:text-[#febb02] font-medium"
                 onClick={() => setUserDropdownOpen(!isUserDropdownOpen)}
               >
-                <i className="fas fa-user-circle text-lg"></i>
-                {user.name}
-                <i className="fas fa-chevron-down text-xs"></i>
+                <img
+                  src={
+                    user?.avatar
+                      ? `http://localhost:5000/${user.avatar}`
+                      : "https://cf.bstatic.com/static/img/avatar/booking_avatar_40x40/99e8e7b26f5de94b82e8be93d93cf5b5b7b33eea.png"
+                  }
+                  alt="avatar"
+                  className="w-9 h-9 rounded-full border border-gray-300 object-cover"
+                />
+                <span className="text-sm font-semibold">{user.name}</span>
+                <i className="fas fa-chevron-down text-xs mt-0.5"></i>
               </button>
 
               {isUserDropdownOpen && (
                 <ul className="absolute right-0 mt-2 bg-white text-gray-800 border border-gray-200 rounded-lg shadow-md w-56 z-50">
                   {user.role === "admin" && (
-                    <>
-                      
-                      <li>
-                        <Link
-                          to="/admin/dashboard"
-                          onClick={closeNav}
-                          className="block px-4 py-2 hover:bg-gray-100"
-                        >
-                          <i className="fas fa-tachometer-alt mr-2 text-green-500"></i>
-                          Bảng điều khiển
-                        </Link>
-                      </li>
-                    </>
-                  )}
-
-                  {user.role === "staff" && (
-                    <>
-                      <li>
-                        <Link
-                          to="/stats"
-                          onClick={closeNav}
-                          className="block px-4 py-2 hover:bg-gray-100"
-                        >
-                          <i className="fas fa-chart-bar mr-2 text-purple-500"></i>
-                          Thống kê
-                        </Link>
-                      </li>
-                      <li>
-                        <Link
-                          to="/admin/users"
-                          onClick={closeNav}
-                          className="block px-4 py-2 hover:bg-gray-100"
-                        >
-                          <i className="fas fa-user-cog mr-2 text-blue-500"></i>
-                          Quản lý người dùng
-                        </Link>
-                      </li>
-                    </>
+                    <li>
+                      <Link
+                        to="/admin/dashboard"
+                        onClick={closeNav}
+                        className="block px-4 py-2 hover:bg-gray-100"
+                      >
+                        <i className="fas fa-tachometer-alt mr-2 text-green-500"></i>
+                        Bảng điều khiển
+                      </Link>
+                    </li>
                   )}
 
                   {user.role === "user" && (

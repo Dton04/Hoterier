@@ -5,12 +5,14 @@ import { FaStar } from "react-icons/fa";
 import { Badge, Spinner } from "react-bootstrap";
 import { toast } from "react-toastify";
 import BookingForm from "./BookingForm";
+import Banner from "./Banner";
 import Loader from "../components/Loader";
 
 const RoomResults = () => {
   const [hotels, setHotels] = useState([]);
   const [regions, setRegions] = useState([]);
   const [services, setServices] = useState([]);
+  const [amenities, setAmenities] = useState([]);
   const [averageRatings, setAverageRatings] = useState({});
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
@@ -19,8 +21,10 @@ const RoomResults = () => {
     maxPrice: 10000000,
     rating: 0,
     starRatings: [],
+    services: [],
     amenities: [],
   });
+
   const [sortBy, setSortBy] = useState("recommended");
   const location = useLocation();
   const navigate = useNavigate();
@@ -29,6 +33,7 @@ const RoomResults = () => {
   useEffect(() => {
     fetchRegions();
     fetchServices();
+    fetchAmenities();
     fetchHotels();
   }, [location.search]);
 
@@ -42,15 +47,28 @@ const RoomResults = () => {
     }
   };
 
-  // 🧩 Tiện nghi (dịch vụ)
-  const fetchServices = async () => {
-    try {
-      const { data } = await axios.get("/api/services/categories");
-      setServices(data);
-    } catch (err) {
-      console.error("Lỗi khi lấy danh mục tiện nghi:", err);
-    }
-  };
+
+  // Lấy danh sách dịch vụ đang hoạt động
+const fetchServices = async () => {
+  try {
+    const { data } = await axios.get("/api/services?isAvailable=true");
+    const uniqueServices = [...new Set(data.map((s) => s.name))];
+    setServices(uniqueServices);
+  } catch (err) {
+    console.error("Lỗi khi lấy danh sách dịch vụ:", err);
+  }
+};
+
+  // Tiện nghi phòng
+  const fetchAmenities = async () => {
+  try {
+    const { data } = await axios.get("/api/amenities");
+    setAmenities(data);
+  } catch (err) {
+    console.error("Lỗi khi lấy danh sách tiện nghi:", err);
+  }
+};
+
 
   // 🏨 Lấy danh sách khách sạn
   const fetchHotels = async () => {
@@ -63,8 +81,25 @@ const RoomResults = () => {
       const filtered = destination
         ? data.filter((hotel) => hotel.region?._id === destination)
         : data;
-      setHotels(filtered);
-      fetchAverageRatings(filtered);
+
+      const hotelsWithExtras = await Promise.all(
+        filtered.map(async (hotel) => {
+          const servicesRes = await axios.get(`/api/services?hotelId=${hotel._id}&isAvailable=true`);
+          const services = servicesRes.data || [];
+
+          const lowestPrice = hotel.rooms?.length
+            ? Math.min(...hotel.rooms.map((r) => r.rentperday))
+            : 0;
+
+          return {
+            ...hotel,
+            services,
+            lowestPrice,
+          };
+        })
+      );
+      setHotels(hotelsWithExtras);
+      fetchAverageRatings(hotelsWithExtras);
     } catch (err) {
       console.error("Lỗi khi lấy khách sạn:", err);
       toast.error("Không thể tải danh sách khách sạn");
@@ -99,45 +134,36 @@ const RoomResults = () => {
         const priceMin = Math.min(...hotel.rooms.map((r) => r.rentperday));
         const priceMax = Math.max(...hotel.rooms.map((r) => r.rentperday));
 
-        const matchRegion = filters.region
-          ? hotel.region?._id === filters.region
-          : true;
+        const matchRegion = filters.region ? hotel.region?._id === filters.region : true;
         const matchRating = avg >= filters.rating;
-        const matchPrice =
-          priceMax >= filters.minPrice && priceMin <= filters.maxPrice;
-        const matchStars =
-          filters.starRatings.length === 0 ||
-          filters.starRatings.includes(hotel.starRating);
+        const matchPrice = priceMax >= filters.minPrice && priceMin <= filters.maxPrice;
+        const matchStars = filters.starRatings.length === 0 || filters.starRatings.includes(hotel.starRating || 3);
+
+        const matchService =
+          filters.services.length === 0 ||
+          filters.services.some((s) =>
+            hotel.services?.some((sv) => sv.name.toLowerCase().includes(s.toLowerCase()))
+          );
+
         const matchAmenity =
           filters.amenities.length === 0 ||
           filters.amenities.some((a) =>
-            hotel.amenities?.some((item) =>
-              item.toLowerCase().includes(a.toLowerCase())
+            hotel.rooms?.some((r) =>
+              r.amenities?.some((am) => am.toLowerCase().includes(a.toLowerCase()))
             )
           );
 
-        return matchRegion && matchRating && matchPrice && matchStars && matchAmenity;
+        return matchRegion && matchRating && matchPrice && matchStars && matchService && matchAmenity;
       })
       .sort((a, b) => {
-        if (sortBy === "priceLow") {
-          return (
-            Math.min(...a.rooms.map((r) => r.rentperday)) -
-            Math.min(...b.rooms.map((r) => r.rentperday))
-          );
-        } else if (sortBy === "priceHigh") {
-          return (
-            Math.max(...b.rooms.map((r) => r.rentperday)) -
-            Math.max(...a.rooms.map((r) => r.rentperday))
-          );
-        } else if (sortBy === "rating") {
-          return (
-            (averageRatings[b._id]?.average || 0) -
-            (averageRatings[a._id]?.average || 0)
-          );
-        }
+        if (sortBy === "priceLow") return a.lowestPrice - b.lowestPrice;
+        if (sortBy === "priceHigh") return b.lowestPrice - a.lowestPrice;
+        if (sortBy === "rating")
+          return (averageRatings[b._id]?.average || 0) - (averageRatings[a._id]?.average || 0);
         return 0;
       });
   }, [hotels, filters, sortBy, averageRatings]);
+
 
   // 🔁 Reset filters
   const resetFilters = () => {
@@ -147,6 +173,7 @@ const RoomResults = () => {
       maxPrice: 10000000,
       rating: 0,
       starRatings: [],
+      services: [],
       amenities: [],
     });
   };
@@ -155,11 +182,11 @@ const RoomResults = () => {
   return (
     <>
 
-     <div className=" mt-[68px] flex justify-center items-center py-10 w-full">
-  <div className="w-full max-w-7xl mx-auto flex justify-center">
-    <BookingForm />
-  </div>
-</div>
+      <div className=" mt-[68px] flex justify-center items-center py-10 w-full">
+        <div className="w-full max-w-7xl mx-auto flex justify-center">
+          <BookingForm />
+        </div>
+      </div>
 
 
 
@@ -254,6 +281,57 @@ const RoomResults = () => {
               ))}
             </div>
 
+            {/* Dịch vụ khách sạn */}
+            <div className="border-b pb-4 mb-4">
+              <h4 className="text-gray-700 font-medium mb-2">Dịch vụ khách sạn</h4>
+              <div className="max-h-40 overflow-y-auto">
+                {services.map((s) => (
+                  <label key={s} className="flex items-center space-x-2 text-sm cursor-pointer mb-1">
+                    <input
+                      type="checkbox"
+                      checked={filters.services.includes(s)}
+                      onChange={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          services: prev.services.includes(s)
+                            ? prev.services.filter((v) => v !== s)
+                            : [...prev.services, s],
+                        }))
+                      }
+                      className="accent-blue-600"
+                    />
+                    <span>{s}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Tiện nghi phòng */}
+            <div className="border-b pb-4 mb-4">
+              <h4 className="text-gray-700 font-medium mb-2">Tiện nghi phòng</h4>
+              <div className="max-h-40 overflow-y-auto">
+                {amenities.map((a) => (
+                  <label key={a} className="flex items-center space-x-2 text-sm cursor-pointer mb-1">
+                    <input
+                      type="checkbox"
+                      checked={filters.amenities.includes(a)}
+                      onChange={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          amenities: prev.amenities.includes(a)
+                            ? prev.amenities.filter((v) => v !== a)
+                            : [...prev.amenities, a],
+                        }))
+                      }
+                      className="accent-blue-600"
+                    />
+                    <span>{a}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+
             {/* Amenities */}
             <div>
               <h4 className="text-gray-700 font-medium mb-2">Tiện nghi</h4>
@@ -287,7 +365,7 @@ const RoomResults = () => {
           </aside>
 
           {/* RESULTS */}
-          <div className="lg:col-span-3 space-y-6">
+          <div className="lg:col-span-3 space-y-4">
             <div className="flex justify-between items-center">
               <p className="text-gray-600 text-sm">
                 {filteredHotels.length} chỗ nghỉ phù hợp
@@ -356,6 +434,31 @@ const RoomResults = () => {
                           </Badge>
                         ))}
                       </div>
+
+                      {/* Dịch vụ khách sạn */}
+                      {hotel.services?.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2 text-sm">
+                          {hotel.services.slice(0, 3).map((srv, i) => (
+                            <span
+                              key={i}
+                              className="bg-blue-50 text-blue-700 px-2 py-1 rounded-full border border-blue-200"
+                            >
+                              {srv.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Giá thấp nhất */}
+                      {hotel.lowestPrice > 0 && (
+                        <div className="mt-3 text-right">
+                          <p className="text-sm text-gray-500">Giá từ</p>
+                          <p className="text-xl font-semibold text-[#0071c2]">
+                            {hotel.lowestPrice.toLocaleString()} ₫ / đêm
+                          </p>
+                        </div>
+                      )}
+
                     </div>
 
                     <div className="flex justify-end mt-4">

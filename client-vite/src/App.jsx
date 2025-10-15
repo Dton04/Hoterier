@@ -43,7 +43,6 @@ import AdminRewards from "./components/AdminRewards";
 
 
 
-import HotelDetail from "./components/HotelDetail";
 
 import AdminRegions from "./components/AdminRegions";
 
@@ -51,7 +50,8 @@ import Review from "./screens/Review";
 
 import DiscountsPage from "./screens/DiscountsPage"
 import FestivalHotels from "./screens/FestivalHotels";
-
+import AdminAmenities from "./components/AdminAmenities";
+import HotelDetail from "./components/hoteldetail/HotelDetail";
 
 // Component bảo vệ route cho admin
 const AdminRoute = ({ children }) => {
@@ -186,6 +186,8 @@ function App() {
               </AdminRoute>
             }
           />
+
+          <Route path="/admin/amenities" element={<AdminRoute> <AdminAmenities/></AdminRoute>}></Route>
 
         </Routes>
         <Footer />
