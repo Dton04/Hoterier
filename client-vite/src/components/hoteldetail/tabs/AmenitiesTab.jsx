@@ -24,7 +24,7 @@ export default function AmenitiesTab({ amenities = [], services = [], hotel, ave
                     key={i}
                     className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 border rounded-md px-3 py-1.5 hover:bg-blue-50 transition"
                   >
-                    ✅ {a}
+                    ✔ {a}
                   </li>
                 ))}
               </ul>

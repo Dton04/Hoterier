@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -10,14 +10,14 @@ function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
   const [points, setPoints] = useState(0);
-  const [showNavbar, setShowNavbar] = useState(true); // 🟢 Trạng thái hiển thị Navbar
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const [showNavbar, setShowNavbar] = useState(true);
+  
+  
 
-  // 🟢 Kiểm tra đăng nhập + lấy điểm
+  // 🟢 Kiểm tra đăng nhập
   const checkLoginStatus = async () => {
     const storedUserInfo = localStorage.getItem("userInfo");
     if (!storedUserInfo) return;
-
     const userInfo = JSON.parse(storedUserInfo);
     const userData = userInfo.user || userInfo;
 
@@ -26,10 +26,10 @@ function Navbar() {
       setUser(userData);
       try {
         const config = { headers: { Authorization: `Bearer ${userData.token}` } };
-        const response = await axios.get("/api/users/points", config);
-        setPoints(response.data.points);
-      } catch (error) {
-        console.error("Lỗi khi lấy điểm:", error);
+        const res = await axios.get("/api/users/points", config);
+        setPoints(res.data.points);
+      } catch (err) {
+        console.error("Lỗi lấy điểm:", err);
       }
     } else {
       setIsLoggedIn(false);
@@ -42,21 +42,11 @@ function Navbar() {
     checkLoginStatus();
   }, [location]);
 
-  // 🟡 Ẩn Navbar khi scroll xuống và hiện khi scroll lên
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScroll = window.scrollY;
-      if (currentScroll > lastScrollY && currentScroll > 80) {
-        setShowNavbar(false); // ẩn khi cuộn xuống
-      } else {
-        setShowNavbar(true); // hiện khi cuộn lên
-      }
-      setLastScrollY(currentScroll);
-    };
 
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [lastScrollY]);
+   
+
+
+
 
   const closeNav = () => {
     setNavOpen(false);
@@ -77,11 +67,14 @@ function Navbar() {
   };
 
   return (
-    <header
-      className={`fixed top-0 left-0 w-full bg-[#003580] text-white shadow-md z-50 transition-transform duration-300 ${
-        showNavbar ? "translate-y-0" : "-translate-y-full"
-      }`}
-    >
+<header
+  className={`relative top-0 left-0 w-full text-white z-50 backdrop-blur-md
+    bg-[#003580] `}
+  style={{
+    opacity: showNavbar ? 1 : 0,
+  }}
+>
+
       <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-3">
         {/* 🏨 Logo */}
         <Link
@@ -92,7 +85,7 @@ function Navbar() {
           <i className="fas fa-hotel text-white"></i> HOTELIER
         </Link>
 
-        {/* 🧭 Navigation links */}
+        {/* 🧭 Navigation */}
         <nav className="hidden md:flex gap-6 text-sm font-medium">
           <Link
             to="/home"
@@ -105,9 +98,9 @@ function Navbar() {
             Trang chủ
           </Link>
           <Link
-            to="/rooms"
+            to="/room-results"
             className={`pb-2 hover:text-[#febb02] ${
-              location.pathname === "/rooms" ? "border-b-2 border-[#febb02]" : ""
+              location.pathname === "/room-results" ? "border-b-2 border-[#febb02]" : ""
             }`}
           >
             Khách sạn & Phòng
@@ -239,7 +232,7 @@ function Navbar() {
             </>
           )}
 
-          {/* Mobile toggle */}
+          {/* 📱 Mobile */}
           <button
             className="md:hidden text-white ml-3"
             onClick={() => setNavOpen(!isNavOpen)}

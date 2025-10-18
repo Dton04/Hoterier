@@ -33,7 +33,7 @@ if (!fs.existsSync('Uploads')) {
 }
 
 // Phục vụ file tĩnh từ thư mục uploads
-app.use('/uploads', express.static('Uploads'));
+app.use("/Uploads", express.static(path.join(__dirname, "Uploads")));
 
 // Middleware
 app.use(cors({

@@ -1,16 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
+import Banner from "./Banner";
 
-import Banner from './Banner';
-
-
-function Contact() {
+export default function Contact() {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    subject: '',
-    message: '',
+    name: "",
+    email: "",
+    subject: "",
+    message: "",
   });
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState("");
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -19,65 +17,71 @@ function Contact() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/contact', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 
       const result = await response.json();
       if (response.ok) {
-        setStatus('Tin nhắn đã được gửi thành công!');
-        setFormData({ name: '', email: '', subject: '', message: '' }); // Reset form
+        setStatus("✅ Tin nhắn đã được gửi thành công!");
+        setFormData({ name: "", email: "", subject: "", message: "" });
       } else {
-        setStatus(result.message || 'Có lỗi xảy ra, vui lòng thử lại.');
+        setStatus(result.message || "❌ Có lỗi xảy ra, vui lòng thử lại.");
       }
     } catch (error) {
-      setStatus('Có lỗi xảy ra, vui lòng thử lại.');
+      setStatus("❌ Có lỗi xảy ra, vui lòng thử lại.");
     }
   };
 
   return (
-    <div className="contact-page">
-      <Banner />
+    <>
 
-      <div className="contact-container">
-   
 
-        <div className="divider"></div>
+      {/* CONTENT */}
+      <section className="bg-gray-50 py-16 px-4">
+        <div className="max-w-6xl mx-auto">
+          {/* HEADER */}
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-[#003580] mb-3 uppercase tracking-wide">
+              Liên hệ với chúng tôi
+            </h2>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Chúng tôi luôn sẵn sàng hỗ trợ bạn 24/7.  
+              Gửi tin nhắn hoặc ghé thăm văn phòng của chúng tôi để được hỗ trợ nhanh nhất.
+            </p>
+          </div>
 
-        <section className="contact-section">
-          <h2 className="section-heading">LIÊN HỆ VỚI CHÚNG TÔI</h2>
-          <p className="section-subtitle">
-            Chúng tôi luôn sẵn sàng hỗ trợ bạn. Hãy liên hệ qua thông tin dưới đây.
-          </p>
-          
-          <div className="contact-info">
-            <div className="info-box">
-              <h4>Địa chỉ</h4>
-              <p>123 Đường Lê Lợi, Quận 1, TP.HCM</p>
+          {/* INFO BOXES */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+            <div className="bg-white shadow-sm rounded-xl p-6 text-center hover:shadow-md transition">
+              <h4 className="text-[#003580] font-semibold mb-2">📍 Địa chỉ</h4>
+              <p className="text-gray-600">123 Lê Lợi, Quận 1, TP. Hồ Chí Minh</p>
             </div>
-            <div className="info-box">
-              <h4>Số điện thoại</h4>
-              <p>+84 123 456 789</p>
+            <div className="bg-white shadow-sm rounded-xl p-6 text-center hover:shadow-md transition">
+              <h4 className="text-[#003580] font-semibold mb-2">📞 Điện thoại</h4>
+              <p className="text-gray-600">+84 123 456 789</p>
             </div>
-            <div className="info-box">
-              <h4>Email</h4>
-              <p>Hotelier@gmail.com</p>
+            <div className="bg-white shadow-sm rounded-xl p-6 text-center hover:shadow-md transition">
+              <h4 className="text-[#003580] font-semibold mb-2">✉️ Email</h4>
+              <p className="text-gray-600">hotelier@gmail.com</p>
+            </div>
+            <div className="bg-white shadow-sm rounded-xl p-6 text-center hover:shadow-md transition">
+              <h4 className="text-[#003580] font-semibold mb-2">🕒 Giờ làm việc</h4>
+              <p className="text-gray-600">Thứ 2 - Chủ Nhật: 8:00 - 22:00</p>
             </div>
           </div>
-        </section>
 
-        <div className="divider"></div>
-
-        <section className="contact-main">
-          <div className="contact-grid">
-            <div className="contact-form-container">
-              <h2 className="form-title">GỬI TIN NHẮN CHO CHÚNG TÔI</h2>
-              <form className="contact-form" onSubmit={handleSubmit}>
-                <div className="form-group">
+          {/* FORM + MAP */}
+          <div className="grid lg:grid-cols-2 gap-8 items-start">
+            {/* FORM */}
+            <div className="bg-white shadow-md rounded-2xl p-8">
+              <h3 className="text-xl font-semibold text-[#003580] mb-4">
+                Gửi tin nhắn cho chúng tôi
+              </h3>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
                   <input
                     type="text"
                     name="name"
@@ -85,9 +89,10 @@ function Contact() {
                     value={formData.name}
                     onChange={handleChange}
                     required
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#0071c2] outline-none"
                   />
                 </div>
-                <div className="form-group">
+                <div>
                   <input
                     type="email"
                     name="email"
@@ -95,9 +100,10 @@ function Contact() {
                     value={formData.email}
                     onChange={handleChange}
                     required
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#0071c2] outline-none"
                   />
                 </div>
-                <div className="form-group">
+                <div>
                   <input
                     type="text"
                     name="subject"
@@ -105,47 +111,61 @@ function Contact() {
                     value={formData.subject}
                     onChange={handleChange}
                     required
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#0071c2] outline-none"
                   />
                 </div>
-                <div className="form-group">
+                <div>
                   <textarea
                     name="message"
                     placeholder="Nội dung tin nhắn"
+                    rows="5"
                     value={formData.message}
                     onChange={handleChange}
                     required
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#0071c2] outline-none"
                   ></textarea>
                 </div>
-                <button type="submit" className="send-btn">GỬI TIN NHẮN</button>
+                <button
+                  type="submit"
+                  className="w-full bg-[#0071c2] hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition"
+                >
+                  Gửi tin nhắn
+                </button>
               </form>
-              {status && <p className="form-status">{status}</p>}
+
+              {status && (
+                <p
+                  className={`mt-4 text-center font-medium ${
+                    status.includes("✅") ? "text-green-600" : "text-red-500"
+                  }`}
+                >
+                  {status}
+                </p>
+              )}
             </div>
 
-            <div className="map-container">
+            {/* MAP */}
+            <div className="relative rounded-2xl overflow-hidden shadow-md">
               <iframe
                 title="Bản đồ Luxury Hotel TP.HCM"
                 width="100%"
-                height="100%"
+                height="450"
                 frameBorder="0"
                 style={{ border: 0 }}
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.440559003735!2d106.7052703152609!3d10.775847392321313!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f46fb7b991d%3A0x8a4a9e2b5d9a0a1e!2sLuxury%20Hotel%20Saigon!5e0!3m2!1sen!2s!4v1620000000000!5m2!1sen!2s"
+                src="https://www.openstreetmap.org/export/embed.html?bbox=106.693%2C10.772%2C106.709%2C10.782&layer=mapnik"
                 allowFullScreen=""
                 loading="lazy"
               ></iframe>
-              <div className="location-tags">
-                <span>Quận 1</span>
-                <span>Trung tâm thành phố</span>
-                <span>Gần chợ Bến Thành</span>
-                <span>View sông Sài Gòn</span>
+
+              <div className="absolute bottom-4 left-4 bg-white/90 px-4 py-2 rounded-lg shadow-md text-sm text-[#003580] font-medium space-x-2">
+                <span>📍 Quận 1</span>
+                <span>• Trung tâm thành phố</span>
+                <span>• Gần chợ Bến Thành</span>
               </div>
             </div>
           </div>
-        </section>
-
-        <div className="divider"></div>
-      </div>
-    </div>
+        </div>
+      </section>
+    </>
   );
 }
-
-export default Contact;

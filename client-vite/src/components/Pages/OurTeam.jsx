@@ -33,7 +33,7 @@ function OurTeam() {
               <div className="member-image">
                 <img src="https://res.cloudinary.com/dah1butg2/image/upload/v1744015307/z6481581359593_6096892dcc956b842a339b60c54bd863_ftrmmq.jpg" alt="Team Member 2" />
               </div>
-              <h3 className="member-name">Phạm Lê Hoàng Phương</h3>
+              <h3 className="member-name">Phạm Lê Hoàng Phương GÀ</h3>
               <p className="member-role">Trưởng Culi</p>
               <p className="member-contact">Email: phuongkhung@gmail.com</p>
               <p className="member-contact">Điện thoại: +84 912 345 679</p>

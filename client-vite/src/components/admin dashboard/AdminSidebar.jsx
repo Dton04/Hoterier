@@ -1,48 +1,68 @@
-import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import React from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+// ✅ ĐÃ CẬP NHẬT: Bỏ FiTable, thêm FiMapPin
+import { FiGrid, FiFileText, FiMapPin, FiUsers, FiStar, FiTag, FiServer, FiHome, FiRotateCcw } from 'react-icons/fi';
 
-const menuItems = [
-  { label: "Dashboard", icon: "fas fa-chart-line", path: "/admin/dashboard" },
-  { label: "Đặt phòng", icon: "fas fa-book", path: "/admin/bookings" },
-  { label: "Người dùng và nhân viên", icon: "fas fa-users", path: "/admin/users" },
-  { label: "Khách sạn", icon: "fas fa-hotel", path: "/admin/hotels" },
-  { label: "Dịch vụ khách sạn", icon: "fas fa-concierge-bell", path: "/admin/services" },
-  { label: "Giảm giá", icon: "fas fa-tags", path: "/admin/discounts" },
-  { label: "Đánh giá", icon: "fas fa-star", path: "/admin/reviews" },
-  { label: "Tiện nghi phòng", icon: "fas fa-star", path: "/admin/amenities" },
-];
-
-const AdminSidebar = () => {
+const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const location = useLocation();
+  const { pathname } = location;
+
+  // ✅ ĐÃ CẬP NHẬT MẢNG MENU
+  const menuItems = [
+    { label: "Dashboard", icon: <FiGrid />, path: "/admin/dashboard" },
+    { label: "Đặt phòng", icon: <FiFileText />, path: "/admin/bookings" },
+    { label: "Người dùng & NV", icon: <FiUsers />, path: "/admin/users" },
+    { label: "Khách sạn", icon: <FiHome />, path: "/admin/hotels" },
+    { label: "Dịch vụ khách sạn", icon: <FiServer />, path: "/admin/services" },
+    { label: "Dịch vụ phòng", icon: <FiRotateCcw />, path: "/admin/amenities" },
+    { label: "Giảm giá", icon: <FiTag />, path: "/admin/discounts" },
+    { label: "Đánh giá", icon: <FiStar />, path: "/admin/reviews" },
+    { label: "Khu vực", icon: <FiMapPin />, path: "/admin/regions" }, // Thay thế "Tables"
+  ];
 
   return (
-    <aside className="bg-white border-r border-gray-200 w-64 fixed top-0 left-0 h-screen shadow-sm flex flex-col">
-      {/* Logo */}
-      <div className="h-16 flex items-center px-6 border-b border-gray-200">
-        <h1 className="text-2xl font-bold text-blue-600">HOTELIER</h1>
+    <aside
+      className={`absolute left-0 top-0 z-50 flex h-screen w-64 flex-col overflow-y-hidden bg-white border-r border-gray-200 duration-300 ease-linear lg:static lg:translate-x-0 ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}
+    >
+      {/* LOGO */}
+      <div className="flex items-center justify-between gap-2 px-6 h-[68px] border-b border-gray-200">
+        <NavLink to="/home">
+           <h1 className="text-2xl font-bold text-slate-800">HOTELIER</h1>
+        </NavLink>
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className="block lg:hidden text-gray-500 hover:text-gray-800"
+        >
+          {/* Icon close */}
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
       </div>
 
-      {/* Menu */}
-      <nav className="flex-1 overflow-y-auto p-4">
-        {menuItems.map((item, index) => {
-          const active = location.pathname === item.path;
-          return (
-            <Link
-              key={index}
-              to={item.path}
-              className={`flex items-center gap-3 p-3 rounded-lg mb-1 text-gray-700 font-medium transition 
-                ${active ? "bg-blue-50 text-blue-600" : "hover:bg-gray-100"}`}
-            >
-              <i className={`${item.icon} w-5 text-center`}></i>
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Footer */}
-      <div className="p-4 border-t border-gray-200 text-sm text-gray-500">
-        © {new Date().getFullYear()} Hotelier Admin
+      {/* NAV MENU */}
+      <div className="flex flex-col overflow-y-auto duration-300 ease-linear">
+        <nav className="mt-5 py-4 px-4">
+          <div>
+            <h3 className="mb-4 ml-4 text-sm font-semibold text-gray-400">MENU</h3>
+            <ul className="mb-6 flex flex-col gap-1.5">
+              {menuItems.map((item, index) => (
+                <li key={index}>
+                  <NavLink
+                    to={item.path}
+                    className={`group relative flex items-center gap-3 rounded-md py-2 px-4 font-medium text-gray-600 duration-300 ease-in-out hover:bg-gray-100 ${
+                      // Logic active link đúng hơn
+                      (pathname === item.path || (item.path !== '/admin/dashboard' && pathname.startsWith(item.path))) && 'bg-blue-50 text-blue-600'
+                    }`}
+                  >
+                    {item.icon}
+                    {item.label}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </nav>
       </div>
     </aside>
   );

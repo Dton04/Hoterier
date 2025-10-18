@@ -113,7 +113,7 @@ function BookingForm() {
       "
     >
       {/* Destination */}
-      <div className="relative flex-1 min-w-[200px] border-r border-gray-200">
+      <div className="relative flex-1 min-w-[200px] border-r-[4px] border-[#e0a200] rounded-l-lg">
         <FaMapMarkerAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0071c2] text-lg" />
         <input
           type="text"
@@ -141,7 +141,7 @@ function BookingForm() {
       </div>
 
       {/* Check-in */}
-      <div className="relative flex-1 min-w-[160px] border-r border-gray-200">
+      <div className="relative flex-1 min-w-[160px] border-r-[4px] border-[#e0a200] rounded-l-lg">
         <FaRegCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0071c2] text-lg" />
         <DatePicker
           selected={formData.checkin}
@@ -157,7 +157,7 @@ function BookingForm() {
       </div>
 
       {/* Check-out */}
-      <div className="relative flex-1 min-w-[160px] border-r border-gray-200">
+      <div className="relative flex-1 min-w-[160px] border-r-[4px] border-[#e0a200] rounded-l-lg">
         <FaRegCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0071c2] text-lg" />
         <DatePicker
           selected={formData.checkout}
@@ -174,7 +174,7 @@ function BookingForm() {
 
       {/* Guests & Rooms */}
       <div
-        className="relative flex-1 min-w-[180px] border-r border-gray-200"
+        className="relative flex-1 min-w-[180px] border-r-[4px] border-[#e0a200] rounded-l-lg"
         ref={dropdownRef}
       >
         <FaUserFriends className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0071c2] text-lg" />
@@ -219,7 +219,7 @@ function BookingForm() {
               <button
                 type="button"
                 onClick={() => setOpenGuestDropdown(false)}
-                className="bg-[#0071c2] text-white px-3 py-1 rounded-md text-sm hover:bg-blue-700"
+                className="bg-[#0071c2] text-white px-3 py-1 border-r-[4px] border-[#e0a200] rounded-l-lg text-sm hover:bg-blue-700"
               >
                 Xong
               </button>
@@ -229,12 +229,14 @@ function BookingForm() {
       </div>
 
       {/* Submit */}
+      <div className="">
       <button
         type="submit"
-        className="bg-[#0071c2] text-white font-semibold px-6 h-[54px] rounded-md hover:bg-blue-700 transition text-[17px]"
+        className="bg-[#0071c2] text-white font-semibold px-6 h-[54px]  rounded-r-md hover:bg-blue-700 transition text-[17px] -mr-[2px]"
       >
         Tìm
       </button>
+      </div>
     </form>
   </div>
 );

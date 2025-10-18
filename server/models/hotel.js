@@ -44,6 +44,9 @@ const hotelSchema = new mongoose.Schema({
     default: "Khách sạn hoạt động theo quy định pháp luật Việt Nam, có giấy phép kinh doanh hợp lệ."
   },
 
+  latitude: Number,
+  longitude: Number,
+
   createdAt: {
     type: Date,
     default: Date.now,

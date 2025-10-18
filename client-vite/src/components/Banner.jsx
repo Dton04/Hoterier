@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 
 function Banner() {
   const location = useLocation();
+
   const slides = [
     {
       image:
@@ -26,28 +27,26 @@ function Banner() {
       default:
         return {
           isHome: false,
-          title: "Trang khác",
-          image:
-            "https://primer.com.ph/blog/wp-content/uploads/sites/14/2018/01/1994765_17092711440056840893.jpg",
+          bgColor: "#003580",
         };
     }
   };
 
-  const { isHome, title, image } = getPageContent();
+  // ✅ Lấy luôn bgColor
+  const { isHome, title, bgColor } = getPageContent();
 
-  // 👇 State + Auto slide logic
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
     if (!isHome) return;
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % slides.length);
-    }, 6000); // 6s per slide
+    }, 6000);
     return () => clearInterval(interval);
   }, [isHome]);
 
   return (
-    <section className="relative w-full h-[50vh] mt-[60px] overflow-hidden">
+    <section className="relative w-full h-[50vh] overflow-hidden">
       {isHome ? (
         <div className="relative w-full h-full">
           {slides.map((slide, index) => (
@@ -87,13 +86,12 @@ function Banner() {
           </div>
         </div>
       ) : (
+        // ✅ Trang khác: nền xanh giống navbar
         <div
-          className="relative w-full h-[60vh] bg-cover bg-center"
-          style={{ backgroundImage: `url(${image})` }}
+          className="relative w-full h-[60vh] flex flex-col items-center justify-center text-white text-center"
+          style={{ backgroundColor: bgColor }}
         >
-          <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white text-center">
-            <h1 className="text-4xl md:text-5xl font-bold mb-3">{title}</h1>
-          </div>
+          <h1 className="text-4xl md:text-5xl font-bold mb-3">{title}</h1>
         </div>
       )}
     </section>

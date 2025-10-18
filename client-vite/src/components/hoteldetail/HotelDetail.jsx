@@ -7,6 +7,8 @@ import RoomsTab from "./tabs/RoomsTab";
 import AmenitiesTab from "./tabs/AmenitiesTab";
 import ReviewsTab from "./tabs/ReviewsTab";
 import DiscountTab from "./tabs/DiscountTab";
+import Banner from "../Banner";
+import BookingForm from "../BookingForm";
 
 export default function HotelDetail() {
   const { id } = useParams();
@@ -22,6 +24,8 @@ export default function HotelDetail() {
 
   const roomsRef = useRef(null);
   const reviewsRef = useRef(null);
+
+  
 
   useEffect(() => {
     async function fetchData() {
@@ -59,7 +63,18 @@ export default function HotelDetail() {
   if (!hotel) return <div className="text-center py-10">Đang tải dữ liệu...</div>;
 
   return (
+<>
+      <div className="relative w-full -mt-[290px]">
+        <Banner />
+        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 z-30 w-full max-w-6xl">
+          <div className="w-full max-w-5xl mx-auto flex justify-center">
+            <BookingForm />
+          </div>
+        </div>
+      </div>
+
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-10 mt-10">
+      
       {/* ======= THANH MỤC LỤC ======= */}
       <nav className="sticky top-0 z-40 bg-white shadow-sm border-t mt-10  ">
         <ul className="flex  gap-8 text-sm font-medium text-gray-700 py-3">
@@ -180,6 +195,10 @@ export default function HotelDetail() {
           <OverviewTab hotel={hotel} average={average} reviews={reviews} />
         </div>
       </section>
+       {/* ======= TIỆN NGHI ======= */}
+      <section id="amenities">
+        <AmenitiesTab amenities={amenities} services={services} />
+      </section>
 
       {/* ======= THÔNG TIN & GIÁ ======= */}
       <section id="rooms" ref={roomsRef}>
@@ -192,10 +211,7 @@ export default function HotelDetail() {
         />
       </section>
 
-      {/* ======= TIỆN NGHI ======= */}
-      <section id="amenities">
-        <AmenitiesTab amenities={amenities} services={services} />
-      </section>
+     
 
       {/* ======= QUY TẮC ======= */}
       <section id="rules">
@@ -238,5 +254,6 @@ export default function HotelDetail() {
         </div>
       )}
     </div>
+    </>
   );
 }

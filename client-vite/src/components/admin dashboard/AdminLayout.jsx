@@ -1,17 +1,26 @@
-import React from "react";
-import AdminSidebar from "./AdminSidebar";
-import AdminHeader from "./AdminHeader";
+import React, { useState } from 'react';
+import AdminSidebar from './AdminSidebar';
+import AdminHeader from './AdminHeader';
 
 const AdminLayout = ({ children }) => {
-  return (
-    <div className="flex">
-      {/* Sidebar */}
-      <AdminSidebar />
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-      {/* Main content */}
-      <div className="ml-64 flex-1 flex flex-col min-h-screen bg-gray-50">
-        <AdminHeader />
-        <main className="p-6 md:p-10 flex-1">{children}</main>
+  return (
+    <div className="flex h-screen overflow-hidden bg-slate-50">
+      {/* ===== Sidebar ===== */}
+      <AdminSidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+
+      {/* ===== Content Area ===== */}
+      <div className="relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden">
+        {/* ===== Header ===== */}
+        <AdminHeader sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+
+        {/* ===== Main Content ===== */}
+        <main>
+          <div className="mx-auto max-w-screen-2xl">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

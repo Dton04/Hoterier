@@ -1,222 +1,145 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Container, Row, Col, Card, Button, Badge, Spinner, Alert } from "react-bootstrap";
-import { FaMapMarkerAlt, FaStar } from "react-icons/fa";
+import Loader from "../components/Loader";
+import Banner from "../components/Banner";
+import BookingForm from "../components/BookingForm";
 
-
-function FestivalHotels() {
+export default function FestivalHotels() {
   const { id } = useParams();
   const [festival, setFestival] = useState(null);
-  const [hotels, setHotels] = useState([]);
   const [regions, setRegions] = useState([]);
-  const [selectedRegion, setSelectedRegion] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  // Xác định ảnh hiệu ứng theo mùa
-  const getEffectByFestival = (name = "") => {
-    const lower = name.toLowerCase();
-    if (lower.includes("đông")) return "/images/snowing.gif";
-    if (lower.includes("hè")) return "/images/sunlight.gif";
-    if (lower.includes("thu")) return "/images/leaves.gif";
-    if (lower.includes("xuân")) return "/images/cherry.gif";
-    return "/images/snowing.gif"; // mặc định
-  };
-
-  // Lấy thông tin lễ hội + khách sạn + khu vực
   useEffect(() => {
     const fetchFestivalHotels = async () => {
       try {
         const { data } = await axios.get(`/api/discounts/${id}/festival-hotels`);
         setFestival(data.festival);
-        setHotels(data.hotels);
-      } catch (error) {
-        console.error("Lỗi khi tải danh sách lễ hội:", error);
-        setError("Không thể tải dữ liệu lễ hội. Vui lòng thử lại sau.");
+
+        // Gom nhóm khách sạn theo khu vực và lấy giá thấp nhất sau giảm
+        const groupedByRegion = {};
+        data.hotels.forEach((hotel) => {
+          const regionName = hotel.region?.name || "Khu vực khác";
+          if (!groupedByRegion[regionName]) {
+            groupedByRegion[regionName] = {
+              regionId: hotel.region?._id,
+              image: hotel.imageurls?.[0],
+              lowestPrice: Infinity,
+              count: 0,
+            };
+          }
+          const regionData = groupedByRegion[regionName];
+          const hotelLowest = Math.min(...hotel.rooms.map((r) => r.discountedPrice));
+          regionData.lowestPrice = Math.min(regionData.lowestPrice, hotelLowest);
+          regionData.count += 1;
+        });
+
+        const regionList = Object.entries(groupedByRegion).map(([name, info]) => ({
+          name,
+          ...info,
+        }));
+        setRegions(regionList);
+      } catch (err) {
+        console.error("Lỗi khi tải ưu đãi lễ hội:", err);
       } finally {
         setLoading(false);
       }
     };
-
-    const fetchRegions = async () => {
-      try {
-        const { data } = await axios.get("/api/regions");
-        setRegions(data);
-      } catch (err) {
-        console.error("Lỗi khi tải khu vực:", err);
-      }
-    };
-
     fetchFestivalHotels();
-    fetchRegions();
   }, [id]);
 
-  // Lọc khách sạn theo khu vực
-  const filteredHotels = selectedRegion
-    ? hotels.filter((h) => h.region?._id === selectedRegion)
-    : hotels;
-
-  // Lấy giá thấp nhất đã giảm trong danh sách phòng
-  const getLowestDiscountedPrice = (hotel) => {
-  if (!hotel.rooms || hotel.rooms.length === 0) return 0;
-  return Math.min(...hotel.rooms.map(r => r.discountedPrice || r.rentperday || 0));
-};
-
-
-
-
-  const formatPrice = (price) => {
-    return price?.toLocaleString("vi-VN", { style: "currency", currency: "VND" }) || "0 VND";
-  };
-
-  const handleViewDetails = (hotel) => {
-    if (!festival) {
-      alert("Dữ liệu lễ hội chưa sẵn sàng, vui lòng thử lại!");
-      return;
-    }
-
-    navigate(`/hotel/${hotel._id}`, {
-      state: {
-        festival: {
-          _id: festival._id,
-          name: festival.name,
-          discountType: festival.discountType,
-          discountValue: festival.discountValue,
-        },
-      },
-    });
-  };
-
-  if (loading) {
-    return (
-      <Container className="text-center my-5">
-        <Spinner animation="border" variant="primary" />
-        <p className="mt-3">Đang tải ưu đãi...</p>
-      </Container>
-    );
-  }
-
-  if (error) {
-    return (
-      <Container className="my-5">
-        <Alert variant="danger">{error}</Alert>
-      </Container>
-    );
-  }
-
-  const effectImage = getEffectByFestival(festival?.name);
+  if (loading) return <Loader message="Đang tải ưu đãi..." />;
 
   return (
-    <div className="festival-page">
-      {/* Banner lễ hội */}
-      <div className="festival-banner position-relative text-center">
-        <img src={effectImage} alt="festival effect" className="festival-effect" />
-        <div className="festival-overlay">
-          <h1 className="festival-title">{festival?.name}</h1>
-          <p className="festival-description">{festival?.description}</p>
-          <Badge bg="danger" className="festival-discount-badge">
-            Giảm{" "}
-            {festival?.discountType === "percentage"
-              ? `${festival.discountValue}%`
-              : formatPrice(festival.discountValue)}
-          </Badge>
-        </div>
-      </div>
+    <div className="font-outfit bg-gray-50 text-gray-800">
+      {/* 🟦 Banner dạng đặc biệt cho ưu đãi */}
+      <section className="relative w-full h-[75vh] flex flex-col items-center justify-center text-white overflow-hidden">
+        {/* Ảnh nền */}
+        <img
+          src={
+            festival?.image ||
+            "https://static.vecteezy.com/system/resources/previews/021/984/534/large_2x/cat-with-sunglasses-chilling-on-the-beach-vacation-holiday-mood-relax-sand-and-sea-blue-sky-travel-generative-ai-photo.jpg"
+          }
+          alt="Festival"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
 
-      {/* Khu vực và khách sạn */}
-      <Container className="py-5">
-        <h2 className="text-center mb-4 fw-bold">Chọn khu vực</h2>
-        <div className="region-filter mb-5 text-center">
-          <Button
-            variant={selectedRegion === null ? "primary" : "outline-primary"}
-            className="region-button mx-2"
-            onClick={() => setSelectedRegion(null)}
-          >
-            Tất cả
-          </Button>
-          {regions.map((r) => (
-            <Button
-              key={r._id}
-              variant={selectedRegion === r._id ? "primary" : "outline-primary"}
-              className="region-button mx-2"
-              onClick={() => setSelectedRegion(r._id)}
-            >
-              {r.name}
-            </Button>
-          ))}
+        {/* Overlay màu gradient */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/80"></div>
+
+        {/* Text trung tâm */}
+        <div className="relative z-10 text-flex px-4 ">
+          <h2 className="text-xl md:text-2xl font-light mb-2">
+            Ưu Đãi Cuối Năm
+          </h2>
+          <h1 className="text-5xl md:text-6xl font-extrabold mb-3">
+            Đón Giờ Vàng
+          </h1>
+          <p className="text-lg md:text-xl opacity-90 mb-4">
+            Tiết kiệm {festival?.discountValue}
+            {festival?.discountType === "percentage" ? "%" : "₫"} trở lên khi lưu trú
+            trước ngày 7 tháng 1 năm 2026
+          </p>
+          <div className="mt-2 text-sm text-gray-200">
+            Đã bao gồm <span className="font-semibold">Ưu Đãi Cuối Năm</span> trong
+            tìm kiếm
+          </div>
         </div>
 
-        <h3 className="text-center mb-5 fw-bold">
-          {selectedRegion
-            ? `Khách sạn tại ${regions.find((r) => r._id === selectedRegion)?.name}`
-            : "Tất cả khách sạn trong lễ hội"}
-        </h3>
+        {/* Booking Form nổi ở giữa giống Booking.com */}
+        <div className="absolute bottom-[40px] text-black left-1/2 -translate-x-1/2 z-20 w-full max-w-6xl">
+          <BookingForm />
+        </div>
+      </section>
 
-        <Row xs={1} md={2} lg={3} className="g-4">
-          {filteredHotels.length > 0 ? (
-            filteredHotels.map((hotel) => (
-              <Col key={hotel._id}>
-                <Card className="hotel-card h-100 shadow-sm border-0">
-                  <div className="position-relative">
-                    <Card.Img
-                      variant="top"
-                      src={hotel.imageurls?.[0] || "/default-hotel.jpg"}
-                      alt={hotel.name}
-                      className="hotel-image"
-                      onClick={() => handleViewDetails(hotel)}
-                    />
-                    <Badge bg="danger" className="discount-badge">
-                      {festival?.discountType === "percentage"
-                        ? `-${festival.discountValue}%`
-                        : `-${formatPrice(festival.discountValue)}`}
-                    </Badge>
+      {/* 🟩 Danh sách khu vực có ưu đãi */}
+      <section className="py-20 bg-white mt-20">
+        <div className="max-w-6xl mx-auto px-4">
+          <h2 className="text-3xl font-bold text-[#003580] mb-10 text-center">
+            Điểm đến hàng đầu có ưu đãi
+          </h2>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {regions.map((region) => (
+              <div
+                key={region.name}
+                onClick={() =>
+                  navigate(
+                    `/room-results?destination=${region.regionId}&festival=${id}`
+                  )
+                }
+                className="cursor-pointer bg-white rounded-2xl shadow-md hover:shadow-lg transform hover:-translate-y-1 transition overflow-hidden"
+              >
+                <div className="relative">
+                  <img
+                    src={region.image || "/images/default-region.jpg"}
+                    alt={region.name}
+                    className="w-full h-52 object-cover"
+                  />
+                  <div className="absolute top-3 left-3 bg-green-600 text-white text-xs font-semibold px-3 py-1 rounded-full shadow">
+                    {region.count} Ưu Đãi Cuối Năm
                   </div>
-                  <Card.Body className="d-flex flex-column">
-                    <Card.Title className="hotel-title">{hotel.name}</Card.Title>
-                    <Card.Text className="hotel-address">
-                      <FaMapMarkerAlt className="me-2" />
-                      {hotel.address}
-                    </Card.Text>
-                    <div className="hotel-rating mb-3">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <FaStar
-                          key={i}
-                          className={i < Math.round(hotel.rating || 4) ? "text-warning" : "text-muted"}
-                        />
-                      ))}
-                      <span className="ms-2">({hotel.rating || 4.0})</span>
-                    </div>
-                    <div className="hotel-prices mt-auto">
-                      <span className="original-price">{formatPrice(hotel.rooms?.[0]?.rentperday)}</span>
-                      <span className="discounted-price">
-                        Chỉ từ <strong>{formatPrice(getLowestDiscountedPrice(hotel))}</strong>/đêm
-                      </span>
+                </div>
 
-                    </div>
-                    <Button
-                      variant="primary"
-                      className="view-details-button mt-3"
-                      onClick={() => handleViewDetails(hotel)}
-                    >
-                      Xem chi tiết
-                    </Button>
-                  </Card.Body>
-                </Card>
-              </Col>
-            ))
-          ) : (
-            <Col>
-              <Alert variant="info" className="text-center">
-                Không tìm thấy khách sạn nào trong khu vực này.
-              </Alert>
-            </Col>
-          )}
-        </Row>
-      </Container>
+                <div className="p-4 text-center">
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    {region.name}
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Từ{" "}
+                    <span className="font-semibold text-green-700">
+                      VND {region.lowestPrice.toLocaleString()}
+                    </span>{" "}
+                    mỗi đêm
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
-
-export default FestivalHotels;

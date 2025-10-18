@@ -1,198 +1,153 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { Provider } from 'react-redux';
 import store from './redux/store';
+
+// Import Layouts
+import AdminLayout from "./components/admin dashboard/AdminLayout";
 import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+
+// Import Screens & Components
 import Homescreen from "./screens/Homescreen";
-import Rooms from "./components/Rooms";
+
 import Bookingscreen from "./screens/Bookingscreen";
 import OurTeam from "./components/Pages/OurTeam";
-
 import Contact from "./components/Contact";
-
-import Footer from "./components/Footer";
 import Registerscreen from "./screens/Auth/Registerscreen";
 import LoginScreen from "./screens/Auth/Loginscreen";
-import StaffManagement from "./components/StaffManagement";
-import UserStaffManagement from "./components/UserStaffManagement";
 import HistoryBookings from "./components/HistoryBookings";
-import UserStats from "./components/UserStats";
-import AdminBookings from "./components/AdminBookings";
-import BookingList from "./components/BookingList";
-import BookingForm from "./components/BookingForm";
-import AdminDashboard from "./screens/AdminDashboard"
-import CreateRoomForm from "./components/CreateRoomForm";
-import EditRoomForm from "./components/EditRoomForm";
 import ProfileManagement from "./components/ProfileManagement";
 import GoogleCallBack from "./screens/Auth/GoogleCallBack";
 import FacebookCallBack from "./screens/Auth/FacebookCallBack";
 import Membership from "./components/Membership";
-import AdminDiscounts from "./components/AdminDiscounts";
 import RoomResults from "./components/RoomResults";
-import HotelManagement from "./components/HotelManagement";
-import HotelRoomManagement from "./components/HotelRoomManagement";
 import Rewards from "./components/Rewards";
 import VNPaySuccess from "./components/VNPaySuccess";
-import ServiceManagement from "./components/ServiceManagement";
 import VerifyOTP from "./screens/Auth/VerifyOTP";
-
 import PointsPage from './components/PointsPage';
-import ReviewManagement from './components/ReviewManagement';
 import Favorites from './components/Favorites';
-import AdminRewards from "./components/AdminRewards";
-
-
-
-
-import AdminRegions from "./components/AdminRegions";
-
-import Review from "./screens/Review";
-
-import DiscountsPage from "./screens/DiscountsPage"
-import FestivalHotels from "./screens/FestivalHotels";
-import AdminAmenities from "./components/AdminAmenities";
 import HotelDetail from "./components/hoteldetail/HotelDetail";
+import Review from "./screens/Review";
+import DiscountsPage from "./screens/DiscountsPage";
+import FestivalHotels from "./screens/FestivalHotels";
 
-// Component bảo vệ route cho admin
+// Import Admin Screens
+import AdminDashboard from "./components/GUI admin/Dashboards/AdminDashboard";
+import UserStaffManagement from "./components/GUI admin/Users/UserStaffManagement";
+
+import AdminBookings from "./components/GUI admin/Bookings/AdminBookings";
+import HotelManagement from "./components/GUI admin/Hotels/HotelManagement";
+import HotelRoomManagement from "./components/HotelRoomManagement";
+import ServiceManagement from "./components/GUI admin/Hotels/ServiceManagement";
+import AdminDiscounts from "./components/GUI admin/Discounts/AdminDiscounts";
+import AdminRewards from "./components/GUI admin/Discounts/AdminRewards";
+import ReviewManagement from "./components/GUI admin/Bookings/ReviewManagement";
+import AdminRegions from "./components/GUI admin/Regions/AdminRegions";
+import AdminAmenities from "./components/AdminAmenities";
+import CreateRoomForm from "./components/CreateRoomForm";
+import EditRoomForm from "./components/EditRoomForm";
+
+// --- CÁC COMPONENT BẢO VỆ ROUTE (Sử dụng logic của file gốc) ---
 const AdminRoute = ({ children }) => {
   const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+  // Sử dụng logic kiểm tra 'isAdmin' cho tương thích
   return userInfo && userInfo.isAdmin ? children : <Navigate to="/" replace />;
 };
 
-// Component bảo vệ route cho admin và nhân viên
 const ProtectedRoute = ({ children }) => {
   const userInfo = JSON.parse(localStorage.getItem("userInfo"));
-  return userInfo && (userInfo.role === "admin" || userInfo.role === "staff") ? children : <Navigate to="/" replace />;
+  // Giữ lại logic kiểm tra 'role' cho staff nếu cần
+  return userInfo && (userInfo.isAdmin || userInfo.role === "staff") ? children : <Navigate to="/" replace />;
 };
 
-// Component bảo vệ route cho người dùng đã đăng nhập
 const UserRoute = ({ children }) => {
   const userInfo = JSON.parse(localStorage.getItem("userInfo"));
   return userInfo ? children : <Navigate to="/login" replace />;
 };
 
+
+// --- CÁC COMPONENT WRAPPER CHO LAYOUT ---
+
+// Layout cho người dùng (có Navbar và Footer)
+const UserLayout = () => (
+  <>
+    <Navbar />
+    {/* Outlet là nơi các trang con của người dùng sẽ hiển thị */}
+    <main className="pt-[68px]"> {/* Padding top để nội dung không bị Navbar che */}
+      <Outlet />
+    </main>
+    <Footer />
+  </>
+);
+
+// Layout cho Admin (chỉ có AdminLayout)
+const AdminLayoutWrapper = () => (
+    <AdminRoute>
+        <AdminLayout>
+            <Outlet /> {/* Các trang con của admin sẽ hiển thị ở đây */}
+        </AdminLayout>
+    </AdminRoute>
+);
+
+
 function App() {
   return (
     <Provider store={store}>
       <Router>
-        <div className="App">
-        <Navbar />
         <Routes>
-          <Route path="/home" element={<Homescreen />} />
-          <Route path="/rooms" element={<Rooms />} />
+          {/* === CÁC ROUTE CỦA NGƯỜI DÙNG === */}
+          {/* Các route này sẽ tự động có Navbar và Footer */}
+          <Route element={<UserLayout />}>
+            <Route path="/" element={<Homescreen />} />
+            <Route path="/home" element={<Homescreen />} />
 
-          <Route path="/room-results" element={<RoomResults />} />
-          <Route path="/book-room/:roomId" element={<Bookingscreen />} />
-          <Route path="/book/:roomid" element={<Bookingscreen />} />
-          <Route path="/ourteam" element={<OurTeam />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/" element={<Homescreen />} />
-          <Route path="/login" element={<LoginScreen />} />
-          <Route path="/register" element={<Registerscreen />} />
-          <Route path="/bookings" element={<UserRoute><HistoryBookings /></UserRoute>} />
-          <Route path="/auth/google/callback" element={<GoogleCallBack />} />
-          <Route path="/auth/facebook/callback" element={<FacebookCallBack />} />
-          <Route path="/stats" element={<UserRoute><UserStats /></UserRoute>} />
-          <Route path="/booking-list" element={<UserRoute><BookingList /></UserRoute>} />
-          <Route path="/booking-form" element={<BookingForm />} />
-          <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-          <Route path="/admin/createroom" element={<AdminRoute><CreateRoomForm /></AdminRoute>} />
-          <Route path="/admin/editroom/:id" element={<AdminRoute><EditRoomForm /></AdminRoute>} />
-          <Route path="/membership" element={<UserRoute><Membership /></UserRoute>} />
-          <Route path="/admin/discounts" element={<AdminRoute><AdminDiscounts /></AdminRoute>} />
-          <Route path="/admin/hotels" element={<AdminRoute><HotelManagement /></AdminRoute>} />
-          <Route path="/admin/hotel/:hotelId/rooms" element={<AdminRoute><HotelRoomManagement /></AdminRoute>} />
-          <Route path="/admin/regions" element={<AdminRoute><AdminRegions/></AdminRoute>}/>
+            <Route path="/room-results" element={<RoomResults />} />
+            <Route path="/book/:roomid" element={<Bookingscreen />} />
+            <Route path="/ourteam" element={<OurTeam />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/login" element={<LoginScreen />} />
+            <Route path="/register" element={<Registerscreen />} />
+            <Route path="/auth/google/callback" element={<GoogleCallBack />} />
+            <Route path="/auth/facebook/callback" element={<FacebookCallBack />} />
+            <Route path="/booking-success" element={<VNPaySuccess />} />
+            <Route path="/hotel/:id" element={<HotelDetail />} />
+            <Route path="/festival/:id" element={<FestivalHotels />} />
+            <Route path="/discounts" element={<DiscountsPage />} />
+            <Route path="/verify-otp" element={<VerifyOTP />} />  
 
-          <Route path="/rewards" element={<UserRoute><Rewards /></UserRoute>} />
-          <Route path="/points" element={<PointsPage />} />
-          <Route path="/admin/reviews" element={<ReviewManagement />} />
-          <Route path="/favorites" element={<Favorites />} />
-
-          <Route path="/booking-success" element={<VNPaySuccess />} />
-          <Route path="/admin/rewards" element={<AdminRewards />} />
-          <Route path="/hotel/:id" element={<HotelDetail />} />
-          <Route path="/festival/:id" element={<FestivalHotels />} />
-          <Route path="/discounts" element={<DiscountsPage />} />
-          <Route path="/verify-otp" element={<VerifyOTP />} />  
-
-          
-           <Route
-            path="/reviews"
-            element={
-              <UserRoute>
-                <Review />
-              </UserRoute>
-            }
-          />
+            {/* Các route cần đăng nhập của người dùng */}
+            <Route path="/bookings" element={<UserRoute><HistoryBookings /></UserRoute>} />
+            <Route path="/profile" element={<UserRoute><ProfileManagement /></UserRoute>} />
+            <Route path="/membership" element={<UserRoute><Membership /></UserRoute>} />
+            <Route path="/rewards" element={<UserRoute><Rewards /></UserRoute>} />
+            <Route path="/points" element={<UserRoute><PointsPage /></UserRoute>} />
+            <Route path="/favorites" element={<UserRoute><Favorites /></UserRoute>} />
+            <Route path="/reviews" element={<UserRoute><Review /></UserRoute>} />
+          </Route>
 
 
-
-          <Route
-            path="/admin"
-            element={
-              <AdminRoute>
-                <AdminDashboard />
-              </AdminRoute>
-            }
-          />
-
-
-          <Route
-            path="/admin/staffmanagement"
-            element={
-              <AdminRoute>
-                <StaffManagement />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/bookings"
-            element={
-              <AdminRoute>
-                <AdminBookings />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/users"
-            element={
-              <ProtectedRoute>
-                <UserStaffManagement />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <UserRoute>
-                <ProfileManagement />
-              </UserRoute>
-            }
-          />
-          <Route
-            path="/admin/services"
-            element={
-              <AdminRoute>
-                <ServiceManagement />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/regions"
-            element={
-              <AdminRoute>
-                <AdminRegions />
-              </AdminRoute>
-            }
-          />
-
-          <Route path="/admin/amenities" element={<AdminRoute> <AdminAmenities/></AdminRoute>}></Route>
-
+          {/* === CÁC ROUTE CỦA ADMIN === */}
+          {/* Các route này sẽ tự động có AdminLayout */}
+          <Route path="/admin" element={<AdminLayoutWrapper />}>
+              <Route index element={<AdminDashboard />} /> {/* Trang mặc định khi vào /admin */}
+              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="users" element={<UserStaffManagement />} />
+    
+              <Route path="bookings" element={<AdminBookings />} />
+              <Route path="hotels" element={<HotelManagement />} />
+              <Route path="hotel/:hotelId/rooms" element={<HotelRoomManagement />} />
+              <Route path="services" element={<ServiceManagement />} />
+              <Route path="discounts" element={<AdminDiscounts />} />
+              <Route path="rewards" element={<AdminRewards />} />
+              <Route path="reviews" element={<ReviewManagement />} />
+              <Route path="regions" element={<AdminRegions />} />
+              <Route path="amenities" element={<AdminAmenities />} />
+              <Route path="createroom" element={<CreateRoomForm />} />
+              <Route path="editroom/:id" element={<EditRoomForm />} />
+          </Route>
         </Routes>
-        <Footer />
-      </div>
-    </Router>
+      </Router>
     </Provider>
   );
 }
