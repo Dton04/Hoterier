@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Banner from "../components/Banner";
+import Loader from "../components/Loader";
 import { useNavigate } from "react-router-dom";
 
 function DiscountsPage() {
@@ -60,6 +61,7 @@ function DiscountsPage() {
 
   return (
     <>
+    {loading && <Loader message="Đang tải dữ liệu.."/>}
       <div className="relative w-full -mt-[260px]">
         {/* Banner */}
         <Banner />

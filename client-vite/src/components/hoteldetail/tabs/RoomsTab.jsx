@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { User, CheckCircle2, XCircle, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
@@ -8,6 +9,7 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
    const [selectedRoom, setSelectedRoom] = useState(null);
    const [quantities, setQuantities] = useState({});
    const [currentImage, setCurrentImage] = useState(0);
+   const navigate = useNavigate();
 
    if (rooms.length === 0)
       return <p className="text-gray-600">Hiện khách sạn chưa có phòng nào.</p>;
@@ -161,8 +163,19 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
                <button
                   onClick={() => {
                      const selected = rooms.filter((r) => (quantities[r._id] || 0) > 0);
-                     onRoomSelected && onRoomSelected(selected);
-                     alert(`Bạn đã chọn ${selected.length} loại phòng để đặt.`);
+                     if (selected.length === 0) return;
+                     const selectedRoom = selected[0];
+
+                     // Điều hướng sang trang Bookingscreen
+                     navigate(`/book/${selectedRoom._id}`, {
+                        state: {
+                           room: selectedRoom,
+                           checkin: localStorage.getItem("checkin") || null,
+                           checkout: localStorage.getItem("checkout") || null,
+                           adults: localStorage.getItem("adults") || 2,
+                           children: localStorage.getItem("children") || 0,
+                        },
+                     });
                   }}
                   className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition"
                >
@@ -170,6 +183,7 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
                </button>
             </div>
          )}
+
 
          {/* Modal chi tiết */}
          <AnimatePresence>

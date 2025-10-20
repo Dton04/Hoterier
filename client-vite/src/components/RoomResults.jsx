@@ -50,6 +50,10 @@ const RoomResults = ({ rooms = [] }) => {
 
   const navigate = useNavigate();
 
+  // Kéo lên dầu trang
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [location.search]);
   // 📦 Lấy dữ liệu ban đầu
   useEffect(() => {
     fetchRegions();
@@ -287,38 +291,50 @@ const RoomResults = ({ rooms = [] }) => {
 
   return (
     <>
-      <div className="relative w-full -mt-[290px]">
-        <Banner />
-        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 z-30 w-full max-w-6xl">
-          <div className="w-full max-w-6xl mx-auto flex justify-center">
-            <BookingForm />
-          </div>
-        </div>
+      {/* ==== BANNER + BOOKING FORM ==== */}
+    <div className="relative w-full -mt-[260px] sm:-mt-[290px]">
+      <Banner />
+
+      {/* BookingForm nổi ở desktop */}
+      <div
+        className="
+          hidden sm:block
+          absolute left-1/2 -translate-x-1/2 bottom-[-30px]
+          w-full max-w-6xl px-4 z-30
+        "
+      >
+        <BookingForm />
       </div>
+    </div>
+
+    {/* BookingForm riêng cho mobile */}
+    <div className="block sm:hidden px-4 relative z-20">
+      <BookingForm />
+    </div>
 
 
 
 
 
       {/* 🏨 Kết quả tìm kiếm */}
-      <section className="bg-gray-50 py-10">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-8 ">
+      <section className="bg-gray-50 sm:py-10 mt-4">
+         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6 sm:gap-8 px-4 sm:px-0">
 
           {/* SIDEBAR */}
-          <aside className="bg-white rounded-xl shadow-md sticky top-24 h-fit p-3">
-            <h3 className="text-xl font-semibold text-[#003580] mb-4">
-              Bộ lọc tìm kiếm
-            </h3>
+          <aside className="hidden lg:block bg-white rounded-xl shadow-md sticky top-24 h-fit p-4 col-span-1 mr-4 w-[105%]">
+          <h3 className="text-xl font-semibold text-[#003580] mb-4">
+            Bộ lọc tìm kiếm
+          </h3>
 
             {/* 🗺️ Bản đồ khu vực */}
             <div className="border-b pb-4 mb-4">
 
               <div className="h-60 w-70 rounded-lg overflow-hidden relative border">
                 <MapContainer
-                  center={[10.7769, 106.7009]} // Vị trí mặc định
+                  center={[10.7769, 106.7009]} 
                   zoom={12}
                   scrollWheelZoom={false}
-                  className="h-full w-full z-0" // đảm bảo map ở dưới
+                  className="h-full w-full z-0" 
                 >
                   <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -490,206 +506,216 @@ const RoomResults = ({ rooms = [] }) => {
           </aside>
 
           {/* RESULTS */}
-          <div className="lg:col-span-3 space-y-4">
-            <div className="flex justify-between items-center">
-              <p className="text-gray-600 text-sm">
-                {filteredHotels.length} chỗ nghỉ phù hợp
-              </p>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="border border-gray-300 rounded-lg p-2 text-gray-600"
+        <div className="lg:col-span-3 space-y-4">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 sm:gap-0">
+            <p className="text-gray-600 text-sm text-center sm:text-left">
+              {filteredHotels.length} chỗ nghỉ phù hợp
+            </p>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="border border-gray-300 rounded-lg p-2 text-gray-600 w-full sm:w-auto"
+            >
+              <option value="recommended">Đề xuất</option>
+              <option value="priceLow">Giá thấp → cao</option>
+              <option value="priceHigh">Giá cao → thấp</option>
+              <option value="rating">Điểm đánh giá cao nhất</option>
+            </select>
+          </div>
+
+          {/* Hiển thị kết quả */}
+          {loading ? (
+            <Loader message="Đang tải kết quả..." />
+          ) : filteredHotels.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">
+              Không tìm thấy khách sạn phù hợp.
+            </p>
+          ) : (
+            filteredHotels.map((hotel) => (
+              <div
+                key={hotel._id}
+                onClick={() => navigate(`/hotel/${hotel._id}`)}
+                className="
+                  bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition cursor-pointer
+                  flex flex-col md:flex-row
+                "
               >
-                <option value="recommended">Đề xuất</option>
-                <option value="priceLow">Giá thấp → cao</option>
-                <option value="priceHigh">Giá cao → thấp</option>
-                <option value="rating">Điểm đánh giá cao nhất</option>
-              </select>
-            </div>
+                {/* Ảnh */}
+                <div className="relative md:w-1/3 h-48 sm:h-56 m-3 sm:m-4 overflow-hidden rounded-md">
+                  <img
+                    src={hotel.imageurls?.[0] || "/images/default-hotel.jpg"}
+                    alt={hotel.name}
+                    className="w-full h-full object-cover hover:scale-105 transition"
+                  />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavorite(hotel._id);
+                    }}
+                    className="absolute top-3 right-3 bg-white/80 hover:bg-white rounded-full p-2 shadow-md"
+                  >
+                    {favorites.includes(hotel._id) ? (
+                      <FaHeart className="text-red-500 text-lg scale-110" />
+                    ) : (
+                      <FaRegHeart className="text-gray-400 text-lg" />
+                    )}
+                  </button>
+                </div>
 
-            {loading ? (
-              <Loader message="Đang tải kết quả..." />
-            ) : filteredHotels.length === 0 ? (
-              <p className="text-gray-500">Không tìm thấy khách sạn phù hợp.</p>
-            ) : (
-              filteredHotels.map((hotel) => (
-                <div
-                  key={hotel._id}
-                  onClick={() => navigate(`/hotel/${hotel._id}`)}
-                  className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition cursor-pointer flex flex-col md:flex-row"
-                >
-                  <div className="relative md:w-1/3 h-56 m-4 overflow-hidden rounded-md">
-                    <img
-                      src={hotel.imageurls?.[0] || "/images/default-hotel.jpg"}
-                      alt={hotel.name}
-                      className="w-full h-full object-cover hover:scale-105 transition"
-                    />
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFavorite(hotel._id);
-                      }}
-                      className="absolute top-3 right-3 bg-white/80 hover:bg-white rounded-full p-2 shadow-md"
-                    >
-                      <FaHeart className={`text-lg transition-transform ${favorites.includes(hotel._id)
-                        ? "text-red-500 scale-110"
-                        : "text-gray-400 scale-100"
-                        }`} />
+                {/* Nội dung */}
+                <div className="flex-1 p-4 sm:p-5 flex flex-col justify-between">
+                  {/* Thông tin chính */}
+                  <div className="flex flex-col md:flex-row justify-between gap-3 sm:gap-4">
+                    {/* Tên + mô tả */}
+                    <div className="flex-1">
+                      <h3 className="text-lg sm:text-2xl font-semibold text-[#003580]">
+                        {hotel.name}
+                      </h3>
+                      <p className="text-sm text-gray-600">{hotel.address}</p>
 
-                    </button>
-                  </div>
+                      <div className="flex items-center mt-1">
+                        {[...Array(hotel.starRating)].map((_, i) => (
+                          <FaStar key={i} className="text-yellow-400 text-xs sm:text-sm" />
+                        ))}
+                      </div>
 
-
-                  {/* THÔNG TIN KHÁCH SẠN + PHÒNG + GIÁ */}
-                  <div className="flex-1 p-5 flex flex-col justify-between">
-                    {/* THÔNG TIN CHÍNH */}
-                    <div className="flex flex-col lg:flex-row justify-between gap-4">
-                      {/* TRÁI: Tên & Phòng */}
-                      <div className="flex-1">
-                        <h3 className="text-2xl font-semibold text-[#003580]">
-                          {hotel.name}
-                        </h3>
-                        <p className="text-sm text-gray-600">{hotel.address}</p>
-
-                        <div className="flex items-center mt-1">
-                          {[...Array(hotel.starRating)].map((_, i) => (
-                            <FaStar key={i} className="text-yellow-400 text-sm" />
+                      {/* Phòng hiển thị */}
+                      {hotel.rooms?.length > 0 && (
+                        <div className="mt-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                          {hotel.rooms.slice(0, 1).map((room, idx) => (
+                            <div key={idx}>
+                              <p className="font-semibold text-[#003580] text-sm sm:text-[15px]">
+                                {room.name}
+                              </p>
+                              <p className="text-gray-600 text-xs sm:text-sm mt-1">
+                                {room.beds ? `${room.beds} giường • ` : ""}
+                                {room.baths ? `${room.baths} phòng tắm` : ""}
+                              </p>
+                              <ul className="text-green-600 text-xs sm:text-sm mt-1 space-y-0.5">
+                                <li>✔ Miễn phí hủy</li>
+                                <li>✔ Thanh toán tại chỗ nghỉ</li>
+                              </ul>
+                            </div>
                           ))}
                         </div>
+                      )}
+                    </div>
 
-
-                        {/* Phòng hiển thị */}
-                        {hotel.rooms?.length > 0 && (
-                          <div className="mt-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                            {hotel.rooms.slice(0, 1).map((room, idx) => (
-                              <div key={idx}>
-                                <p className="font-semibold text-[#003580] text-[15px]">
-                                  {room.name}
-                                </p>
-                                <p className="text-gray-600 text-sm mt-1">
-                                  {room.beds ? `${room.beds} giường • ` : ""}
-                                  {room.baths ? `${room.baths} phòng tắm` : ""}
-                                </p>
-                                <ul className="text-green-600 text-sm mt-1 space-y-0.5">
-                                  <li>✔ Miễn phí hủy</li>
-                                  <li>✔ Không cần thanh toán trước – thanh toán tại chỗ nghỉ</li>
-                                </ul>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* PHẢI: Đánh giá ở trên, giá & nút ở dưới */}
-                      <div className="flex flex-col items-end text-right min-w-[220px]">
-                        {/* 🔹 Đánh giá trung bình ở trên */}
-                        {averageRatings[hotel._id]?.average ? (
-                          <div className="flex flex-col items-end mb-2">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`px-2 py-1 rounded-md font-semibold text-sm text-white ${averageRatings[hotel._id].average >= 9
-                                  ? "bg-[#003580]" // Tuyệt hảo
+                    {/* Giá và đánh giá */}
+                    <div className="flex flex-col items-end text-right min-w-[160px] sm:min-w-[220px]">
+                      {averageRatings[hotel._id]?.average ? (
+                        <div className="flex flex-col items-end mb-2">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`px-2 py-1 rounded-md font-semibold text-xs sm:text-sm text-white ${
+                                averageRatings[hotel._id].average >= 9
+                                  ? "bg-[#003580]"
                                   : averageRatings[hotel._id].average >= 8
-                                    ? "bg-[#4CAF50]" // Rất tốt
-                                    : averageRatings[hotel._id].average >= 7
-                                      ? "bg-[#8BC34A]" // Tốt
-                                      : "bg-gray-400" // Khá trở xuống
-                                  }`}
-                              >
-                                {averageRatings[hotel._id].average.toFixed(1)}
-                              </span>
-                              <span className="text-gray-700 font-medium text-sm">
-                                {averageRatings[hotel._id].average >= 9
-                                  ? "Tuyệt hảo"
-                                  : averageRatings[hotel._id].average >= 8
-                                    ? "Rất tốt"
-                                    : averageRatings[hotel._id].average >= 7
-                                      ? "Tốt"
-                                      : "Khá"}
-                              </span>
-                            </div>
-                            <span className="text-xs text-gray-500 mt-0.5">
-                              {averageRatings[hotel._id].totalReviews} đánh giá
+                                  ? "bg-[#4CAF50]"
+                                  : averageRatings[hotel._id].average >= 7
+                                  ? "bg-[#8BC34A]"
+                                  : "bg-gray-400"
+                              }`}
+                            >
+                              {averageRatings[hotel._id].average.toFixed(1)}
+                            </span>
+                            <span className="text-gray-700 font-medium text-xs sm:text-sm">
+                              {averageRatings[hotel._id].average >= 4.7
+                                ? "Tuyệt hảo"
+                                : averageRatings[hotel._id].average >= 4
+                                ? "Rất tốt"
+                                : averageRatings[hotel._id].average >= 3
+                                ? "Tốt"
+                                : "Khá"}
                             </span>
                           </div>
-                        ) : (
-                          <span className="text-gray-400 text-sm mb-2">Chưa có đánh giá</span>
-                        )}
+                          <span className="text-[11px] sm:text-xs text-gray-500 mt-0.5">
+                            {averageRatings[hotel._id].totalReviews} đánh giá
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-xs sm:text-sm mb-2">
+                          Chưa có đánh giá
+                        </span>
+                      )}
 
-                        {/* 🔹 Giá, thuế, nút giữ nguyên */}
+                      {/* Giá */}
+                      {hotel.lowestPrice > 0 && (
+                        <div className="mt-1 sm:mt-[100px]">
+                          <p className="text-xs sm:text-sm text-gray-500">
+                            1 đêm, 5 người lớn
+                          </p>
+                          <p className="text-lg sm:text-2xl font-semibold text-[#0071c2]">
+                            {hotel.lowestPrice.toLocaleString()} ₫
+                          </p>
+                          <p className="text-[10px] sm:text-xs text-gray-500 mb-1 sm:mb-2">
+                            Đã bao gồm thuế và phí
+                          </p>
+                        </div>
+                      )}
 
-                        {hotel.lowestPrice > 0 && (
-                          <div className="mt-[120px]">
-                            <p className="text-sm text-gray-500">1 đêm, 5 người lớn</p>
-                            <p className="text-2xl font-semibold text-[#0071c2]">
-                              {hotel.lowestPrice.toLocaleString()} ₫
-                            </p>
-                            <p className="text-xs text-gray-500 mb-2">Đã bao gồm thuế và phí</p>
-                          </div>
-                        )}
-
-                        <button
-                          onClick={() => navigate(`/hotel/${hotel._id}`)}
-                          className="bg-[#0071c2] text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-800 transition"
-                        >
-                          Xem chi tiết
-                        </button>
-                      </div>
-
+                      <button
+                        onClick={() => navigate(`/hotel/${hotel._id}`)}
+                        className="bg-[#0071c2] text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium hover:bg-blue-800 transition text-xs sm:text-sm"
+                      >
+                        Xem chi tiết
+                      </button>
                     </div>
                   </div>
                 </div>
-
-              ))
-            )}
-          </div>
+              </div>
+            ))
+          )}
         </div>
-      </section>
+      </div>
+    </section>
 
-      {/* 🌍 Modal bản đồ toàn màn hình */}
-      {showMapModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-xl w-[95%] h-[90vh] relative shadow-2xl overflow-hidden">
-            <button
-              onClick={() => setShowMapModal(false)}
-              className="absolute top-3 right-3 bg-white text-gray-600 hover:text-red-600 font-bold text-lg px-3 py-1 rounded-full shadow-md z-50"
-            >
-              ✕
-            </button>
+    {/* 🌍 Modal bản đồ toàn màn hình */}
+    {showMapModal && (
+      <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
+        <div className="bg-white rounded-xl w-[95%] h-[90vh] relative shadow-2xl overflow-hidden">
+          <button
+            onClick={() => setShowMapModal(false)}
+            className="absolute top-3 right-3 bg-white text-gray-600 hover:text-red-600 font-bold text-lg px-3 py-1 rounded-full shadow-md z-50"
+          >
+            ✕
+          </button>
 
-            <MapContainer
-              center={[10.7769, 106.7009]}
-              zoom={12}
-              scrollWheelZoom
-              className="h-full w-full z-40"
-            >
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
-              />
-              {filteredHotels
-                .filter((h) => h.latitude && h.longitude)
-                .map((h, i) => (
-                  <Marker key={i} position={[h.latitude, h.longitude]}>
-                    <Popup>
-                      <strong>{h.name}</strong>
-                      <br />
-                      {h.address}
-                      <br />
-                      <span className="text-[#0071c2] cursor-pointer" onClick={() => navigate(`/hotel/${h._id}`)}>
-                        Xem chi tiết →
-                      </span>
-                    </Popup>
-                  </Marker>
-                ))}
-            </MapContainer>
-          </div>
+          <MapContainer
+            center={[10.7769, 106.7009]}
+            zoom={12}
+            scrollWheelZoom
+            className="h-full w-full z-40"
+          >
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
+            />
+            {filteredHotels
+              .filter((h) => h.latitude && h.longitude)
+              .map((h, i) => (
+                <Marker key={i} position={[h.latitude, h.longitude]}>
+                  <Popup>
+                    <strong>{h.name}</strong>
+                    <br />
+                    {h.address}
+                    <br />
+                    <span
+                      className="text-[#0071c2] cursor-pointer"
+                      onClick={() => navigate(`/hotel/${h._id}`)}
+                    >
+                      Xem chi tiết →
+                    </span>
+                  </Popup>
+                </Marker>
+              ))}
+          </MapContainer>
         </div>
-      )}
-
-
-    </>
-  );
+      </div>
+    )}
+  </>
+);
 
 };
 

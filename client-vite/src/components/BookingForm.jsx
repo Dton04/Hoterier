@@ -22,15 +22,56 @@ function BookingForm() {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
+  // LocalStorage
   useEffect(() => {
-    axios.get("/api/regions")
+    const saved = localStorage.getItem("bookingInfo");
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        setFormData((prev) => ({
+          ...prev,
+          destination: data.destination || "",
+          checkin: data.checkin ? new Date(data.checkin) : "",
+          checkout: data.checkout ? new Date(data.checkout) : "",
+          adults: data.adults || 2,
+          children: data.children || 0,
+          rooms: data.rooms || 1,
+        }));
+      } catch (err) {
+        console.error("Lỗi khi parse bookingInfo:", err);
+      }
+    }
+  }, []);
+
+  // 
+  useEffect(() => {
+    const saved = localStorage.getItem("bookingInfo");
+    if (saved && regions.length > 0) {
+      try {
+        const data = JSON.parse(saved);
+        if (data.destination) {
+          const foundRegion = regions.find((r) => r._id === data.destination);
+          if (foundRegion) {
+            setFormData((prev) => ({
+              ...prev,
+              destinationName: foundRegion.name,
+            }));
+          }
+        }
+      } catch (err) {
+        console.error("Lỗi khi khôi phục tên vùng:", err);
+      }
+    }
+  }, [regions]);
+
+
+  useEffect(() => {
+    axios
+      .get("/api/regions")
       .then((response) => setRegions(response.data))
       .catch((err) => console.error("Lỗi lấy regions:", err));
   }, []);
 
-
-
-  
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -43,14 +84,12 @@ function BookingForm() {
       setFilteredRegions(
         value.trim()
           ? regions.filter((region) =>
-              region.name.toLowerCase().includes(value.toLowerCase())
-            )
+            region.name.toLowerCase().includes(value.toLowerCase())
+          )
           : []
       );
     }
   };
-
-  
 
   const handleSelectRegion = (region) => {
     setFormData((prev) => ({
@@ -102,145 +141,144 @@ function BookingForm() {
   }, []);
 
   return (
-  <div className="flex justify-center w-full">
-    <form
-      onSubmit={handleSubmit}
-      className="
-         flex flex-wrap lg:flex-nowrap items-center justify-between
-      bg-white border-[4px] border-[#e0a200] rounded-lg
-      shadow-[0_2px_6px_rgba(0,0,0,0.15)]
-      w-full max-w-6xl
-      "
-    >
-      {/* Destination */}
-      <div className="relative flex-1 min-w-[200px] border-r-[4px] border-[#e0a200] rounded-l-lg">
-        <FaMapMarkerAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0071c2] text-lg" />
-        <input
-          type="text"
-          name="destinationName"
-          placeholder="Bạn muốn đến đâu?"
-          value={formData.destinationName}
-          onChange={handleChange}
-          required
-          className="w-full pl-10 pr-3 h-[54px] text-[15px] border-0 focus:ring-0 focus:outline-none placeholder-gray-500"
-        />
-        {filteredRegions.length > 0 && (
-          <ul className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-md shadow-md z-50 mt-1 max-h-52 overflow-y-auto">
-            {filteredRegions.map((region) => (
-              <li
-                key={region._id}
-                onClick={() => handleSelectRegion(region)}
-                className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer"
-              >
-                <FaMapMarkerAlt className="text-blue-600" />
-                {region.name}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {/* Check-in */}
-      <div className="relative flex-1 min-w-[160px] border-r-[4px] border-[#e0a200] rounded-l-lg">
-        <FaRegCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0071c2] text-lg" />
-        <DatePicker
-          selected={formData.checkin}
-          onChange={(date) => setFormData({ ...formData, checkin: date })}
-          selectsStart
-          startDate={formData.checkin}
-          endDate={formData.checkout}
-          minDate={new Date()}
-          placeholderText="Nhận phòng"
-          className="w-full pl-10 pr-3 h-[54px] text-[15px] border-0 focus:ring-0 focus:outline-none placeholder-gray-500"
-          dateFormat="dd/MM/yyyy"
-        />
-      </div>
-
-      {/* Check-out */}
-      <div className="relative flex-1 min-w-[160px] border-r-[4px] border-[#e0a200] rounded-l-lg">
-        <FaRegCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0071c2] text-lg" />
-        <DatePicker
-          selected={formData.checkout}
-          onChange={(date) => setFormData({ ...formData, checkout: date })}
-          selectsEnd
-          startDate={formData.checkin}
-          endDate={formData.checkout}
-          minDate={formData.checkin}
-          placeholderText="Trả phòng"
-          className="w-full pl-10 pr-3 h-[54px] text-[15px] border-0 focus:ring-0 focus:outline-none placeholder-gray-500"
-          dateFormat="dd/MM/yyyy"
-        />
-      </div>
-
-      {/* Guests & Rooms */}
-      <div
-        className="relative flex-1 min-w-[180px] border-r-[4px] border-[#e0a200] rounded-l-lg"
-        ref={dropdownRef}
+    <div className="flex justify-center w-full px-3 sm:px-0">
+      <form
+        onSubmit={handleSubmit}
+        className="
+          flex flex-col sm:flex-row flex-wrap items-center justify-between
+          bg-white border-[4px] border-[#e0a200] rounded-lg
+          shadow-[0_2px_6px_rgba(0,0,0,0.15)]
+          w-full max-w-6xl
+        "
       >
-        <FaUserFriends className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0071c2] text-lg" />
-        <div
-          onClick={() => setOpenGuestDropdown(!openGuestDropdown)}
-          className="w-full pl-10 pr-3 h-[54px] text-[15px] flex items-center cursor-pointer hover:bg-gray-50"
-        >
-          {formData.adults} người lớn · {formData.rooms} phòng
+        {/* Destination */}
+        <div className="relative flex-1 min-w-[220px] border-b-[4px] sm:border-b-0 sm:border-r-[4px] border-[#e0a200]  sm:rounded-l-lg">
+          <FaMapMarkerAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0071c2] text-lg" />
+          <input
+            type="text"
+            name="destinationName"
+            placeholder="Bạn muốn đến đâu?"
+            value={formData.destinationName}
+            onChange={handleChange}
+            required
+            className="w-full pl-10 pr-3 h-[54px] text-[15px] border-0 focus:ring-0 focus:outline-none placeholder-gray-500"
+          />
+          {filteredRegions.length > 0 && (
+            <ul className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-md shadow-md z-50 mt-1 max-h-52 overflow-y-auto">
+              {filteredRegions.map((region) => (
+                <li
+                  key={region._id}
+                  onClick={() => handleSelectRegion(region)}
+                  className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 cursor-pointer"
+                >
+                  <FaMapMarkerAlt className="text-blue-600" />
+                  {region.name}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
-        {openGuestDropdown && (
-          <div className="absolute top-full left-0 bg-white border border-gray-300 rounded-md shadow-md mt-1 p-3 min-w-[250px] z-50">
-            {["adults", "children", "rooms"].map((field) => (
-              <div key={field} className="flex justify-between items-center mb-3 last:mb-0">
-                <span className="capitalize text-sm">
-                  {field === "adults"
-                    ? "Người lớn"
-                    : field === "children"
-                    ? "Trẻ em"
-                    : "Phòng"}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleCounter(field, -1)}
-                    className="border border-[#0071c2] rounded-full text-[#0071c2] w-6 h-6 flex items-center justify-center hover:bg-[#0071c2] hover:text-white"
-                  >
-                    -
-                  </button>
-                  <span className="text-sm">{formData[field]}</span>
-                  <button
-                    type="button"
-                    onClick={() => handleCounter(field, 1)}
-                    className="border border-[#0071c2] rounded-full text-[#0071c2] w-6 h-6 flex items-center justify-center hover:bg-[#0071c2] hover:text-white"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            ))}
-            <div className="text-right">
-              <button
-                type="button"
-                onClick={() => setOpenGuestDropdown(false)}
-                className="bg-[#0071c2] text-white px-3 py-1 border-r-[4px] border-[#e0a200] rounded-l-lg text-sm hover:bg-blue-700"
-              >
-                Xong
-              </button>
-            </div>
+        {/* Check-in */}
+        <div className="relative flex-1 min-w-[180px] border-b-[4px] sm:border-b-0 sm:border-r-[4px] border-[#e0a200]">
+          <FaRegCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0071c2] text-lg" />
+          <DatePicker
+            selected={formData.checkin}
+            onChange={(date) => setFormData({ ...formData, checkin: date })}
+            selectsStart
+            startDate={formData.checkin}
+            endDate={formData.checkout}
+            minDate={new Date()}
+            placeholderText="Nhận phòng"
+            className="w-full pl-10 pr-3 h-[54px] text-[15px] border-0 focus:ring-0 focus:outline-none placeholder-gray-500"
+            dateFormat="dd/MM/yyyy"
+          />
+        </div>
+
+        {/* Check-out */}
+        <div className="relative flex-1 min-w-[180px] border-b-[4px] sm:border-b-0 sm:border-r-[4px] border-[#e0a200]">
+          <FaRegCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0071c2] text-lg" />
+          <DatePicker
+            selected={formData.checkout}
+            onChange={(date) => setFormData({ ...formData, checkout: date })}
+            selectsEnd
+            startDate={formData.checkin}
+            endDate={formData.checkout}
+            minDate={formData.checkin}
+            placeholderText="Trả phòng"
+            className="w-full pl-10 pr-3 h-[54px] text-[15px] border-0 focus:ring-0 focus:outline-none placeholder-gray-500"
+            dateFormat="dd/MM/yyyy"
+          />
+        </div>
+
+        {/* Guests & Rooms */}
+        <div
+          className="relative flex-1 min-w-[180px] border-b-[4px] sm:border-b-0 sm:border-r-[4px] border-[#e0a200]"
+          ref={dropdownRef}
+        >
+          <FaUserFriends className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0071c2] text-lg" />
+          <div
+            onClick={() => setOpenGuestDropdown(!openGuestDropdown)}
+            className="w-full pl-10 pr-3 h-[54px] text-[15px] flex items-center cursor-pointer hover:bg-gray-50"
+          >
+            {formData.adults} người lớn · {formData.rooms} phòng
           </div>
-        )}
-      </div>
 
-      {/* Submit */}
-      <div className="">
-      <button
-        type="submit"
-        className="bg-[#0071c2] text-white font-semibold px-6 h-[54px]  rounded-r-md hover:bg-blue-700 transition text-[17px] -mr-[2px]"
-      >
-        Tìm
-      </button>
-      </div>
-    </form>
-  </div>
-);
+          {openGuestDropdown && (
+            <div className="absolute top-full left-0 bg-white border border-gray-300 rounded-md shadow-md mt-1 p-3 min-w-[250px] z-50">
+              {["adults", "children", "rooms"].map((field) => (
+                <div key={field} className="flex justify-between items-center mb-3 last:mb-0">
+                  <span className="capitalize text-sm">
+                    {field === "adults"
+                      ? "Người lớn"
+                      : field === "children"
+                        ? "Trẻ em"
+                        : "Phòng"}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCounter(field, -1)}
+                      className="border border-[#0071c2] rounded-full text-[#0071c2] w-6 h-6 flex items-center justify-center hover:bg-[#0071c2] hover:text-white"
+                    >
+                      -
+                    </button>
+                    <span className="text-sm">{formData[field]}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleCounter(field, 1)}
+                      className="border border-[#0071c2] rounded-full text-[#0071c2] w-6 h-6 flex items-center justify-center hover:bg-[#0071c2] hover:text-white"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => setOpenGuestDropdown(false)}
+                  className="bg-[#0071c2] text-white px-3 py-1 border-r-[4px] border-[#e0a200] rounded-l-lg text-sm hover:bg-blue-700"
+                >
+                  Xong
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
+        {/* Submit */}
+        <div className="w-full sm:w-auto -m-[2px]">
+          <button
+            type="submit"
+            className="bg-[#0071c2] text-white font-semibold w-full sm:w-auto px-6 h-[54px] rounded-b-md sm:rounded-r-md hover:bg-blue-700 transition text-[17px]"
+          >
+            Tìm
+          </button>
+        </div>
+      </form>
+    </div>
+  );
 }
 
 export default BookingForm;

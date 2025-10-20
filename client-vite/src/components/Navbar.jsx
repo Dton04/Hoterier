@@ -11,8 +11,8 @@ function Navbar() {
   const [user, setUser] = useState(null);
   const [points, setPoints] = useState(0);
   const [showNavbar, setShowNavbar] = useState(true);
-  
-  
+
+
 
   // 🟢 Kiểm tra đăng nhập
   const checkLoginStatus = async () => {
@@ -43,7 +43,7 @@ function Navbar() {
   }, [location]);
 
 
-   
+
 
 
 
@@ -67,13 +67,13 @@ function Navbar() {
   };
 
   return (
-<header
-  className={`relative top-0 left-0 w-full text-white z-50 backdrop-blur-md
+    <header
+      className={`relative top-0 left-0 w-full text-white z-50 backdrop-blur-md
     bg-[#003580] `}
-  style={{
-    opacity: showNavbar ? 1 : 0,
-  }}
->
+      style={{
+        opacity: showNavbar ? 1 : 0,
+      }}
+    >
 
       <div className="max-w-7xl mx-auto flex justify-between items-center px-6 py-3">
         {/* 🏨 Logo */}
@@ -89,39 +89,35 @@ function Navbar() {
         <nav className="hidden md:flex gap-6 text-sm font-medium">
           <Link
             to="/home"
-            className={`pb-2 hover:text-[#febb02] ${
-              ["/home", "/"].includes(location.pathname)
+            className={`pb-2 hover:text-[#febb02] ${["/home", "/"].includes(location.pathname)
                 ? "border-b-2 border-[#febb02]"
                 : ""
-            }`}
+              }`}
           >
             Trang chủ
           </Link>
           <Link
             to="/room-results"
-            className={`pb-2 hover:text-[#febb02] ${
-              location.pathname === "/room-results" ? "border-b-2 border-[#febb02]" : ""
-            }`}
+            className={`pb-2 hover:text-[#febb02] ${location.pathname === "/room-results" ? "border-b-2 border-[#febb02]" : ""
+              }`}
           >
             Khách sạn & Phòng
           </Link>
           <Link
             to="/discounts"
-            className={`pb-2 hover:text-[#febb02] ${
-              location.pathname === "/discounts"
+            className={`pb-2 hover:text-[#febb02] ${location.pathname === "/discounts"
                 ? "border-b-2 border-[#febb02]"
                 : ""
-            }`}
+              }`}
           >
             Ưu đãi
           </Link>
           <Link
             to="/contact"
-            className={`pb-2 hover:text-[#febb02] ${
-              location.pathname === "/contact"
+            className={`pb-2 hover:text-[#febb02] ${location.pathname === "/contact"
                 ? "border-b-2 border-[#febb02]"
                 : ""
-            }`}
+              }`}
           >
             Liên hệ
           </Link>
@@ -138,12 +134,13 @@ function Navbar() {
                 <img
                   src={
                     user?.avatar
-                      ? `http://localhost:5000/${user.avatar}`
+                      ? `http://localhost:5000/${user.avatar.replace(/^\/+/, "")}`
                       : "https://cf.bstatic.com/static/img/avatar/booking_avatar_40x40/99e8e7b26f5de94b82e8be93d93cf5b5b7b33eea.png"
                   }
                   alt="avatar"
                   className="w-9 h-9 rounded-full border border-gray-300 object-cover"
                 />
+
                 <span className="text-sm font-semibold">{user.name}</span>
                 <i className="fas fa-chevron-down text-xs mt-0.5"></i>
               </button>
@@ -247,7 +244,7 @@ function Navbar() {
         <div className="md:hidden bg-[#003580] border-t border-[#febb02] py-3 px-6 text-white">
           <nav className="flex flex-col gap-3">
             <Link to="/home" onClick={closeNav}>Trang chủ</Link>
-            <Link to="/rooms" onClick={closeNav}>Khách sạn & Phòng</Link>
+            <Link to="/room-results" onClick={closeNav}>Khách sạn & Phòng</Link>
             <Link to="/discounts" onClick={closeNav}>Ưu đãi</Link>
             <Link to="/contact" onClick={closeNav}>Liên hệ</Link>
           </nav>

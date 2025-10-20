@@ -8,17 +8,22 @@ import VietnamDestinations from "../screens/VietnamDestinations"
 import vnFlag from "../assets/images/vietnam-flag.png";
 
 function Homescreen() {
+  const [user, setUser] = useState(null);
   const [bookingStatus, setBookingStatus] = useState(null);
   const [regions, setRegions] = useState([]);
   const [festivalDiscounts, setFestivalDiscounts] = useState([]);
-  const [stats] = useState({
-    rooms: 150,
-    customers: 1200,
-    rating: 4.8,
-    awards: 12,
-  });
+
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+  const storedUserInfo = localStorage.getItem("userInfo");
+  if (storedUserInfo) {
+    const userInfo = JSON.parse(storedUserInfo);
+    const userData = userInfo.user || userInfo;
+    setUser(userData);
+  }
+}, []);
 
   // Fetch lễ hội
   useEffect(() => {
@@ -61,8 +66,8 @@ function Homescreen() {
       />
 
       <div className="-mt-[70px]">
-  <Banner />
-</div>
+        <Banner />
+      </div>
 
       {/* Booking Section */}
       <section className="relative z-30 flex justify-center -mt-4 mb-16">
@@ -212,25 +217,79 @@ function Homescreen() {
       {/* Khám phá Việt Nam*/}
       <VietnamDestinations regions={regions} />
 
-      {/* Stats */}
-      <section className="py-20 bg-gray-100">
-        <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-          {[
-            { value: `${stats.rooms}+`, label: "Luxury Rooms" },
-            { value: `${stats.customers}+`, label: "Happy Customers" },
-            { value: stats.rating, label: "Average Rating" },
-            { value: stats.awards, label: "Awards Won" },
-          ].map((item, i) => (
-            <div
-              key={i}
-              className="bg-white shadow-md rounded-xl p-6 hover:-translate-y-2 transition"
-            >
-              <div className="text-3xl font-bold text-amber-600">{item.value}</div>
-              <div className="text-gray-500 mt-2">{item.label}</div>
-            </div>
-          ))}
+
+      {/* Vì sao chọn Hotelier */}
+      <section className="py-20 bg-white">
+        <div className="max-w-6xl mx-auto px-4">
+          <h2 className="text-2xl md:text-3xl font-bold text-[#003580] text-center mb-10">
+            Vì sao lại chọn <span className="text-[#0071c2]">Hotelier?</span>
+          </h2>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              {
+                icon: "fa-calendar-check",
+                title: "Đặt ngay, thanh toán sau",
+                desc: "Miễn phí hủy với hầu hết các phòng — linh hoạt như ý bạn.",
+                color: "bg-blue-50",
+              },
+              {
+                icon: "fa-star",
+                title: "Hơn 500 nghìn đánh giá thật",
+                desc: "Đọc những nhận xét đáng tin cậy từ khách du lịch khác.",
+                color: "bg-yellow-50",
+              },
+              {
+                icon: "fa-globe",
+                title: "Hơn 2 triệu chỗ nghỉ toàn cầu",
+                desc: "Khách sạn, villa, homestay và nhiều loại hình khác.",
+                color: "bg-rose-50",
+              },
+              {
+                icon: "fa-headset",
+                title: "Hỗ trợ khách hàng 24/7",
+                desc: "Đội ngũ thân thiện, luôn sẵn sàng giúp bạn mọi lúc.",
+                color: "bg-green-50",
+              },
+            ].map((item, index) => (
+              <div
+                key={index}
+                className={`${item.color} rounded-2xl p-6 shadow-md hover:shadow-lg hover:-translate-y-1 transition`}
+              >
+                <div className="flex items-center justify-center w-14 h-14 bg-white rounded-full shadow mb-4 mx-auto">
+                  <i className={`fas ${item.icon} text-2xl text-[#0071c2]`}></i>
+                </div>
+                <h3 className="text-lg font-semibold text-center text-[#003580] mb-2">
+                  {item.title}
+                </h3>
+                <p className="text-sm text-gray-600 text-center">{item.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
+
+      {/* Lời chào cá nhân hóa */}
+      {user?.name && (
+        <section className="py-10">
+          <div className="max-w-6xl mx-auto px-4 bg-[#0071c2] text-white rounded-2xl flex flex-col md:flex-row items-center justify-between p-8 gap-6">
+            <div>
+              <h3 className="text-xl md:text-2xl font-bold mb-2">
+                {user.name} ơi, bạn muốn tận hưởng kỳ nghỉ tiếp theo ở đâu?
+              </h3>
+              <p className="text-blue-100">
+                Khám phá hàng ngàn lựa chọn chỗ nghỉ phù hợp với bạn.
+              </p>
+            </div>
+            <button
+              onClick={() => navigate("/room-results")}
+              className="bg-white text-[#0071c2] font-semibold px-6 py-2.5 rounded-full hover:bg-blue-50 transition"
+            >
+              Khám phá ngay
+            </button>
+          </div>
+        </section>
+      )}
 
 
       {/* Liên hệ */}

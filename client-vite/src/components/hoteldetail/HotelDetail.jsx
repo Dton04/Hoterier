@@ -64,14 +64,29 @@ export default function HotelDetail() {
 
   return (
 <>
-      <div className="relative w-full -mt-[290px]">
-        <Banner />
-        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 z-30 w-full max-w-6xl">
-          <div className="w-full max-w-5xl mx-auto flex justify-center">
-            <BookingForm />
-          </div>
-        </div>
+     {/* ==== BANNER & BOOKING FORM ==== */}
+    <div className="relative w-full -mt-[280px] sm:-mt-[290px]">
+      <Banner />
+
+      {/* BookingForm (Desktop & Tablet) */}
+      <div
+        className="
+          hidden sm:block
+          absolute left-1/2 -translate-x-1/2 bottom-[-50px] 
+          w-full max-w-5xl px-4 sm:px-6
+          z-30
+        "
+      >
+        <BookingForm />
       </div>
+    </div>
+
+    {/* BookingForm (Mobile Only) */}
+    <div className="block sm:hidden mt-4 px-4 relative z-20">
+      <BookingForm />
+    </div>
+
+
 
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-10 mt-10">
       

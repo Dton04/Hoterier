@@ -7,7 +7,7 @@ const Transaction = require('../models/transaction');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const Notification = require('../models/notification');
-const Region = require('../models/region'); 
+const Region = require('../models/region');
 const otpGenerator = require('otp-generator');
 const nodemailer = require('nodemailer');
 
@@ -37,7 +37,7 @@ const sendOTPEmail = async (email, otp) => {
 // Đăng ký người dùng mới
 exports.register = async (req, res) => {
   try {
-    const { name, email,phone, password } = req.body;
+    const { name, email, phone, password } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser)
@@ -201,9 +201,12 @@ exports.verifyOTP = async (req, res) => {
         email: user.email,
         role: user.role,
         isAdmin: user.isAdmin,
+        avatar: user.avatar || "",
+        phone: user.phone || "",
         token,
       },
     });
+
   } catch (error) {
     console.error('Lỗi xác minh OTP:', error);
     res.status(500).json({ message: 'Lỗi server khi xác minh OTP.' });
@@ -326,7 +329,7 @@ exports.getMembershipLevel = async (req, res) => {
 
     let membershipLevel;
     if (user.points >= 400000) {
-      membershipLevel = 'Diamond';   
+      membershipLevel = 'Diamond';
     } else if (user.points >= 300000) {
       membershipLevel = 'Platinum';
     } else if (user.points >= 200000) {
@@ -404,7 +407,7 @@ exports.accumulatePoints = async (req, res) => {
   }
 };
 // Tạo user
-exports.createUser= async (req, res) => {
+exports.createUser = async (req, res) => {
   try {
     const { name, email, password, phone } = req.body;
 
@@ -659,7 +662,7 @@ exports.updateUserProfile = async (req, res) => {
       phone: req.body.phone || user.phone,
     };
     if (req.file) {
-      updates.avatar = req.file.path; 
+      updates.avatar = req.file.path.replace(/\\/g, "/");
     }
 
     const updatedUser = await User.findByIdAndUpdate(userId, updates, { new: true }).select('-password');

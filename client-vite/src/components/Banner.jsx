@@ -87,12 +87,29 @@ function Banner() {
         </div>
       ) : (
         // ✅ Trang khác: nền xanh giống navbar
-        <div
-          className="relative w-full h-[60vh] flex flex-col items-center justify-center text-white text-center"
-          style={{ backgroundColor: bgColor }}
-        >
-          <h1 className="text-4xl md:text-5xl font-bold mb-3">{title}</h1>
-        </div>
+       <div
+  className="
+    relative w-full 
+    h-[35vh] sm:h-[45vh] md:h-[60vh]
+    flex flex-col items-center justify-center 
+    text-white text-center 
+    px-4 sm:px-6
+  "
+  style={{ backgroundColor: bgColor }}
+>
+  <h1
+    className="
+      text-2xl sm:text-3xl md:text-5xl 
+      font-bold mb-2 sm:mb-3 
+      leading-snug sm:leading-tight
+      drop-shadow-md
+    "
+  >
+    {title}
+  </h1>
+
+</div>
+
       )}
     </section>
   );

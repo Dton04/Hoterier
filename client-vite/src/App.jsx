@@ -11,7 +11,7 @@ import Footer from "./components/Footer";
 // Import Screens & Components
 import Homescreen from "./screens/Homescreen";
 
-import Bookingscreen from "./screens/Bookingscreen";
+import Bookingscreen from "./screens/Booking/Bookingscreen";
 import OurTeam from "./components/Pages/OurTeam";
 import Contact from "./components/Contact";
 import Registerscreen from "./screens/Auth/Registerscreen";
