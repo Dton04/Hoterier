@@ -32,6 +32,8 @@ import Review from "./screens/Review";
 import DiscountsPage from "./screens/DiscountsPage";
 import FestivalHotels from "./screens/FestivalHotels";
 
+import ChatBot from "./components/chatbot/ChatBot";
+
 // Import Admin Screens
 import AdminDashboard from "./components/GUI admin/Dashboards/AdminDashboard";
 import UserStaffManagement from "./components/GUI admin/Users/UserStaffManagement";
@@ -47,6 +49,8 @@ import AdminRegions from "./components/GUI admin/Regions/AdminRegions";
 import AdminAmenities from "./components/AdminAmenities";
 import CreateRoomForm from "./components/CreateRoomForm";
 import EditRoomForm from "./components/EditRoomForm";
+
+
 
 // --- CÁC COMPONENT BẢO VỆ ROUTE (Sử dụng logic của file gốc) ---
 const AdminRoute = ({ children }) => {
@@ -75,6 +79,8 @@ const UserLayout = () => (
     <Navbar />
     {/* Outlet là nơi các trang con của người dùng sẽ hiển thị */}
     <main className="pt-[68px]"> {/* Padding top để nội dung không bị Navbar che */}
+
+          <ChatBot />
       <Outlet />
     </main>
     <Footer />
@@ -114,6 +120,7 @@ function App() {
             <Route path="/hotel/:id" element={<HotelDetail />} />
             <Route path="/festival/:id" element={<FestivalHotels />} />
             <Route path="/discounts" element={<DiscountsPage />} />
+             
             <Route path="/verify-otp" element={<VerifyOTP />} />  
 
             {/* Các route cần đăng nhập của người dùng */}

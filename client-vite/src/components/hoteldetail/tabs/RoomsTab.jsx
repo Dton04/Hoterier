@@ -61,7 +61,10 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
                   {rooms.map((room) => (
                      <tr
                         key={room._id}
-                        className="border-b hover:bg-blue-50 transition text-[13px] leading-tight"
+                        className={`border-b transition text-[13px] leading-tight ${room.availabilityStatus !== "available"
+                           ? "bg-gray-100 opacity-70"
+                           : "hover:bg-blue-50"
+                           }`}
                      >
                         {/* Loại chỗ nghỉ */}
                         <td
@@ -74,17 +77,27 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
                            <h3 className="font-semibold text-blue-700 hover:underline text-[14px] mb-0.5">
                               {room.name}
                            </h3>
+
                            <p className="text-gray-600 text-[13px] leading-snug mb-0.5">
                               {room.type} • {room.beds} giường • {room.baths} phòng tắm
                            </p>
-                           <ul className="list-disc ml-4 text-gray-700 text-[13px] leading-snug space-y-0">
-                              {room.amenities?.slice(0, 3).map((a, i) => (
-                                 <li key={i}>{a}</li>
-                              ))}
-                           </ul>
-                           <p className="text-gray-500 text-[12px] mt-0.5">
-                              Diện tích: {room.size || "—"} m²
-                           </p>
+
+                           {room.availabilityStatus !== "available" ? (
+                              <p className="text-red-600 text-sm font-medium mt-1">
+                                 ⚠️ Phòng hiện không có sẵn để đặt
+                              </p>
+                           ) : (
+                              <>
+                                 <ul className="list-disc ml-4 text-gray-700 text-[13px] leading-snug space-y-0">
+                                    {room.amenities?.slice(0, 3).map((a, i) => (
+                                       <li key={i}>{a}</li>
+                                    ))}
+                                 </ul>
+                                 <p className="text-gray-500 text-[12px] mt-0.5">
+                                    Diện tích: {room.size || "—"} m²
+                                 </p>
+                              </>
+                           )}
                         </td>
 
                         {/* Số lượng khách */}
@@ -98,42 +111,42 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
 
                         {/* Giá hôm nay */}
                         <td className="p-2 text-center align-middle">
-                           {room.oldPrice && (
-                              <p className="text-xs text-gray-400 line-through">
-                                 VND {room.oldPrice.toLocaleString()}
-                              </p>
-                           )}
-                           <p className="text-lg font-bold text-blue-600">
-                              VND {room.rentperday.toLocaleString()}
-                           </p>
-                           <p className="text-xs text-gray-500">Đã bao gồm thuế và phí</p>
-                           {room.oldPrice && (
-                              <p className="text-green-600 text-xs font-semibold">
-                                 Tiết kiệm {Math.round(100 - (room.rentperday / room.oldPrice) * 100)}%
-                              </p>
+                           {room.rentperday ? (
+                              <>
+                                 {room.oldPrice && (
+                                    <p className="text-xs text-gray-400 line-through">
+                                       VND {room.oldPrice.toLocaleString()}
+                                    </p>
+                                 )}
+                                 <p className="text-lg font-bold text-blue-600">
+                                    VND {room.rentperday.toLocaleString()}
+                                 </p>
+                                 <p className="text-xs text-gray-500">Đã bao gồm thuế và phí</p>
+                              </>
+                           ) : (
+                              <p className="text-gray-500 text-sm">Chưa có giá</p>
                            )}
                         </td>
 
                         {/* Các lựa chọn */}
                         <td className="p-2 align-top text-sm leading-snug">
-                           <ul className="space-y-1 text-gray-700">
-                              <li className="flex items-center gap-1 text-green-600">
-                                 <CheckCircle2 size={14} /> Bao gồm nhận phòng sớm + trả phòng trễ
-                              </li>
-                              <li className="flex items-center gap-1 text-green-600">
-                                 <CheckCircle2 size={14} /> Thanh toán tại khách sạn
-                              </li>
-                              <li className="flex items-center gap-1 text-red-500">
-                                 <XCircle size={14} /> Không hoàn tiền
-                              </li>
-                              <li className="flex items-center gap-1 text-black">
-                                 • Thanh toán cho chỗ nghĩ trước khi đến
-                              </li>
-                              <li className="flex items-center gap-1 text-green-600">
-                                 <CheckCircle2 size={14} /> Không cần thẻ tín dụng
-                              </li>
-
-                           </ul>
+                           {room.availabilityStatus === "available" ? (
+                              <ul className="space-y-1 text-gray-700">
+                                 <li className="flex items-center gap-1 text-green-600">
+                                    <CheckCircle2 size={14} /> Bao gồm nhận phòng sớm + trả phòng trễ
+                                 </li>
+                                 <li className="flex items-center gap-1 text-green-600">
+                                    <CheckCircle2 size={14} /> Thanh toán tại khách sạn
+                                 </li>
+                                 <li className="flex items-center gap-1 text-red-500">
+                                    <XCircle size={14} /> Không hoàn tiền
+                                 </li>
+                              </ul>
+                           ) : (
+                              <p className="text-red-600 text-sm italic">
+                                 Không thể chọn do phòng đang bận / bảo trì.
+                              </p>
+                           )}
                         </td>
 
                         {/* Chọn phòng */}
@@ -142,6 +155,7 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
                               value={quantities[room._id] || 0}
                               onChange={(e) => handleQuantityChange(room._id, e.target.value)}
                               className="border rounded-md px-2 py-1 text-sm"
+                              disabled={room.availabilityStatus !== "available"}
                            >
                               <option value="0">0</option>
                               {[1, 2, 3, 4, 5].map((n) => (
@@ -154,6 +168,7 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
                      </tr>
                   ))}
                </tbody>
+
             </table>
          </div>
 
@@ -188,6 +203,7 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
          {/* Modal chi tiết */}
          <AnimatePresence>
             {selectedRoom && (
+
                <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -204,11 +220,11 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
                         className="absolute top-4 right-4 text-gray-600 hover:text-black"
                         onClick={() => setSelectedRoom(null)}
                      >
-                        <X size={24} />
+                        <X size={16} />
                      </button>
 
                      {/* Image slider */}
-                     <div className="relative">
+                     <div className="relative mt-10">
                         <img
                            src={selectedRoom.imageurls?.[currentImage]}
                            alt={selectedRoom.name}
@@ -271,9 +287,11 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
                         >
                            Đặt ngay
                         </button>
+                       
                      </div>
                   </motion.div>
                </motion.div>
+
             )}
          </AnimatePresence>
       </div>

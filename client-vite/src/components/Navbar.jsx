@@ -230,12 +230,14 @@ function Navbar() {
           )}
 
           {/* 📱 Mobile */}
-          <button
-            className="md:hidden text-white ml-3"
-            onClick={() => setNavOpen(!isNavOpen)}
-          >
-            <i className="fas fa-bars text-xl"></i>
-          </button>
+         <button
+  onClick={() => setNavOpen(!isNavOpen)}
+  className="md:hidden ml-3 p-2.5 border border-white text-white rounded-full hover:bg-white hover:text-[#003580] transition-all duration-300"
+>
+  <i className="fas fa-bars text-lg"></i>
+</button>
+
+
         </div>
       </div>
 

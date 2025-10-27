@@ -31,6 +31,7 @@ function DiscountsPage() {
     };
     fetchData();
   }, []);
+  
 
   const handleFestivalClick = (festival) => {
     navigate(`/festival/${festival._id}`, { state: { festival } });

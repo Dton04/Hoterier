@@ -1,7 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Banner from "./Banner";
+import Loader from "../components/Loader";
+
+
 
 export default function Contact() {
+
+  const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -13,6 +18,14 @@ export default function Contact() {
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+
+  useEffect(() => {
+  const timer = setTimeout(() => {
+    setLoading(false);
+  }, 500); 
+
+  return () => clearTimeout(timer);
+}, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,12 +44,14 @@ export default function Contact() {
         setStatus(result.message || "❌ Có lỗi xảy ra, vui lòng thử lại.");
       }
     } catch (error) {
+      setLoading(false);
       setStatus("❌ Có lỗi xảy ra, vui lòng thử lại.");
     }
   };
 
   return (
     <>
+    {loading && <Loader />}
 
 
       {/* CONTENT */}

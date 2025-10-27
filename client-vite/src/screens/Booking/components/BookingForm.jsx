@@ -15,7 +15,7 @@ export default function BookingForm({
   handleServiceChange,
   bookingStatus,
   room,
-  getValues,
+
   setRoomsNeeded,
 }) {
   return (
@@ -30,9 +30,8 @@ export default function BookingForm({
             type="text"
             placeholder="Họ và tên"
             {...register("name")}
-            className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${
-              errors.name ? "border-red-500" : "border-gray-300"
-            }`}
+            className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${errors.name ? "border-red-500" : "border-gray-300"
+              }`}
           />
           {errors.name && (
             <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
@@ -43,9 +42,8 @@ export default function BookingForm({
             type="email"
             placeholder="Email"
             {...register("email")}
-            className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${
-              errors.email ? "border-red-500" : "border-gray-300"
-            }`}
+            className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${errors.email ? "border-red-500" : "border-gray-300"
+              }`}
           />
           {errors.email && (
             <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
@@ -59,9 +57,8 @@ export default function BookingForm({
             type="tel"
             placeholder="Số điện thoại"
             {...register("phone")}
-            className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${
-              errors.phone ? "border-red-500" : "border-gray-300"
-            }`}
+            className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${errors.phone ? "border-red-500" : "border-gray-300"
+              }`}
           />
           {errors.phone && (
             <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>
@@ -70,9 +67,8 @@ export default function BookingForm({
         <div>
           <select
             {...register("roomType")}
-            className={`w-full border rounded-lg p-3 bg-white focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${
-              errors.roomType ? "border-red-500" : "border-gray-300"
-            }`}
+            className={`w-full border rounded-lg p-3 bg-white focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${errors.roomType ? "border-red-500" : "border-gray-300"
+              }`}
           >
             <option value="">Chọn loại phòng</option>
             <option value={room?.type}>{room?.type}</option>
@@ -94,10 +90,10 @@ export default function BookingForm({
           <input
             type="date"
             id="checkin"
-            {...register("checkin")}
-            className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${
-              errors.checkin ? "border-red-500" : "border-gray-300"
-            }`}
+            {...register("checkin", { required: "Vui lòng chọn ngày nhận phòng" })}
+            required
+            className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${errors.checkin ? "border-red-500" : "border-gray-300"
+              }`}
           />
           {errors.checkin && (
             <p className="text-red-500 text-sm mt-1">
@@ -112,10 +108,10 @@ export default function BookingForm({
           <input
             type="date"
             id="checkout"
-            {...register("checkout")}
-            className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${
-              errors.checkout ? "border-red-500" : "border-gray-300"
-            }`}
+            {...register("checkout", { required: "Vui lòng chọn ngày trả phòng" })}
+            required
+            className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${errors.checkout ? "border-red-500" : "border-gray-300"
+              }`}
           />
           {errors.checkout && (
             <p className="text-red-500 text-sm mt-1">
@@ -130,9 +126,8 @@ export default function BookingForm({
         <div>
           <select
             {...register("adults")}
-            className={`w-full border rounded-lg p-3 bg-white focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${
-              errors.adults ? "border-red-500" : "border-gray-300"
-            }`}
+            className={`w-full border rounded-lg p-3 bg-white focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${errors.adults ? "border-red-500" : "border-gray-300"
+              }`}
           >
             <option value="">Người lớn</option>
             {[...Array(10).keys()].map((n) => (

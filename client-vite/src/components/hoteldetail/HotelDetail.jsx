@@ -9,6 +9,7 @@ import ReviewsTab from "./tabs/ReviewsTab";
 import DiscountTab from "./tabs/DiscountTab";
 import Banner from "../Banner";
 import BookingForm from "../BookingForm";
+import Loader from "../Loader";
 
 export default function HotelDetail() {
   const { id } = useParams();
@@ -25,6 +26,7 @@ export default function HotelDetail() {
   const roomsRef = useRef(null);
   const reviewsRef = useRef(null);
 
+  const [loading, setLoading] = useState(true);
   
 
   useEffect(() => {
@@ -55,15 +57,21 @@ export default function HotelDetail() {
         setDiscounts(discountRes.data);
       } catch (err) {
         console.error("Lỗi khi tải dữ liệu:", err);
+        
+      }finally {
+        setLoading(false);
       }
     }
     fetchData();
   }, [id]);
 
-  if (!hotel) return <div className="text-center py-10">Đang tải dữ liệu...</div>;
+  if (loading) {
+    return <Loader message="Đang tải dữ liệu.."/>
+  }
 
   return (
 <>
+    
      {/* ==== BANNER & BOOKING FORM ==== */}
     <div className="relative w-full -mt-[280px] sm:-mt-[290px]">
       <Banner />

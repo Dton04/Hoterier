@@ -55,16 +55,15 @@ export default function FestivalHotels() {
   return (
     <div className="font-outfit bg-gray-50 text-gray-800">
       {/* 🟦 Banner dạng đặc biệt cho ưu đãi */}
-      <section className="relative w-full h-[75vh] flex flex-col items-center justify-center text-white overflow-hidden">
-        {/* Ảnh nền */}
-        <img
-          src={
-            festival?.image ||
-            "https://static.vecteezy.com/system/resources/previews/021/984/534/large_2x/cat-with-sunglasses-chilling-on-the-beach-vacation-holiday-mood-relax-sand-and-sea-blue-sky-travel-generative-ai-photo.jpg"
-          }
-          alt="Festival"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
+     <section className="relative w-full h-[60vh] flex flex-col items-center justify-center text-white overflow-hidden -mt-[68px]">
+  <img
+    src={
+      festival?.image ||
+      "https://static.vecteezy.com/system/resources/previews/021/984/534/large_2x/cat-with-sunglasses-chilling-on-the-beach-vacation-holiday-mood-relax-sand-and-sea-blue-sky-travel-generative-ai-photo.jpg"
+    }
+    alt="Festival"
+    className="absolute inset-0 w-full h-full object-cover"
+  />
 
         {/* Overlay màu gradient */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/60 to-black/80"></div>
@@ -89,9 +88,10 @@ export default function FestivalHotels() {
         </div>
 
         {/* Booking Form nổi ở giữa giống Booking.com */}
-        <div className="absolute bottom-[40px] text-black left-1/2 -translate-x-1/2 z-20 w-full max-w-6xl">
-          <BookingForm />
-        </div>
+        <div className="absolute bottom-[10px] sm:bottom-[30px] md:bottom-[40px] text-black left-1/2 -translate-x-1/2 z-20 w-full max-w-6xl">
+  <BookingForm />
+</div>
+
       </section>
 
       {/* 🟩 Danh sách khu vực có ưu đãi */}

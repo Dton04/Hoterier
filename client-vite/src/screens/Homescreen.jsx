@@ -17,13 +17,13 @@ function Homescreen() {
   const navigate = useNavigate();
 
   useEffect(() => {
-  const storedUserInfo = localStorage.getItem("userInfo");
-  if (storedUserInfo) {
-    const userInfo = JSON.parse(storedUserInfo);
-    const userData = userInfo.user || userInfo;
-    setUser(userData);
-  }
-}, []);
+    const storedUserInfo = localStorage.getItem("userInfo");
+    if (storedUserInfo) {
+      const userInfo = JSON.parse(storedUserInfo);
+      const userData = userInfo.user || userInfo;
+      setUser(userData);
+    }
+  }, []);
 
   // Fetch lễ hội
   useEffect(() => {
@@ -83,10 +83,10 @@ function Homescreen() {
       </section>
 
       {/* ƯU ĐÃI LỄ HỘI */}
-      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-10">
-            <h2 className="uppercase tracking-widest text-blue-600 font-semibold flex justify-center items-center">
+      <section className=" py-20 bg-gradient-to-b from-gray-50 to-white">
+        <div className="max-w-6xl mx-auto px-4 ">
+          <div className="text-center mb-10 animate-pulse">
+            <h2 className="uppercase tracking-widest text-blue-600 font-semibold flex justify-center items-center ">
               <span className="w-12 h-0.5 bg-blue-600 mx-3"></span> ƯU ĐÃI LỄ HỘI{" "}
               <span className="w-12 h-0.5 bg-blue-600 mx-3"></span>
             </h2>
@@ -225,28 +225,28 @@ function Homescreen() {
             Vì sao lại chọn <span className="text-[#0071c2]">Hotelier?</span>
           </h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 ">
             {[
               {
-                icon: "fa-calendar-check",
+                image: "./src/assets/icons/book.png",
                 title: "Đặt ngay, thanh toán sau",
                 desc: "Miễn phí hủy với hầu hết các phòng — linh hoạt như ý bạn.",
                 color: "bg-blue-50",
               },
               {
-                icon: "fa-star",
+                image: "./src/assets/icons/like.png",
                 title: "Hơn 500 nghìn đánh giá thật",
                 desc: "Đọc những nhận xét đáng tin cậy từ khách du lịch khác.",
                 color: "bg-yellow-50",
               },
               {
-                icon: "fa-globe",
+                image: "./src/assets/icons/world.png",
                 title: "Hơn 2 triệu chỗ nghỉ toàn cầu",
                 desc: "Khách sạn, villa, homestay và nhiều loại hình khác.",
                 color: "bg-rose-50",
               },
               {
-                icon: "fa-headset",
+                image: "./src/assets/icons/profile.png",
                 title: "Hỗ trợ khách hàng 24/7",
                 desc: "Đội ngũ thân thiện, luôn sẵn sàng giúp bạn mọi lúc.",
                 color: "bg-green-50",
@@ -256,18 +256,25 @@ function Homescreen() {
                 key={index}
                 className={`${item.color} rounded-2xl p-6 shadow-md hover:shadow-lg hover:-translate-y-1 transition`}
               >
-                <div className="flex items-center justify-center w-14 h-14 bg-white rounded-full shadow mb-4 mx-auto">
-                  <i className={`fas ${item.icon} text-2xl text-[#0071c2]`}></i>
+                <div className="flex items-center justify-center w-20 h-20 bg-white rounded-full shadow mb-4  overflow-hidden ">
+                  <img
+                    src={item.image}
+                    alt={item.title}
+                    className="w-12 h-12 object-contain transition-transform duration-300 hover:scale-110"
+                  />
                 </div>
+                <div class="text-left">
                 <h3 className="text-lg font-semibold text-center text-[#003580] mb-2">
                   {item.title}
                 </h3>
                 <p className="text-sm text-gray-600 text-center">{item.desc}</p>
               </div>
+              </div>
             ))}
           </div>
         </div>
       </section>
+
 
       {/* Lời chào cá nhân hóa */}
       {user?.name && (
