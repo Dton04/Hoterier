@@ -7,6 +7,7 @@ import RoomsTab from "./tabs/RoomsTab";
 import AmenitiesTab from "./tabs/AmenitiesTab";
 import ReviewsTab from "./tabs/ReviewsTab";
 import DiscountTab from "./tabs/DiscountTab";
+import RulesTab from "./tabs/RulesTab";
 import Banner from "../Banner";
 import BookingForm from "../BookingForm";
 import Loader from "../Loader";
@@ -22,12 +23,13 @@ export default function HotelDetail() {
   const [discounts, setDiscounts] = useState([]);
   const [showReviews, setShowReviews] = useState(false);
   const [showAllImages, setShowAllImages] = useState(false);
+  const [showMoreDesc, setShowMoreDesc] = useState(false);
 
   const roomsRef = useRef(null);
   const reviewsRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
-  
+
 
   useEffect(() => {
     async function fetchData() {
@@ -57,8 +59,8 @@ export default function HotelDetail() {
         setDiscounts(discountRes.data);
       } catch (err) {
         console.error("Lỗi khi tải dữ liệu:", err);
-        
-      }finally {
+
+      } finally {
         setLoading(false);
       }
     }
@@ -66,217 +68,266 @@ export default function HotelDetail() {
   }, [id]);
 
   if (loading) {
-    return <Loader message="Đang tải dữ liệu.."/>
+    return <Loader message="Đang tải dữ liệu.." />
   }
 
   return (
-<>
-    
-     {/* ==== BANNER & BOOKING FORM ==== */}
-    <div className="relative w-full -mt-[280px] sm:-mt-[290px]">
-      <Banner />
+    <>
 
-      {/* BookingForm (Desktop & Tablet) */}
-      <div
-        className="
+    {/* ======= PANEL HIỂN THỊ REVIEW CHI TIẾT ======= */}
+{showReviews && (
+  <div className="fixed inset-0 z-50 flex">
+    {/* Lớp phủ mờ bên trái */}
+    <div
+      className="flex-1 bg-black/40 backdrop-blur-sm"
+      onClick={() => setShowReviews(false)}
+    ></div>
+
+    {/* Panel nửa màn hình bên phải */}
+    <div className="w-full sm:w-[55%] md:w-[50%] lg:w-[45%] bg-white shadow-2xl h-full overflow-y-auto animate-slide-left relative">
+      <button
+        onClick={() => setShowReviews(false)}
+        className="absolute top-4 right-4 text-gray-500 hover:text-red-500 text-2xl"
+      >
+        ✕
+      </button>
+      <div className="p-6">
+        <h2 className="text-2xl font-bold text-[#003580] mb-4">
+          Đánh giá từ khách hàng
+        </h2>
+        <ReviewsTab reviews={reviews} average={average} />
+      </div>
+    </div>
+  </div>
+)}
+
+
+      {/* ==== BANNER & BOOKING FORM ==== */}
+      <div className="relative w-full -mt-[280px] sm:-mt-[290px]">
+        <Banner />
+
+        {/* BookingForm (Desktop & Tablet) */}
+        <div
+          className="
           hidden sm:block
           absolute left-1/2 -translate-x-1/2 bottom-[-50px] 
           w-full max-w-5xl px-4 sm:px-6
           z-30
         "
-      >
+        >
+          <BookingForm />
+        </div>
+      </div>
+
+      {/* BookingForm (Mobile Only) */}
+      <div className="block sm:hidden mt-4 px-4 relative z-20">
         <BookingForm />
       </div>
-    </div>
-
-    {/* BookingForm (Mobile Only) */}
-    <div className="block sm:hidden mt-4 px-4 relative z-20">
-      <BookingForm />
-    </div>
 
 
 
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-10 mt-10">
-      
-      {/* ======= THANH MỤC LỤC ======= */}
-      <nav className="sticky top-0 z-40 bg-white shadow-sm border-t mt-10  ">
-        <ul className="flex  gap-8 text-sm font-medium text-gray-700 py-3">
-          <li>
-            <button
-              onClick={() =>
-                document
-                  .getElementById("overview")
-                  ?.scrollIntoView({ behavior: "smooth" })
-              }
-              className="hover:text-blue-600"
-            >
-              Tổng quan
-            </button>
-          </li>
-          <li>
-            <button
-              onClick={() =>
-                document
-                  .getElementById("rooms")
-                  ?.scrollIntoView({ behavior: "smooth" })
-              }
-              className="hover:text-blue-600"
-            >
-              Thông tin & Giá
-            </button>
-          </li>
-          <li>
-            <button
-              onClick={() =>
-                document
-                  .getElementById("amenities")
-                  ?.scrollIntoView({ behavior: "smooth" })
-              }
-              className="hover:text-blue-600"
-            >
-              Tiện nghi
-            </button>
-          </li>
-          <li>
-            <button
-              onClick={() =>
-                document
-                  .getElementById("rules")
-                  ?.scrollIntoView({ behavior: "smooth" })
-              }
-              className="hover:text-blue-600"
-            >
-              Quy tắc chung
-            </button>
-          </li>
-          <li>
-            <button
-              onClick={() =>
-                document
-                  .getElementById("reviews")
-                  ?.scrollIntoView({ behavior: "smooth" })
-              }
-              className="hover:text-blue-600"
-            >
-              Đánh giá
-            </button>
-          </li>
-        </ul>
-      </nav>
+      <div className="max-w-6xl mx-auto px-4 py-8 space-y-10 mt-10">
 
-      {/* ======= TỔNG QUAN ======= */}
-      <section id="overview" className="grid lg:grid-cols-3 gap-6">
-        {/* BÊN TRÁI: ảnh + mô tả */}
-        <div className="lg:col-span-2 space-y-4 relative">
-          {/* Ảnh khách sạn */}
-          <div className="grid grid-cols-3 gap-3 relative">
-            <img
-              src={hotel.imageurls?.[0]}
-              alt={hotel.name}
-              className="col-span-3 rounded-xl w-full h-80 object-cover"
-            />
-            {hotel.imageurls?.slice(1, 4).map((img, i) => (
-              <img
-                key={i}
-                src={img}
-                alt=""
-                className="rounded-lg h-28 object-cover w-full"
-              />
-            ))}
-
-            {/* Nút mở toàn bộ ảnh */}
-            {hotel.imageurls?.length > 4 && (
+        {/* ======= THANH MỤC LỤC ======= */}
+        <nav className="sticky top-0 z-40 bg-white shadow-sm border-t mt-10  ">
+          <ul className="flex  gap-8 text-sm font-medium text-gray-700 py-3">
+            <li>
               <button
-                onClick={() => setShowAllImages(true)}
-                className="absolute bottom-3 right-3 bg-black/60 text-white px-4 py-1.5 rounded-md text-sm flex items-center gap-1 hover:bg-black/80"
+                onClick={() =>
+                  document
+                    .getElementById("overview")
+                    ?.scrollIntoView({ behavior: "smooth" })
+                }
+                className="hover:text-blue-600"
               >
-                <Image size={16} /> +{hotel.imageurls.length - 4} ảnh
+                Tổng quan
               </button>
-            )}
-          </div>
+            </li>
+            <li>
+              <button
+                onClick={() =>
+                  document
+                    .getElementById("rooms")
+                    ?.scrollIntoView({ behavior: "smooth" })
+                }
+                className="hover:text-blue-600"
+              >
+                Thông tin & Giá
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() =>
+                  document
+                    .getElementById("amenities")
+                    ?.scrollIntoView({ behavior: "smooth" })
+                }
+                className="hover:text-blue-600"
+              >
+                Tiện nghi
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() =>
+                  document
+                    .getElementById("rules")
+                    ?.scrollIntoView({ behavior: "smooth" })
+                }
+                className="hover:text-blue-600"
+              >
+                Quy tắc chung
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() =>
+                  document
+                    .getElementById("reviews")
+                    ?.scrollIntoView({ behavior: "smooth" })
+                }
+                className="hover:text-blue-600"
+              >
+                Đánh giá
+              </button>
+            </li>
+          </ul>
+        </nav>
 
-          {/* Giới thiệu */}
-          <div>
-            <h1 className="text-3xl font-bold mb-2">{hotel.name}</h1>
-            <p className="text-gray-600 flex items-center gap-2 mb-2">
-              <MapPin size={18} /> {hotel.address}
-            </p>
-            <div className="flex items-center gap-2 mb-4">
-              <Star className="text-yellow-500" />
-              <span className="font-medium">
-                {average.toFixed(1)} / 5 ({reviews.length} đánh giá)
-              </span>
-            </div>
-            <p className="text-gray-700 leading-relaxed max-w-[90%]">
-              {hotel.description}
-            </p>
-          </div>
-        </div>
-
-        {/* BÊN PHẢI: đánh giá + bản đồ */}
-        <div className="lg:col-span-1">
-          <OverviewTab hotel={hotel} average={average} reviews={reviews} />
-        </div>
-      </section>
-       {/* ======= TIỆN NGHI ======= */}
-      <section id="amenities">
-        <AmenitiesTab amenities={amenities} services={services} />
-      </section>
-
-      {/* ======= THÔNG TIN & GIÁ ======= */}
-      <section id="rooms" ref={roomsRef}>
-        <RoomsTab
-          rooms={rooms}
-          onRoomSelected={() => {
-            setShowReviews(true);
-            reviewsRef.current?.scrollIntoView({ behavior: "smooth" });
-          }}
-        />
-      </section>
-
-     
-
-      {/* ======= QUY TẮC ======= */}
-      <section id="rules">
-        <h2 className="text-2xl font-semibold mb-3">Quy tắc chung</h2>
-        <p className="text-gray-700">
-          {hotel.rules || "Khách sạn chưa cập nhật quy tắc chung."}
-        </p>
-      </section>
-
-      {/* ======= ƯU ĐÃI ======= */}
-      <DiscountTab discounts={discounts} />
-
-      {/* ======= ĐÁNH GIÁ ======= */}
-      <section id="reviews" ref={reviewsRef}>
-  <ReviewsTab reviews={reviews} average={average} />
-</section>
-
-
-      {/* ======= MODAL ẢNH ======= */}
-      {showAllImages && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-6">
-          <div className="bg-white rounded-lg p-4 max-w-5xl w-full overflow-y-auto max-h-[90vh] relative">
-            <button
-              onClick={() => setShowAllImages(false)}
-              className="absolute top-3 right-3 bg-red-500 text-white px-3 py-1 rounded"
-            >
-              Đóng
-            </button>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-8">
-              {hotel.imageurls.map((img, i) => (
+        {/* ======= TỔNG QUAN ======= */}
+        <section id="overview" className="grid lg:grid-cols-3 gap-6">
+          {/* BÊN TRÁI: ảnh + mô tả */}
+          <div className="lg:col-span-2 space-y-4 relative">
+            {/* Ảnh khách sạn */}
+            <div className="grid grid-cols-3 gap-3 relative">
+              <img
+                src={hotel.imageurls?.[0]}
+                alt={hotel.name}
+                className="col-span-3 rounded-xl w-full h-80 object-cover"
+              />
+              {hotel.imageurls?.slice(1, 4).map((img, i) => (
                 <img
                   key={i}
                   src={img}
                   alt=""
-                  className="rounded-md object-cover w-full h-48"
+                  className="rounded-lg h-28 object-cover w-full"
                 />
               ))}
+
+              {/* Nút mở toàn bộ ảnh */}
+              {hotel.imageurls?.length > 4 && (
+                <button
+                  onClick={() => setShowAllImages(true)}
+                  className="absolute bottom-3 right-3 bg-black/60 text-white px-4 py-1.5 rounded-md text-sm flex items-center gap-1 hover:bg-black/80"
+                >
+                  <Image size={16} /> +{hotel.imageurls.length - 4} ảnh
+                </button>
+              )}
+            </div>
+
+            {/* Giới thiệu */}
+            <div>
+              <h1 className="text-3xl font-bold mb-2">{hotel.name}</h1>
+              <p className="text-gray-600 flex items-center gap-2 mb-2">
+                <MapPin size={18} /> {hotel.address}
+              </p>
+              <div className="flex items-center gap-2 mb-4">
+                <Star className="text-yellow-500" />
+                <span className="font-medium">
+                  {average.toFixed(1)} / 5 ({reviews.length} đánh giá)
+                </span>
+              </div>
+              {/* Description with show more */}
+              <div className="text-gray-700 leading-relaxed max-w-full">
+                {hotel.description && hotel.description.length > 400 ? (
+                  <>
+                    <p>
+                      {showMoreDesc
+                        ? hotel.description
+                        : `${hotel.description.slice(0, 400).trim()}...`}
+                    </p>
+                    <button
+                      onClick={() => setShowMoreDesc((s) => !s)}
+                      className="mt-2 text-blue-600 hover:underline text-sm"
+                    >
+                      {showMoreDesc ? "Thu gọn" : "Xem thêm"}
+                    </button>
+                  </>
+                ) : (
+                  <p>{hotel.description}</p>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+
+          {/* BÊN PHẢI: đánh giá + bản đồ */}
+          <div className="lg:col-span-1">
+            <OverviewTab
+              hotel={hotel}
+              average={average}
+              reviews={reviews}
+              onShowReviews={() => setShowReviews(true)}
+            />
+
+          </div>
+        </section>
+        {/* ======= TIỆN NGHI ======= */}
+        <section id="amenities">
+          <AmenitiesTab amenities={amenities} services={services} />
+        </section>
+
+        {/* ======= THÔNG TIN & GIÁ ======= */}
+        <section id="rooms" ref={roomsRef}>
+          <RoomsTab
+            rooms={rooms}
+            onRoomSelected={() => {
+              setShowReviews(true);
+              reviewsRef.current?.scrollIntoView({ behavior: "smooth" });
+            }}
+          />
+        </section>
+
+
+
+      {/* ======= QUY TẮC ======= */}
+      <section id="rules">
+        {/* use RulesTab component for nicer layout */}
+        <RulesTab hotel={hotel} />
+      </section>
+
+        {/* ======= ƯU ĐÃI ======= */}
+        <DiscountTab discounts={discounts} />
+
+        {/* ======= ĐÁNH GIÁ ======= */}
+        <section id="reviews" ref={reviewsRef}>
+          <ReviewsTab reviews={reviews} average={average} />
+        </section>
+
+
+        {/* ======= MODAL ẢNH ======= */}
+        {showAllImages && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-6">
+            <div className="bg-white rounded-lg p-4 max-w-5xl w-full overflow-y-auto max-h-[90vh] relative">
+              <button
+                onClick={() => setShowAllImages(false)}
+                className="absolute top-3 right-3 bg-red-500 text-white px-3 py-1 rounded"
+              >
+                Đóng
+              </button>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-8">
+                {hotel.imageurls.map((img, i) => (
+                  <img
+                    key={i}
+                    src={img}
+                    alt=""
+                    className="rounded-md object-cover w-full h-48"
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </>
   );
 }

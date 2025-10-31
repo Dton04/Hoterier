@@ -36,6 +36,7 @@ const RoomResults = ({ rooms = [] }) => {
 
   const [filters, setFilters] = useState({
     region: "",
+    city: "",
     minPrice: 0,
     maxPrice: 10000000,
     rating: 0,
@@ -59,8 +60,12 @@ const RoomResults = ({ rooms = [] }) => {
     fetchRegions();
     fetchServices();
     fetchAmenities();
-    fetchHotels();
   }, [location.search]);
+
+  // Khi người dùng chọn region hoặc city (hoặc URL thay đổi), lấy lại danh sách khách sạn
+  useEffect(() => {
+    fetchHotels();
+  }, [location.search, filters.region, filters.city]);
 
 
   useEffect(() => {
@@ -74,7 +79,7 @@ const RoomResults = ({ rooms = [] }) => {
     const destination = params.get("destination");
 
     if (destination) {
-      setFilters((prev) => ({ ...prev, region: destination }));
+      setFilters((prev) => ({ ...prev, region: destination, city: "" }));
     }
   }, [location.search]);
 
@@ -114,61 +119,64 @@ const RoomResults = ({ rooms = [] }) => {
 
   // 🏨 Lấy danh sách khách sạn
   const fetchHotels = async () => {
-    const searchParams = new URLSearchParams(location.search);
-    const destination = searchParams.get("destination");
-    const festival = searchParams.get("festival");
+  const searchParams = new URLSearchParams(location.search);
+  const festival = searchParams.get("festival");
 
-    setLoading(true);
-    try {
-      let hotelsWithExtras = [];
+  // ✅ Lấy region + city từ filters (separate selects)
+  const regionParam = filters.region || ""; // region id or name
+  const cityParam = filters.city || "";
 
-      if (festival) {
-        // Nếu có ưu đãi lễ hội
-        const { data } = await axios.get(`/api/discounts/${festival}/festival-hotels`);
-        let filtered = data.hotels;
+  setLoading(true);
+  try {
+    let hotelsWithExtras = [];
 
-        if (destination) {
-          filtered = filtered.filter(
-            (hotel) => hotel.region?._id === destination
-          );
+    if (festival) {
+      const { data } = await axios.get(`/api/discounts/${festival}/festival-hotels`);
+      let filtered = data.hotels;
+      if (regionParam) {
+        const isIdLike = /^[0-9a-fA-F]{24}$/.test(regionParam);
+        if (isIdLike) {
+          filtered = filtered.filter((h) => (h.region && (h.region._id?.toString() === regionParam || h.region === regionParam)));
+        } else {
+          filtered = filtered.filter((h) => h.regionName === regionParam || h.region?.name === regionParam);
         }
-
-        hotelsWithExtras = filtered.map((hotel) => {
-          const lowestPrice = Math.min(
-            ...hotel.rooms.map((r) => r.discountedPrice)
-          );
-          return { ...hotel, lowestPrice };
-        });
-      } else {
-        // Nếu không có festival
-        const { data } = await axios.get("/api/hotels");
-        const filtered = destination
-          ? data.filter((hotel) => hotel.region?._id === destination)
-          : data;
-
-        hotelsWithExtras = await Promise.all(
-          filtered.map(async (hotel) => {
-            const servicesRes = await axios.get(
-              `/api/services?hotelId=${hotel._id}&isAvailable=true`
-            );
-            const services = servicesRes.data || [];
-            const lowestPrice = hotel.rooms?.length
-              ? Math.min(...hotel.rooms.map((r) => r.rentperday))
-              : 0;
-            return { ...hotel, services, lowestPrice };
-          })
-        );
       }
+      if (cityParam) filtered = filtered.filter((h) => h.city === cityParam);
 
+      hotelsWithExtras = filtered.map((hotel) => {
+        const lowestPrice = Math.min(...hotel.rooms.map((r) => r.discountedPrice));
+        return { ...hotel, lowestPrice };
+      });
+    } else {
+      // ✅ Gọi API BE có query region + city (region may be id or name)
+      const { data } = await axios.get(`/api/hotels`, {
+        params: { region: regionParam || undefined, district: cityParam || undefined },
+      });
 
-      setHotels(hotelsWithExtras);
-      await fetchAverageRatings(hotelsWithExtras);
-    } catch (err) {
-      console.error("Lỗi khi lấy khách sạn:", err);
-    } finally {
-      setLoading(false);
+      hotelsWithExtras = await Promise.all(
+        data.map(async (hotel) => {
+          const servicesRes = await axios.get(`/api/services?hotelId=${hotel._id}&isAvailable=true`);
+          const services = servicesRes.data || [];
+          const lowestPrice = hotel.rooms?.length
+            ? Math.min(...hotel.rooms.map((r) => r.rentperday))
+            : 0;
+          return { ...hotel, services, lowestPrice };
+        })
+      );
     }
-  };
+
+    setHotels(hotelsWithExtras);
+    await fetchAverageRatings(hotelsWithExtras);
+  } catch (err) {
+    console.error("Lỗi khi lấy khách sạn:", err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+  
 
   //Lưu khách sạn
   const fetchFavorites = async () => {
@@ -244,7 +252,19 @@ const RoomResults = ({ rooms = [] }) => {
         const priceMin = Math.min(...hotel.rooms.map((r) => r.rentperday));
         const priceMax = Math.max(...hotel.rooms.map((r) => r.rentperday));
 
-        const matchRegion = filters.region ? hotel.region?._id === filters.region : true;
+        let matchRegion = true;
+        if (filters.region) {
+          const regionPart = filters.region;
+          const regionMatches =
+            (hotel.region && (hotel.region._id?.toString() === regionPart || hotel.region === regionPart)) ||
+            hotel.regionName === regionPart ||
+            hotel.region?.name === regionPart;
+          matchRegion = regionMatches;
+        }
+        if (filters.city) {
+          matchRegion = matchRegion && hotel.district === filters.city;
+        }
+
         const matchRating = avg >= filters.rating;
         const matchPrice = priceMax >= filters.minPrice && priceMin <= filters.maxPrice;
         const matchStars = filters.starRatings.length === 0 || filters.starRatings.includes(hotel.starRating || 3);
@@ -279,6 +299,7 @@ const RoomResults = ({ rooms = [] }) => {
   const resetFilters = () => {
     setFilters({
       region: "",
+      city: "",
       minPrice: 0,
       maxPrice: 10000000,
       rating: 0,
@@ -368,18 +389,41 @@ const RoomResults = ({ rooms = [] }) => {
             {/* Region */}
             <div className="border-b pb-4 mb-4 ">
               <h4 className="text-gray-700 font-medium mb-2">Khu vực</h4>
-              <select
-                value={filters.region}
-                onChange={(e) => setFilters({ ...filters, region: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg p-2 text-gray-600 focus:ring-2 focus:ring-blue-400"
-              >
-                <option value="">Tất cả khu vực</option>
-                {regions.map((r) => (
-                  <option key={r._id} value={r._id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
+            <select
+    value={filters.region}
+    onChange={(e) => setFilters({ ...filters, region: e.target.value, city: "" })}
+    className="w-full border border-gray-300 rounded-lg p-2 text-gray-600"
+  >
+      <option value="">Tất cả khu vực</option>
+  {regions.map((r) => (
+    <option key={r._id} value={r._id}>{r.name}</option>
+  ))}
+  </select>
+
+              {/* City select (depends on region) */}
+              {filters.region && (
+                (() => {
+                  const selected = regions.find((x) => x._id === filters.region || x._id?.toString() === filters.region);
+                  if (!selected || !Array.isArray(selected.cities) || selected.cities.length === 0) return null;
+                  return (
+                    <div className="mt-3">
+                      <h4 className="text-gray-700 font-medium mb-2 text-sm">Thành phố / Quận</h4>
+                      <select
+                        value={filters.city}
+                        onChange={(e) => setFilters((prev) => ({ ...prev, city: e.target.value }))}
+                        className="w-full border border-gray-300 rounded-lg p-2 text-gray-600"
+                      >
+                        <option value="">Tất cả thành phố</option>
+                        {selected.cities.map((cityObj, idx) => (
+                          <option key={idx} value={cityObj.name}>{cityObj.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })()
+              )}
+              
+              
             </div>
 
             {/* Price */}

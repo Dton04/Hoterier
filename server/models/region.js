@@ -1,29 +1,31 @@
+// models/region.js
 const mongoose = require('mongoose');
+
+const citySchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  hotels: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Hotel' }],
+});
 
 const regionSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
     unique: true,
-    // Tên khu vực
   },
+  cities: [citySchema], // 🏙️ Thêm danh sách thành phố trực thuộc
   adminId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     default: null,
-    // ID admin quản lý khu vực
   },
   hotels: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Hotel',
-    // Danh sách khách sạn/phòng trong khu vực
   }],
   imageUrl: { type: String },
-  
   createdAt: {
     type: Date,
     default: Date.now,
-    // Thời gian tạo
   },
 });
 

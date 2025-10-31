@@ -1,33 +1,23 @@
-// regionsRoutes.js
 const express = require('express');
 const multer = require('multer');
-const router = express.Router();
 const path = require('path');
 const { protect, admin } = require('../middleware/auth');
-const regionsController = require('../controllers/regionsController'); 
+const regionsController = require('../controllers/regionsController');
+const router = express.Router();
 
-// Config multer
+// Multer config
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'Uploads/'),
-  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
+  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname)),
 });
 const upload = multer({ storage });
 
-// POST /api/regions - Tạo region mới
-router.post('/', protect, admin, upload.single("image"), regionsController.createRegion);
-
-// GET /api/regions - Lấy danh sách regions
+// 🟢 CRUD routes
 router.get('/', regionsController.getRegions);
-
-// POST /api/regions/assign-admin - Phân quyền admin khu vực
-router.post('/assign-admin', protect, admin, regionsController.assignAdmin);
-
-// GET /api/admin/hotels-by-region - Admin xem các khách sạn trong khu quản lý
-router.get('/admin/hotels-by-region', protect, admin, regionsController.getHotelsByRegion);
-
-// POST /api/regions/:id/image - Upload ảnh cho region
-router.post('/:id/image', upload.single('image'), regionsController.uploadRegionImage);
-// DELETE /api/regions/:id/image - Xóa ảnh cho region
-router.delete(':id/image',regionsController.deleteRegionImage);
+router.post('/', protect, admin, upload.single("image"), regionsController.createRegion);
+router.post('/:regionId/cities', protect, admin, regionsController.addCityToRegion);
+router.post('/:id/image', protect, admin, upload.single("image"), regionsController.uploadRegionImage);
+router.delete('/:id/image', protect, admin, regionsController.deleteRegionImage);
+router.delete('/:id', protect, admin, regionsController.deleteRegion);
 
 module.exports = router;

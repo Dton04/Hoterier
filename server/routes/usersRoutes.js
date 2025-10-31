@@ -172,6 +172,8 @@ router.post('/regions/assign-admin', protect, admin, usersController.assignRegio
 router.get('/membership/benefits/:userId', protect, usersController.getMembershipBenefits);
 
 
+router.get('/:id/rewards-summary', protect, usersController.getRewardsSummary);
+
 
 
 module.exports = router;

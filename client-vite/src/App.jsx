@@ -18,6 +18,7 @@ import Registerscreen from "./screens/Auth/Registerscreen";
 import LoginScreen from "./screens/Auth/Loginscreen";
 import HistoryBookings from "./components/HistoryBookings";
 import ProfileManagement from "./components/ProfileManagement";
+import ProfileDetails from "./components/ProfileDetails";
 import GoogleCallBack from "./screens/Auth/GoogleCallBack";
 import FacebookCallBack from "./screens/Auth/FacebookCallBack";
 import Membership from "./components/Membership";
@@ -126,6 +127,7 @@ function App() {
             {/* Các route cần đăng nhập của người dùng */}
             <Route path="/bookings" element={<UserRoute><HistoryBookings /></UserRoute>} />
             <Route path="/profile" element={<UserRoute><ProfileManagement /></UserRoute>} />
+            <Route path="/profile/details" element={<UserRoute><ProfileDetails /></UserRoute>} />
             <Route path="/membership" element={<UserRoute><Membership /></UserRoute>} />
             <Route path="/rewards" element={<UserRoute><Rewards /></UserRoute>} />
             <Route path="/points" element={<UserRoute><PointsPage /></UserRoute>} />

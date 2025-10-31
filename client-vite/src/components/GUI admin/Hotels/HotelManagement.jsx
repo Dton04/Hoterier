@@ -9,8 +9,15 @@ const HotelManagement = () => {
   const [hotels, setHotels] = useState([]);
   const [regions, setRegions] = useState([]);
   const [formData, setFormData] = useState({
-    name: '', address: '', region: '', contactNumber: '', email: '', description: '',
+    name: '',
+    address: '',
+    region: '',
+    city: '',
+    contactNumber: '',
+    email: '',
+    description: '',
   });
+
   const [newImages, setNewImages] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -52,49 +59,49 @@ const HotelManagement = () => {
   const handleImageChange = (e) => {
     setNewImages(Array.from(e.target.files));
   };
-  
+
   const resetForm = () => {
-      setFormData({ name: '', address: '', region: '', contactNumber: '', email: '', description: '' });
-      setNewImages([]);
-      setIsEditing(false);
-      setEditId(null);
-      if (document.getElementById('image-upload')) {
-        document.getElementById('image-upload').value = null;
-      }
+    setFormData({ name: '', address: '', region: '', contactNumber: '', email: '', description: '' });
+    setNewImages([]);
+    setIsEditing(false);
+    setEditId(null);
+    if (document.getElementById('image-upload')) {
+      document.getElementById('image-upload').value = null;
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-        let savedHotelId;
-        if (isEditing) {
-            await axios.put(`/api/hotels/${editId}`, formData, config);
-            savedHotelId = editId;
-            toast.success('Cập nhật thông tin khách sạn thành công!');
-        } else {
-            const { data } = await axios.post('/api/hotels', formData, config);
-            savedHotelId = data.hotel._id;
-            toast.success('Thêm khách sạn thành công!');
-        }
+      let savedHotelId;
+      if (isEditing) {
+        await axios.put(`/api/hotels/${editId}`, formData, config);
+        savedHotelId = editId;
+        toast.success('Cập nhật thông tin khách sạn thành công!');
+      } else {
+        const { data } = await axios.post('/api/hotels', formData, config);
+        savedHotelId = data.hotel._id;
+        toast.success('Thêm khách sạn thành công!');
+      }
 
-        if (newImages.length > 0) {
-            const imagePayload = new FormData();
-            newImages.forEach(image => {
-                imagePayload.append('images', image);
-            });
-            await axios.post(`/api/hotels/${savedHotelId}/images`, imagePayload, {
-                headers: { 
-                    'Content-Type': 'multipart/form-data',
-                    Authorization: `Bearer ${userInfo.token}`,
-                },
-            });
-            toast.success('Tải ảnh lên thành công!');
-        }
-        
-        resetForm();
-        fetchHotels();
+      if (newImages.length > 0) {
+        const imagePayload = new FormData();
+        newImages.forEach(image => {
+          imagePayload.append('images', image);
+        });
+        await axios.post(`/api/hotels/${savedHotelId}/images`, imagePayload, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${userInfo.token}`,
+          },
+        });
+        toast.success('Tải ảnh lên thành công!');
+      }
+
+      resetForm();
+      fetchHotels();
     } catch (err) {
-        toast.error(err.response?.data?.message || 'Có lỗi xảy ra!');
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra!');
     }
   };
 
@@ -149,31 +156,49 @@ const HotelManagement = () => {
           {isEditing ? 'Chỉnh sửa thông tin khách sạn' : 'Thêm khách sạn mới'}
         </h3>
         <form onSubmit={handleSubmit}>
-           {/* ... nội dung form không đổi ... */}
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* ... nội dung form không đổi ... */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Cột 1 */}
             <div>
               <div className="mb-4">
                 <label className="block mb-2 text-sm font-medium text-slate-700">Tên khách sạn</label>
-                <input type="text" name="name" value={formData.name} onChange={handleInputChange} required 
-                  className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-blue-500"/>
+                <input type="text" name="name" value={formData.name} onChange={handleInputChange} required
+                  className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-blue-500" />
               </div>
               <div className="mb-4">
                 <label className="block mb-2 text-sm font-medium text-slate-700">Địa chỉ</label>
-                <input type="text" name="address" value={formData.address} onChange={handleInputChange} required 
-                  className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-blue-500"/>
+                <input type="text" name="address" value={formData.address} onChange={handleInputChange} required
+                  className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-blue-500" />
               </div>
               <div className="mb-4">
-                <label className="block mb-2 text-sm font-medium text-slate-700">Khu vực</label>
-                <select name="region" value={formData.region} onChange={handleInputChange} required 
-                  className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-blue-500">
+                <label className="block mb-2 text-sm font-medium text-slate-700">Khu vực / Thành phố</label>
+                <select
+                  name="region"
+                  value={formData.region ? `${formData.region}|${formData.city}` : ""}
+                  onChange={(e) => {
+                    const [regionId, cityName] = e.target.value.split("|");
+                    setFormData((prev) => ({ ...prev, region: regionId, city: cityName || "" }));
+                  }}
+                  required
+                  className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-blue-500"
+                >
                   <option value="">Chọn khu vực</option>
-                  {regions.map((region) => <option key={region._id} value={region._id}>{region.name}</option>)}
+                  {regions.map((region) => (
+                    <optgroup key={region._id} label={region.name}>
+                      {region.cities?.map((city, i) => (
+                        <option key={i} value={`${region._id}|${city.name}`}>
+                          {city.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
                 </select>
+
               </div>
+
               <div className="mb-4">
                 <label className="block mb-2 text-sm font-medium text-slate-700">Mô tả</label>
-                <textarea name="description" value={formData.description} onChange={handleInputChange} rows="4" 
+                <textarea name="description" value={formData.description} onChange={handleInputChange} rows="4"
                   className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
               </div>
             </div>
@@ -183,22 +208,22 @@ const HotelManagement = () => {
                 <label className="block mb-2 text-sm font-medium text-slate-700">Email</label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3"><FiMail className="text-gray-400" /></span>
-                  <input type="email" name="email" value={formData.email} onChange={handleInputChange} required 
-                    className="w-full rounded-md border border-gray-300 bg-white p-2.5 pl-10 text-sm focus:border-blue-500 focus:ring-blue-500"/>
+                  <input type="email" name="email" value={formData.email} onChange={handleInputChange} required
+                    className="w-full rounded-md border border-gray-300 bg-white p-2.5 pl-10 text-sm focus:border-blue-500 focus:ring-blue-500" />
                 </div>
               </div>
               <div className="mb-4">
                 <label className="block mb-2 text-sm font-medium text-slate-700">Số điện thoại</label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3"><FiPhone className="text-gray-400" /></span>
-                  <input type="text" name="contactNumber" value={formData.contactNumber} onChange={handleInputChange} required 
-                    className="w-full rounded-md border border-gray-300 bg-white p-2.5 pl-10 text-sm focus:border-blue-500 focus:ring-blue-500"/>
+                  <input type="text" name="contactNumber" value={formData.contactNumber} onChange={handleInputChange} required
+                    className="w-full rounded-md border border-gray-300 bg-white p-2.5 pl-10 text-sm focus:border-blue-500 focus:ring-blue-500" />
                 </div>
               </div>
               <div className="mb-4">
                 <label className="block mb-2 text-sm font-medium text-slate-700">Ảnh khách sạn</label>
                 <input type="file" multiple accept="image/*" onChange={handleImageChange} id="image-upload"
-                  className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                  className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
               </div>
             </div>
           </div>
@@ -217,14 +242,14 @@ const HotelManagement = () => {
       <div className="rounded-lg border border-gray-200 bg-white px-5 pt-6 pb-4 shadow-sm">
         {/* ✅ BƯỚC 1: Thêm thanh tìm kiếm */}
         <div className="mb-4 relative w-full md:w-1/2">
-            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-                type="text"
-                placeholder="Tìm theo tên hoặc địa chỉ khách sạn..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-white pl-11 pr-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-            />
+          <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Tìm theo tên hoặc địa chỉ khách sạn..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-white pl-11 pr-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          />
         </div>
 
         <div className="max-w-full overflow-x-auto">
@@ -244,7 +269,7 @@ const HotelManagement = () => {
                 <tr key={hotel._id}>
                   <td className="border-b border-gray-200 py-4 px-4">
                     <div className="flex items-center gap-3">
-                      <img src={hotel.imageurls?.[0]} alt={hotel.name} className="h-12 w-16 rounded object-cover"/>
+                      <img src={hotel.imageurls?.[0]} alt={hotel.name} className="h-12 w-16 rounded object-cover" />
                       <div>
                         <p className="font-medium text-slate-800">{hotel.name}</p>
                         <p className="text-sm text-gray-500">{hotel.address}</p>
@@ -259,7 +284,7 @@ const HotelManagement = () => {
                     <p className="text-slate-800">{hotel.region?.name || 'N/A'}</p>
                   </td>
                   <td className="border-b border-gray-200 py-4 px-4">
-                     <p className="text-slate-800">{hotel.rooms.length} phòng</p>
+                    <p className="text-slate-800">{hotel.rooms.length} phòng</p>
                   </td>
                   <td className="border-b border-gray-200 py-4 px-4">
                     {/* ✅ BƯỚC 2: Sửa lại màu chữ cho các nút hành động */}

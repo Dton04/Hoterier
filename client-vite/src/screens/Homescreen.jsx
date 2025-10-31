@@ -4,8 +4,10 @@ import Banner from "../components/Banner";
 import BookingForm from "../components/BookingForm";
 
 import AlertMessage from "../components/AlertMessage";
-import VietnamDestinations from "../screens/VietnamDestinations"
+import VietnamDestinations from "./aboutHome/VietnamDestinations"
 import vnFlag from "../assets/images/vietnam-flag.png";
+import PromoCarousel from "./aboutHome/PromoCarousel";
+import PopularDestinations from "./aboutHome/PopularDestinations";
 
 function Homescreen() {
   const [user, setUser] = useState(null);
@@ -82,62 +84,13 @@ function Homescreen() {
         </div>
       </section>
 
-      {/* ƯU ĐÃI LỄ HỘI */}
-      <section className=" py-20 bg-gradient-to-b from-gray-50 to-white">
-        <div className="max-w-6xl mx-auto px-4 ">
-          <div className="text-center mb-10 animate-pulse">
-            <h2 className="uppercase tracking-widest text-blue-600 font-semibold flex justify-center items-center ">
-              <span className="w-12 h-0.5 bg-blue-600 mx-3"></span> ƯU ĐÃI LỄ HỘI{" "}
-              <span className="w-12 h-0.5 bg-blue-600 mx-3"></span>
-            </h2>
-            <h1 className="text-3xl font-playfair font-bold text-gray-800">
-              Không khí lễ hội -{" "}
-              <span className="text-pink-500">Ưu đãi tuyệt vời!</span>
-            </h1>
-            <p className="text-gray-600 max-w-xl mx-auto mt-3">
-              Khám phá những ưu đãi độc quyền trong mùa lễ hội — tiết kiệm đến{" "}
-              <strong>50%</strong> cho các điểm đến nổi bật!
-            </p>
-          </div>
+    <PromoCarousel festivalDiscounts={festivalDiscounts}/>
 
-          {/* Festival Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {festivalDiscounts.map((festival) => (
-              <div
-                key={festival._id}
-                onClick={() => navigate(`/festival/${festival._id}`)}
-                className="cursor-pointer bg-white rounded-2xl shadow-md overflow-hidden transform hover:scale-[1.03] transition"
-              >
-                <div className="relative">
-                  <img
-                    src={festival.image || "/default-festival.jpg"}
-                    alt={festival.name}
-                    className="w-full h-56 object-cover"
-                  />
-                  <div className="absolute top-4 left-4 bg-pink-500 text-white text-sm font-semibold px-3 py-1 rounded-full shadow-md">
-                    Giảm {festival.discountValue}%
-                  </div>
-                </div>
-                <div className="text-center p-5">
-                  <h5 className="text-lg font-semibold">{festival.name}</h5>
-                  <p className="text-gray-500 text-sm mt-2 mb-3">
-                    {festival.description?.slice(0, 60) ||
-                      "Khám phá các ưu đãi độc quyền mùa lễ hội."}
-                  </p>
-                  <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full transition">
-                    Khám phá ngay
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* Điểm đến đang thịnh hành */}
       <section className="py-16 bg-white">
         <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-[#262626] mb-3">
+          <h2 className="text-3xl font-bold text-[#003580] mb-3">
             Điểm đến đang thịnh hành
           </h2>
           <p className="text-gray-500 text-[15px] mb-8">
@@ -149,7 +102,7 @@ function Homescreen() {
             {/* --- Hàng 1: 2 ảnh to --- */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 col-span-2">
               {regions
-                .filter((r) => ["Hà Nội", "TP.HCM"].includes(r.name))
+                .filter((r) => ["Hà Nội", "Hồ Chí Minh"].includes(r.name))
                 .slice(0, 2)
                 .map((region, index) => (
                   <div
@@ -180,7 +133,7 @@ function Homescreen() {
             {/* --- Hàng 2: 3 ảnh nhỏ --- */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 col-span-2 mt-4">
               {regions
-                .filter((r) => ["Đà Nẵng", "Nha Trang", "Đà Lạt"].includes(r.name))
+                .filter((r) => ["Đà Nẵng", "Đồng Nai", "Lâm Đồng"].includes(r.name))
                 .slice(0, 3)
                 .map((region, index) => (
                   <div
@@ -299,48 +252,11 @@ function Homescreen() {
       )}
 
 
-      {/* Liên hệ */}
-      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
-        <div className="max-w-6xl mx-auto px-4 text-center">
-          <h2 className="uppercase tracking-widest text-amber-600 font-semibold flex items-center justify-center">
-            <span className="w-10 h-0.5 bg-amber-600 mx-3"></span> LIÊN HỆ{" "}
-            <span className="w-10 h-0.5 bg-amber-600 mx-3"></span>
-          </h2>
-          <h1 className="text-3xl font-playfair font-bold mt-2">
-            Đặt phòng ngay
-          </h1>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10">
-            {[
-              { icon: "fa-phone", title: "Điện thoại", text: "+84 123 456 789" },
-              { icon: "fa-envelope", title: "Email", text: "info@hotelier.com" },
-              {
-                icon: "fa-map-marker-alt",
-                title: "Địa chỉ",
-                text: "123 Đường ABC, TP XYZ",
-              },
-            ].map((item, i) => (
-              <div
-                key={i}
-                className="bg-white rounded-2xl shadow-md p-8 hover:-translate-y-2 transition"
-              >
-                <i
-                  className={`fas ${item.icon} text-3xl text-amber-600 mb-4`}
-                ></i>
-                <h3 className="font-semibold text-lg mb-2">{item.title}</h3>
-                <p className="text-gray-600">{item.text}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-8">
-            <Link
-              to="/contact"
-              className="inline-block bg-transparent border-2 border-amber-600 text-amber-600 hover:bg-amber-600 hover:text-white px-8 py-3 rounded-full transition"
-            >
-              Liên hệ ngay
-            </Link>
-          </div>
-        </div>
-      </section>
+      <PopularDestinations />
+
+
+
+      
     </div>
   );
 }

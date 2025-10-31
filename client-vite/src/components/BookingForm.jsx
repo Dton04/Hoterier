@@ -20,6 +20,7 @@ function BookingForm() {
   const [filteredRegions, setFilteredRegions] = useState([]);
   const [openGuestDropdown, setOpenGuestDropdown] = useState(false);
   const dropdownRef = useRef(null);
+  const [childrenAges, setChildrenAges] = useState([]);
   const navigate = useNavigate();
 
   // LocalStorage
@@ -37,6 +38,10 @@ function BookingForm() {
           children: data.children || 0,
           rooms: data.rooms || 1,
         }));
+        // restore children ages if present
+        if (data.childrenAges && Array.isArray(data.childrenAges)) {
+          setChildrenAges(data.childrenAges);
+        }
       } catch (err) {
         console.error("Lỗi khi parse bookingInfo:", err);
       }
@@ -101,10 +106,28 @@ function BookingForm() {
   };
 
   const handleCounter = (field, delta) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: Math.max(0, prev[field] + delta),
-    }));
+    setFormData((prev) => {
+      const next = Math.max(field === 'adults' ? 1 : field === 'rooms' ? 1 : 0, prev[field] + delta);
+      // enforce maximums
+      const maxMap = { adults: 16, children: 8, rooms: 9 };
+      const capped = Math.min(next, maxMap[field] || next);
+
+      // if children decreased, trim childrenAges
+      if (field === 'children') {
+        setChildrenAges((prevAges) => {
+          if (capped < prevAges.length) return prevAges.slice(0, capped);
+          // if increased, append default age 2
+          const newAges = [...prevAges];
+          while (newAges.length < capped) newAges.push(2);
+          return newAges;
+        });
+      }
+
+      return {
+        ...prev,
+        [field]: capped,
+      };
+    });
   };
 
   const handleSubmit = (e) => {
@@ -125,6 +148,7 @@ function BookingForm() {
       adults: formData.adults,
       children: formData.children,
       rooms: formData.rooms,
+      childrenAges: formData.children > 0 ? childrenAges : [],
     };
     localStorage.setItem("bookingInfo", JSON.stringify(submitData));
     navigate(`/room-results?${new URLSearchParams(submitData).toString()}`);
@@ -225,43 +249,127 @@ function BookingForm() {
           </div>
 
           {openGuestDropdown && (
-            <div className="absolute top-full left-0 bg-white border border-gray-300 rounded-md shadow-md mt-1 p-3 min-w-[250px] z-50">
-              {["adults", "children", "rooms"].map((field) => (
-                <div key={field} className="flex justify-between items-center mb-3 last:mb-0">
-                  <span className="capitalize text-sm">
-                    {field === "adults"
-                      ? "Người lớn"
-                      : field === "children"
-                        ? "Trẻ em"
-                        : "Phòng"}
-                  </span>
+            <div className="absolute top-full left-0 bg-white border border-gray-300 rounded-md shadow-md mt-1 p-4 min-w-[320px] z-50">
+              <div className="text-sm text-gray-700 font-medium mb-3">Khách và Phòng</div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">Người lớn</div>
+                    <div className="text-xs text-gray-500">Từ 13 tuổi trở lên</div>
+                  </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => handleCounter(field, -1)}
-                      className="border border-[#0071c2] rounded-full text-[#0071c2] w-6 h-6 flex items-center justify-center hover:bg-[#0071c2] hover:text-white"
+                      onClick={() => handleCounter('adults', -1)}
+                      className="w-8 h-8 rounded-full border flex items-center justify-center"
                     >
                       -
                     </button>
-                    <span className="text-sm">{formData[field]}</span>
+                    <div className="w-6 text-center">{formData.adults}</div>
                     <button
                       type="button"
-                      onClick={() => handleCounter(field, 1)}
-                      className="border border-[#0071c2] rounded-full text-[#0071c2] w-6 h-6 flex items-center justify-center hover:bg-[#0071c2] hover:text-white"
+                      onClick={() => handleCounter('adults', 1)}
+                      className="w-8 h-8 rounded-full border flex items-center justify-center"
                     >
                       +
                     </button>
                   </div>
                 </div>
-              ))}
-              <div className="text-right">
-                <button
-                  type="button"
-                  onClick={() => setOpenGuestDropdown(false)}
-                  className="bg-[#0071c2] text-white px-3 py-1 border-r-[4px] border-[#e0a200] rounded-l-lg text-sm hover:bg-blue-700"
-                >
-                  Xong
-                </button>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">Trẻ em</div>
+                    <div className="text-xs text-gray-500">0-12 tuổi</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCounter('children', -1)}
+                      className="w-8 h-8 rounded-full border flex items-center justify-center"
+                    >
+                      -
+                    </button>
+                    <div className="w-6 text-center">{formData.children}</div>
+                    <button
+                      type="button"
+                      onClick={() => handleCounter('children', 1)}
+                      className="w-8 h-8 rounded-full border flex items-center justify-center"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {formData.children > 0 && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {Array.from({ length: formData.children }).map((_, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <label className="text-xs">Tuổi trẻ em {idx + 1}</label>
+                        <select
+                          value={childrenAges[idx] ?? 2}
+                          onChange={(e) => {
+                            const age = Number(e.target.value);
+                            setChildrenAges((prev) => {
+                              const copy = [...prev];
+                              copy[idx] = age;
+                              return copy;
+                            });
+                          }}
+                          className="border rounded px-2 py-1 text-sm"
+                        >
+                          {Array.from({ length: 18 }).map((__, a) => (
+                            <option key={a} value={a}>{a}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">Phòng</div>
+                    <div className="text-xs text-gray-500">Số lượng phòng</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCounter('rooms', -1)}
+                      className="w-8 h-8 rounded-full border flex items-center justify-center"
+                    >
+                      -
+                    </button>
+                    <div className="w-6 text-center">{formData.rooms}</div>
+                    <button
+                      type="button"
+                      onClick={() => handleCounter('rooms', 1)}
+                      className="w-8 h-8 rounded-full border flex items-center justify-center"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // reset to defaults
+                      setFormData((prev) => ({ ...prev, adults: 2, children: 0, rooms: 1 }));
+                      setChildrenAges([]);
+                    }}
+                    className="px-3 py-1 border rounded text-sm"
+                  >
+                    Đặt lại
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOpenGuestDropdown(false)}
+                    className="px-3 py-1 bg-[#0071c2] text-white rounded text-sm"
+                  >
+                    Xong
+                  </button>
+                </div>
               </div>
             </div>
           )}

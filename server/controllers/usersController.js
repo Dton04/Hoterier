@@ -1071,3 +1071,47 @@ exports.sendGoogleOTP = async (req, res) => {
   }
 };
 
+
+
+// [GET] /api/users/:id/rewards-summary
+exports.getRewardsSummary = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await User.findById(userId).select('points name email');
+    if (!user) return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+
+    let membershipLevel;
+    if (user.points >= 400000) membershipLevel = 'Diamond';
+    else if (user.points >= 300000) membershipLevel = 'Platinum';
+    else if (user.points >= 200000) membershipLevel = 'Gold';
+    else if (user.points >= 100000) membershipLevel = 'Silver';
+    else membershipLevel = 'Bronze';
+
+    const levels = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
+    const currentIndex = levels.indexOf(membershipLevel);
+    const nextLevel = levels[currentIndex + 1] || 'Max';
+    const nextThreshold = [0, 100000, 200000, 300000, 400000, 500000][currentIndex + 1] || null;
+
+    const benefitsMap = {
+      Bronze: ['Ưu đãi cơ bản', 'Tích điểm 1% mỗi giao dịch'],
+      Silver: ['Ưu đãi cơ bản', 'Tích điểm 1.5%', 'Nâng cấp phòng 1 lần/năm'],
+      Gold: ['Ưu đãi cơ bản', 'Tích điểm 2%', 'Nâng cấp phòng 2 lần/năm', 'Check-in ưu tiên'],
+      Platinum: ['Ưu đãi cơ bản', 'Tích điểm 2.5%', 'Nâng cấp phòng 3 lần/năm', 'Đưa đón sân bay'],
+      Diamond: ['Ưu đãi cơ bản', 'Tích điểm 3%', 'Nâng cấp phòng không giới hạn', 'Quà tặng đặc biệt'],
+    };
+
+    res.json({
+      name: user.name,
+      email: user.email,
+      points: user.points,
+      membershipLevel,
+      nextLevel,
+      pointsToNext: nextThreshold ? Math.max(nextThreshold - user.points, 0) : 0,
+      benefits: benefitsMap[membershipLevel],
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi khi lấy thông tin điểm thưởng', error: error.message });
+  }
+};
+
+

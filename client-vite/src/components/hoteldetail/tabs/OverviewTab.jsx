@@ -1,14 +1,17 @@
 import React from "react";
-import { Star, MapPin } from "lucide-react";
-import GoogleMapEmbed from "../components/GoogleMapEmbed";
+import { Star } from "lucide-react";
 
-export default function OverviewTab({ hotel, average, reviews }) {
+export default function OverviewTab({ hotel, average, reviews, onShowReviews }) {
   return (
     <div className="space-y-6">
       {/* Đánh giá tổng quan */}
-      <div className="border rounded-lg p-5 shadow-sm bg-gray-50">
-        <h3 className="text-lg font-semibold mb-2 text-gray-800">
+      <div
+        onClick={onShowReviews}
+        className="border rounded-lg p-5 shadow-sm bg-gray-50 cursor-pointer hover:bg-blue-50 transition"
+      >
+        <h3 className="text-lg font-semibold mb-2 text-gray-800 flex justify-between items-center">
           Đánh giá tổng quan
+          <span className="text-sm text-blue-600">Xem chi tiết →</span>
         </h3>
         <div className="flex items-center gap-2 mb-2">
           <Star className="text-yellow-500" size={20} />
@@ -20,8 +23,7 @@ export default function OverviewTab({ hotel, average, reviews }) {
           </span>
         </div>
         <p className="text-gray-500 text-sm">
-          “Khách nói rằng vị trí tuyệt vời, nhân viên thân thiện và phòng sạch
-          sẽ.”
+          “Khách nói rằng vị trí tuyệt vời, nhân viên thân thiện và phòng sạch sẽ.”
         </p>
       </div>
 
@@ -30,7 +32,14 @@ export default function OverviewTab({ hotel, average, reviews }) {
         <h3 className="text-lg font-semibold mb-2 text-gray-800">
           Vị trí trên bản đồ
         </h3>
-        <GoogleMapEmbed address={hotel.address} />
+        <iframe
+          title="Google Map"
+          src={`https://www.google.com/maps?q=${encodeURIComponent(
+            hotel.address
+          )}&output=embed`}
+          className="w-full h-48 rounded-md border"
+          loading="lazy"
+        ></iframe>
         <button
           onClick={() =>
             window.open(
@@ -41,7 +50,7 @@ export default function OverviewTab({ hotel, average, reviews }) {
             )
           }
           className="mt-2 text-blue-600 hover:underline text-sm font-medium"
-        >
+        > 
           Xem vị trí chi tiết →
         </button>
       </div>

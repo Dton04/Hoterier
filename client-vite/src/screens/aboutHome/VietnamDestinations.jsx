@@ -1,17 +1,19 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
 export default function VietnamDestinations({ regions }) {
   const scrollRef = useRef(null);
   const navigate = useNavigate();
-
+  const [hovered, setHovered] = useState(false);
 
   const scroll = (direction) => {
     const { current } = scrollRef;
     if (current) {
       const scrollAmount =
-        direction === "left" ? -current.offsetWidth / 1.2 : current.offsetWidth / 1.2;
+        direction === "left"
+          ? -current.offsetWidth / 1.2
+          : current.offsetWidth / 1.2;
       current.scrollBy({ left: scrollAmount, behavior: "smooth" });
     }
   };
@@ -21,7 +23,7 @@ export default function VietnamDestinations({ regions }) {
       <div className="max-w-6xl mx-auto px-4 relative">
         {/* Header */}
         <div className="mb-8">
-          <h2 className="text-[22px] font-bold text-[#262626]">
+          <h2 className="text-[22px] font-bold text-[#003580]">
             Khám phá Việt Nam
           </h2>
           <p className="text-gray-500 text-[15px]">
@@ -30,11 +32,19 @@ export default function VietnamDestinations({ regions }) {
         </div>
 
         {/* Scroll Container */}
-        <div className="relative">
-
+        <div
+          className="relative"
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+        >
+          {/* Nút trái */}
           <button
             onClick={() => scroll("left")}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center shadow-md hover:bg-gray-100"
+            className={`absolute left-0 top-1/2 -translate-y-1/2 z-10 rounded-full w-8 h-8 flex items-center justify-center border border-gray-300 transition-all duration-300 ${
+              hovered
+                ? "opacity-100 bg-white shadow-md hover:bg-gray-100"
+                : "opacity-0 pointer-events-none"
+            }`}
           >
             <FaChevronLeft className="text-gray-700 text-sm" />
           </button>
@@ -77,7 +87,11 @@ export default function VietnamDestinations({ regions }) {
           {/* Nút phải */}
           <button
             onClick={() => scroll("right")}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white border border-gray-300 rounded-full w-8 h-8 flex items-center justify-center shadow-md hover:bg-gray-100"
+            className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 rounded-full w-8 h-8 flex items-center justify-center border border-gray-300 transition-all duration-300 ${
+              hovered
+                ? "opacity-100 bg-white shadow-md hover:bg-gray-100"
+                : "opacity-0 pointer-events-none"
+            }`}
           >
             <FaChevronRight className="text-gray-700 text-sm" />
           </button>

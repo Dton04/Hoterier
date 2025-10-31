@@ -16,21 +16,69 @@ exports.getAllHotels = async (req, res) => {
       return res.status(503).json({ message: 'Kết nối cơ sở dữ liệu chưa sẵn sàng' });
     }
 
-    const hotels = await Hotel.find()
+    const { region, city, district } = req.query;
+    const filter = {};
+
+    // Support both region id (ObjectId) or region name
+    if (region) {
+      if (mongoose.Types.ObjectId.isValid(region)) {
+        filter.region = region;
+      } else {
+        // try find region by name
+        const foundRegion = await Region.findOne({ name: region }).select('_id');
+        if (foundRegion) filter.region = foundRegion._id;
+        else {
+          // fallback: if hotel documents have regionName field (legacy), filter by that
+          filter.regionName = region;
+        }
+      }
+    }
+    // 🏙️ Lọc theo district (ưu tiên nếu có)
+    if (district || city) {
+      const target = district || city;
+
+      // Chuẩn hóa tiếng Việt cho việc tìm kiếm không phân biệt dấu
+      const normalizeVietnamese = (str) =>
+        str
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/đ/g, "d")
+          .replace(/Đ/g, "D")
+          .toLowerCase();
+
+      const normalized = normalizeVietnamese(target);
+
+      // ⚡️ Lọc district không phân biệt dấu bằng $or + regex
+      filter.$or = [
+        { district: { $regex: target, $options: "i" } }, // có dấu
+        { district: { $regex: normalized, $options: "i" } }, // không dấu
+      ];
+    }
+
+
+
+
+
+
+
+    // Truy vấn và populate đầy đủ
+    const hotels = await Hotel.find(filter)
       .populate('region', 'name')
-      .populate('rooms', '_id name maxcount beds baths rentperday type description imageurls availabilityStatus currentbookings amenities')
+      .populate('rooms', '_id name maxcount beds baths rentperday type description imageurls availabilityStatus amenities')
       .lean();
 
+    // Return an empty array (200) when no hotels found so frontend can safely handle the result
     if (!hotels || hotels.length === 0) {
-      return res.status(404).json({ message: 'Không tìm thấy khách sạn nào' });
+      return res.status(200).json([]);
     }
 
     res.status(200).json(hotels);
   } catch (error) {
-    console.error('Lỗi khi lấy danh sách khách sạn:', error.message, error.stack);
+    console.error('Lỗi khi lấy danh sách khách sạn:', error.message);
     res.status(500).json({ message: 'Lỗi khi lấy danh sách khách sạn', error: error.message });
   }
 };
+
 
 // GET /api/hotels/:id - Lấy chi tiết khách sạn
 exports.getHotelById = async (req, res) => {

@@ -15,6 +15,11 @@ const hotelSchema = new mongoose.Schema({
     ref: 'Region',
     required: true,
   },
+  district: {
+  type: String,
+  default: null, // Ví dụ "Quận 1", "Tân Bình", "Nha Trang"
+},
+
   rooms: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Room',

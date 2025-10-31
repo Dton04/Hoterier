@@ -43,6 +43,17 @@ const reviewSchema = new mongoose.Schema({
     ref: 'Booking',
     required: false,
   },
+
+  // 🆕 Chi tiết 6 tiêu chí
+  criteriaRatings: {
+    cleanliness: { type: Number, min: 1, max: 5 },
+    comfort: { type: Number, min: 1, max: 5 },
+    staff: { type: Number, min: 1, max: 5 },
+    location: { type: Number, min: 1, max: 5 },
+    facilities: { type: Number, min: 1, max: 5 },
+    value: { type: Number, min: 1, max: 5 },
+  },
+  
   isDeleted: {
     type: Boolean,
     default: false,

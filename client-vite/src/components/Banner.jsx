@@ -86,7 +86,7 @@ function Banner() {
           </div>
         </div>
       ) : (
-        // ✅ Trang khác: nền xanh giống navbar
+
        <div
   className="
     relative w-full 

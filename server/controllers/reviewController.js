@@ -7,7 +7,7 @@ const Hotel = require("../models/hotel");
 // POST /api/reviews – Gửi đánh giá mới
 exports.createReview = async (req, res) => {
   try {
-    const { hotelId, rating, comment } = req.body;
+    const { hotelId, rating, comment, criteriaRatings } = req.body;
 
     if (!hotelId || !rating) {
       return res.status(400).json({ message: "Thiếu dữ liệu đánh giá" });
@@ -42,7 +42,8 @@ exports.createReview = async (req, res) => {
         rating,
         comment,
         email: req.user.email.toLowerCase(),
-        bookingId: booking._id
+        bookingId: booking._id,
+        criteriaRatings,
       });
       await review.save();
     }
@@ -78,12 +79,18 @@ exports.getReviews = async (req, res) => {
     const skip = (page - 1) * limit;
     const total = await Review.countDocuments(filter);
 
+    // Thay trong reviewController.js
     const reviews = await Review.find(filter)
       .populate("hotelId", "name")
-      .populate("roomId", "name")
+      .populate("roomId", "name type")
+      .populate({
+        path: "bookingId",
+        select: "fullName checkInDate checkOutDate",
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit));
+
 
     res.status(200).json({
       reviews,
@@ -119,7 +126,7 @@ exports.getReviewsByEmail = async (req, res) => {
       isDeleted: false,
       isVisible: true
     })
-      .populate("hotelId", "name") 
+      .populate("hotelId", "name")
       .populate("roomId", "name type");
 
     res.json(reviews);
