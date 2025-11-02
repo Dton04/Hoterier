@@ -59,8 +59,6 @@ exports.getAllHotels = async (req, res) => {
 
 
 
-
-
     // Truy vấn và populate đầy đủ
     const hotels = await Hotel.find(filter)
       .populate('region', 'name')
@@ -482,6 +480,33 @@ exports.getAvailableRoomsByHotelId = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+};
+
+exports.getHotelsByRegion = async (req, res) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ message: 'Kết nối cơ sở dữ liệu chưa sẵn sàng' });
+    }
+
+    const { regionId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(regionId)) {
+      return res.status(400).json({ message: 'ID khu vực không hợp lệ' });
+    }
+
+    const hotels = await Hotel.find({ region: regionId })
+      .populate('region', 'name')
+      .lean();
+
+    if (!hotels || hotels.length === 0) {
+      return res.status(200).json([]);
+    }
+
+    res.status(200).json(hotels);
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách khách sạn theo khu vực:', error.message);
+    res.status(500).json({ message: 'Lỗi khi lấy danh sách khách sạn theo khu vực', error: error.message });
   }
 };
 

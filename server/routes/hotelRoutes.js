@@ -60,7 +60,8 @@ router.post('/region', protect, admin, hotelController.assignRegion);
 
 // GET /api/hotels/:id/rooms - Lấy khách sạn và danh sách phòng
 router.get('/:id/rooms', hotelController.getHotelWithRooms);
-
+// GET /api/hotels/region/:regionId - Lấy danh sách khách sạn theo khu vực
+router.get('/region/:regionId', hotelController.getHotelsByRegion);
 // router.get('/', async (req, res) => {
 //   try {
 //     const { discountId } = req.query;
@@ -74,8 +75,9 @@ router.get('/:id/rooms', hotelController.getHotelWithRooms);
 //     res.status(500).json({ message: error.message });
 //   }
 // });
-
+// GET /api/hotels/festival/:id - Lấy danh sách khách sạn trong lễ hội
 router.get('/festival/:id', hotelController.getHotelsByFestival);
+// GET /api/hotels/:id/available-rooms - Lấy danh sách phòng trống trong khách sạn
 router.get('/:id/available-rooms', hotelController.getAvailableRoomsByHotelId);
 
 module.exports = router;
