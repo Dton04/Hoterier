@@ -209,44 +209,6 @@ const RoomResults = ({ rooms = [] }) => {
     }
   };
 
-
-        hotelsWithExtras = filtered.map((hotel) => {
-          const lowestPrice = Math.min(
-            ...hotel.rooms.map((r) => r.discountedPrice)
-          );
-          return { ...hotel, lowestPrice };
-        });
-      } else {
-        // Nếu không có festival
-        const { data } = await axios.get("/api/hotels");
-        const filtered = destination
-          ? data.filter((hotel) => hotel.region?._id === destination)
-          : data;
-
-        hotelsWithExtras = await Promise.all(
-          filtered.map(async (hotel) => {
-            const servicesRes = await axios.get(
-              `/api/services?hotelId=${hotel._id}&isAvailable=true`
-            );
-            const services = servicesRes.data || [];
-            const lowestPrice = hotel.rooms?.length
-              ? Math.min(...hotel.rooms.map((r) => r.rentperday))
-              : 0;
-            return { ...hotel, services, lowestPrice };
-          })
-        );
-      }
-
-
-      setHotels(hotelsWithExtras);
-      await fetchAverageRatings(hotelsWithExtras);
-    } catch (err) {
-      console.error("Lỗi khi lấy khách sạn:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   //Lưu khách sạn
   const fetchFavorites = async () => {
     if (!userInfo) return;
@@ -464,10 +426,6 @@ const RoomResults = ({ rooms = [] }) => {
             <h3 className="text-xl font-semibold text-[#003580] mb-4">
               Bộ lọc tìm kiếm
             </h3>
-          <aside className="hidden lg:block bg-white rounded-xl shadow-md h-fit p-4 col-span-1 mr-4 w-full">
-          <h3 className="text-xl font-semibold text-[#003580] mb-4">
-            Bộ lọc tìm kiếm
-          </h3>
             {/* 🗺️ Bản đồ khu vực */}
             <div className="border-b pb-4 mb-4">
 
