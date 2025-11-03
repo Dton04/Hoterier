@@ -160,7 +160,6 @@ exports.vnpayReturn = async (req, res) => {
                 // Payment successful
                 await Booking.findByIdAndUpdate(booking._id, {
                     paymentStatus: 'paid',
-                    status: 'confirmed',
                     vnpTransactionNo: vnp_Params['vnp_TransactionNo'],
                     vnpBankTranNo: vnp_Params['vnp_BankTranNo'],
                     vnpPayDate: vnp_Params['vnp_PayDate'],

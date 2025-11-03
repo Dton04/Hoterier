@@ -15,7 +15,7 @@ router.get("/average", reviewController.getAverageRating);
 // GET /api/reviews/by-email
 router.get("/by-email", reviewController.getReviewsByEmail);
 
-// PATCH /api/reviews/:id/toggle-hidden
+// PATCH /api/reviews/:id/toggle-hidden (Bỏ qua)
 router.patch("/:id/toggle-hidden", protect, reviewController.toggleReviewVisibility);
 
 // DELETE /api/reviews/:id

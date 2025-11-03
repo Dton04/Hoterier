@@ -119,7 +119,8 @@ exports.getBookingRateStats = async (req, res) => {
 // @route   GET /api/stats/review-stats
 // @access  Private/Admin/Staff
 exports.getReviewStats = async (req, res) => {
-  const { startDate, endDate, roomId } = req.query;
+  const { startDate, endDate, roomId, hotelId } = req.query;
+  const Room = require("../models/room");
 
   try {
     if (mongoose.connection.readyState !== 1) {
@@ -130,8 +131,18 @@ exports.getReviewStats = async (req, res) => {
       return res.status(400).json({ message: "ID phòng không hợp lệ" });
     }
 
+    if (hotelId && !mongoose.Types.ObjectId.isValid(hotelId)) {
+      return res.status(400).json({ message: "ID khách sạn không hợp lệ" });
+    }
+
     const query = { isDeleted: false };
     if (roomId) query.roomId = roomId;
+    // Lọc đánh giá theo khách sạn (thông qua các phòng thuộc khách sạn)
+    if (hotelId) {
+      const hotelRooms = await Room.find({ hotelId }, "_id");
+      const roomIds = hotelRooms.map(room => room._id);
+      query.roomId = { $in: roomIds };
+    }
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
