@@ -4,7 +4,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiSearch } from 'react-icons/fi';
-import { Input, Select } from 'antd';
+import { Input, Select, Modal } from 'antd';
 
 const { Option } = Select;
 
@@ -20,6 +20,11 @@ const ReviewManagement = () => {
     limit: 10,
   });
   const [totalPages, setTotalPages] = useState(1);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [reviewToDelete, setReviewToDelete] = useState(null);
+  const [toggleModalVisible, setToggleModalVisible] = useState(false);
+  const [reviewToToggle, setReviewToToggle] = useState(null);
+  const [toggleAction, setToggleAction] = useState(''); // 'hide' or 'show'
   const navigate = useNavigate();
 
   // --- LOGIC (Không thay đổi) ---
@@ -59,30 +64,59 @@ const ReviewManagement = () => {
     setFilters((prev) => ({ ...prev, page: newPage }));
   };
 
-  const toggleVisibility = async (reviewId) => {
-    try {
-      const userInfo = JSON.parse(localStorage.getItem('userInfo'));
-      const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
-      const response = await axios.patch(`/api/reviews/${reviewId}/toggle-hidden`, {}, config);
-      toast.success(response.data.message);
-      fetchReviews();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Lỗi khi thay đổi trạng thái hiển thị');
-    }
+  const showToggleConfirm = (reviewId, isVisible) => {
+    setReviewToToggle(reviewId);
+    setToggleAction(isVisible ? 'hide' : 'show');
+    setToggleModalVisible(true);
   };
 
-  const deleteReview = async (reviewId) => {
-    if (window.confirm('Bạn có chắc muốn xóa đánh giá này?')) {
+  const handleToggleOk = async () => {
+    if (reviewToToggle) {
       try {
         const userInfo = JSON.parse(localStorage.getItem('userInfo'));
         const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
-        const response = await axios.delete(`/api/reviews/${reviewId}`, config);
+        const response = await axios.patch(`/api/reviews/${reviewToToggle}/toggle-hidden`, {}, config);
+        toast.success(response.data.message);
+        fetchReviews();
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Lỗi khi thay đổi trạng thái hiển thị');
+      }
+    }
+    setToggleModalVisible(false);
+    setReviewToToggle(null);
+    setToggleAction('');
+  };
+
+  const handleToggleCancel = () => {
+    setToggleModalVisible(false);
+    setReviewToToggle(null);
+    setToggleAction('');
+  };
+
+  const showDeleteConfirm = (reviewId) => {
+    setReviewToDelete(reviewId);
+    setDeleteModalVisible(true);
+  };
+
+  const handleDeleteOk = async () => {
+    if (reviewToDelete) {
+      try {
+        const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+        const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+        const response = await axios.delete(`/api/reviews/${reviewToDelete}`, config);
         toast.success(response.data.message);
         fetchReviews();
       } catch (err) {
         toast.error(err.response?.data?.message || 'Lỗi khi xóa đánh giá');
       }
     }
+    setDeleteModalVisible(false);
+    setReviewToDelete(null);
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteModalVisible(false);
+    setReviewToDelete(null);
   };
 
   // --- GIAO DIỆN ---
@@ -195,14 +229,14 @@ const ReviewManagement = () => {
                     <div className="flex items-center space-x-3.5">
                       {/* ✅ ĐÃ SỬA LỖI MÀU CHỮ */}
                       <button
-                        onClick={() => toggleVisibility(review._id)}
+                        onClick={() => showToggleConfirm(review._id, review.isVisible)}
                         disabled={review.isDeleted}
                         className="text-sm font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {review.isVisible ? 'Ẩn' : 'Hiện'}
                       </button>
                       <button
-                        onClick={() => deleteReview(review._id)}
+                        onClick={() => showDeleteConfirm(review._id)}
                         disabled={review.isDeleted}
                         className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -238,6 +272,29 @@ const ReviewManagement = () => {
           </div>
         </div>
       </div>
+
+      <Modal
+        title={`Xác nhận ${toggleAction === 'hide' ? 'ẩn' : 'hiển thị'}`}
+        open={toggleModalVisible}
+        onOk={handleToggleOk}
+        onCancel={handleToggleCancel}
+        okText="Xác nhận"
+        cancelText="Hủy"
+      >
+        <p>Bạn có chắc muốn {toggleAction === 'hide' ? 'ẩn' : 'hiển thị'} đánh giá này?</p>
+      </Modal>
+
+      <Modal
+        title="Xác nhận xóa"
+        open={deleteModalVisible}
+        onOk={handleDeleteOk}
+        onCancel={handleDeleteCancel}
+        okText="Xóa"
+        cancelText="Hủy"
+        okButtonProps={{ danger: true }}
+      >
+        <p>Bạn có chắc muốn xóa đánh giá này?</p>
+      </Modal>
     </div>
   );
 };

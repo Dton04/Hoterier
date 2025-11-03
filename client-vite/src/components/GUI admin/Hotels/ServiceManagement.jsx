@@ -3,10 +3,8 @@ import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Link } from 'react-router-dom';
-// ✅ ĐÃ SỬA LỖI IMPORT
-import { FiPlus, FiEdit, FiTrash2, FiEye, FiEyeOff } from 'react-icons/fi';
+import { FiPlus } from 'react-icons/fi';
 
-// Cấu hình Axios Interceptor (nếu chưa có ở file chung)
 axios.interceptors.request.use(
   (config) => {
     const userInfo = JSON.parse(localStorage.getItem("userInfo"));
@@ -25,7 +23,10 @@ const ServiceManagement = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState(null);
   const [filters, setFilters] = useState({ hotelId: '', isAvailable: '' });
-  
+
+  // === NEW: modal state (Booking.com style overlay)
+  const [showAddForm, setShowAddForm] = useState(false);
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -36,7 +37,21 @@ const ServiceManagement = () => {
     requiresBooking: false,
   });
 
-  // --- LOGIC (Không thay đổi) ---
+  // lock scroll when modal open + ESC to close
+  useEffect(() => {
+    if (showAddForm) {
+      document.body.classList.add('overflow-hidden');
+    } else {
+      document.body.classList.remove('overflow-hidden');
+    }
+    const onEsc = (e) => { if (e.key === 'Escape') setShowAddForm(false); };
+    window.addEventListener('keydown', onEsc);
+    return () => {
+      document.body.classList.remove('overflow-hidden');
+      window.removeEventListener('keydown', onEsc);
+    };
+  }, [showAddForm]);
+
   useEffect(() => {
     fetchServices();
     fetchHotels();
@@ -65,18 +80,26 @@ const ServiceManagement = () => {
       toast.error('Lỗi khi lấy danh sách khách sạn');
     }
   };
-  
+
   const resetForm = () => {
-    setFormData({ name: '', description: '', price: 0, hotelIds: [], imageUrl: '', isFree: false, requiresBooking: false });
+    setFormData({
+      name: '',
+      description: '',
+      price: 0,
+      hotelIds: [],
+      imageUrl: '',
+      isFree: false,
+      requiresBooking: false
+    });
     setIsEditing(false);
     setEditId(null);
   };
-  
+
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
-  
+
   const handleHotelSelectChange = (e) => {
     const selected = Array.from(e.target.selectedOptions, option => option.value);
     setFormData({ ...formData, hotelIds: selected });
@@ -85,8 +108,8 @@ const ServiceManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim() || formData.hotelIds.length === 0) {
-        toast.warn('Vui lòng nhập tên và chọn khách sạn.');
-        return;
+      toast.warn('Vui lòng nhập tên và chọn khách sạn.');
+      return;
     }
 
     try {
@@ -94,13 +117,14 @@ const ServiceManagement = () => {
         await axios.put(`/api/services/${editId}`, { ...formData, hotelId: formData.hotelIds[0] });
         toast.success('Cập nhật dịch vụ thành công');
       } else {
-        const requests = formData.hotelIds.map(hotelId => 
-            axios.post('/api/services', { ...formData, hotelId })
+        const requests = formData.hotelIds.map(hotelId =>
+          axios.post('/api/services', { ...formData, hotelId })
         );
         await Promise.all(requests);
         toast.success('Tạo dịch vụ thành công');
       }
       resetForm();
+      setShowAddForm(false); // close modal after submit
       fetchServices();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Có lỗi xảy ra');
@@ -115,11 +139,12 @@ const ServiceManagement = () => {
       name: service.name,
       description: service.description,
       price: service.price,
-      hotelIds: [service.hotelId?._id],
+      hotelIds: [service.hotelId?._id || ''],
       imageUrl: service.imageUrl || '',
       isFree: service.isFree,
       requiresBooking: service.requiresBooking,
     });
+    setShowAddForm(true); // open modal when edit
   };
 
   const handleDelete = async (serviceId) => {
@@ -144,94 +169,330 @@ const ServiceManagement = () => {
     }
   };
 
-  // --- GIAO DIỆN ---
   return (
-    <div className="p-4 md:p-6 2xl:p-10">
+    <div className="min-h-screen bg-gray-50 p-6">
       <ToastContainer position="top-right" autoClose={3000} />
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-2xl font-semibold text-slate-800">Quản lý Dịch vụ</h2>
-        <nav>
-          <ol className="flex items-center gap-2">
-            <li><Link to="/admin/dashboard" className="font-medium">Dashboard /</Link></li>
-            <li className="font-medium text-blue-600">Services</li>
-          </ol>
-        </nav>
-      </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm mb-10">
-        <h3 className="text-xl font-semibold text-slate-800 mb-6 border-b border-gray-200 pb-4">
-          {isEditing ? 'Chỉnh sửa dịch vụ' : 'Thêm dịch vụ mới'}
-        </h3>
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <InputField label="Tên dịch vụ" name="name" value={formData.name} onChange={handleInputChange} required />
-              <div className="mb-4">
-                <label className="block mb-2 text-sm font-medium text-slate-700">Khách sạn áp dụng</label>
-                <select multiple={!isEditing} name="hotelIds" value={formData.hotelIds} onChange={handleHotelSelectChange} required className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-blue-500 h-24">
-                  {!isEditing && <option value="all">Tất cả khách sạn</option>}
-                  {hotels.map(hotel => <option key={hotel._id} value={hotel._id}>{hotel.name}</option>)}
-                </select>
-                {!isEditing && <p className="text-xs text-gray-500 mt-1">Giữ Ctrl (hoặc Cmd) để chọn nhiều khách sạn.</p>}
-              </div>
-              <InputField label="URL hình ảnh (tùy chọn)" name="imageUrl" value={formData.imageUrl} onChange={handleInputChange} />
-            </div>
-            <div>
-              <InputField label="Mô tả" name="description" value={formData.description} onChange={handleInputChange} type="textarea"/>
-              <div className="grid grid-cols-2 gap-4">
-                <InputField label="Giá (VNĐ)" name="price" type="number" value={formData.price} onChange={handleInputChange} disabled={formData.isFree} />
-                <div className="flex flex-col justify-around">
-                    <CheckBox label="Miễn phí" name="isFree" checked={formData.isFree} onChange={handleInputChange} />
-                    <CheckBox label="Yêu cầu đặt trước" name="requiresBooking" checked={formData.requiresBooking} onChange={handleInputChange} />
-                </div>
-              </div>
-            </div>
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Quản lý Dịch vụ</h1>
+            <nav className="mt-2">
+              <ol className="flex items-center gap-2 text-sm text-gray-600">
+                <li><Link to="/admin/dashboard" className="hover:text-blue-600">Dashboard</Link></li>
+                <li>/</li>
+                <li className="text-blue-600 font-medium">Dịch vụ</li>
+              </ol>
+            </nav>
           </div>
-          <div className="flex justify-end gap-3 mt-4">
-            {isEditing && <button type="button" onClick={resetForm} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">Hủy</button>}
-            <button type="submit" className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">
-              <FiPlus className="inline -ml-1 mr-1" /> {isEditing ? 'Cập nhật' : 'Thêm Dịch Vụ'}
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => { resetForm(); setShowAddForm(true); }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition"
+            >
+              <FiPlus /> Thêm dịch vụ
             </button>
+
+            <div className="text-sm text-gray-500">
+              Tổng: <span className="font-semibold text-gray-900">{services.length}</span> dịch vụ
+            </div>
           </div>
-        </form>
+        </div>
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white px-5 pt-6 pb-4 shadow-sm">
-        <div className="max-w-full overflow-x-auto">
-          <table className="w-full table-auto">
+      {/* === Modal Overlay (Booking.com style) === */}
+      {showAddForm && (
+        <div
+          className="fixed inset-0 z-50"
+          aria-modal="true"
+          role="dialog"
+        >
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => { resetForm(); setShowAddForm(false); }}
+          />
+          {/* Modal card */}
+          <div className="relative z-50 mx-auto mt-20 w-[95%] max-w-[980px]">
+            <div className="bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-white">
+                  {isEditing ? 'Chỉnh sửa dịch vụ' : 'Thêm dịch vụ mới'}
+                </h2>
+               
+              </div>
+
+              {/* ORIGINAL FORM SECTION (được đặt vào trong modal) */}
+              <form onSubmit={handleSubmit} className="p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Column 1: Basic Info */}
+                  <div className="space-y-4">
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="text-sm font-semibold text-gray-700 mb-3">Thông tin cơ bản</h3>
+                      <InputField
+                        label="Tên dịch vụ"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        required
+                        placeholder="VD: Dịch vụ giặt là"
+                      />
+                      <div className="mb-4">
+                        <label className="block mb-2 text-sm font-medium text-gray-700">Khách sạn áp dụng</label>
+                        <select
+                          multiple={!isEditing}
+                          name="hotelIds"
+                          value={formData.hotelIds}
+                          onChange={handleHotelSelectChange}
+                          required
+                          className="w-full rounded-lg border border-gray-300 bg-white p-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all h-28"
+                        >
+                          {!isEditing && <option value="all" disabled>Tất cả khách sạn</option>}
+                          {hotels.map(hotel => (
+                            <option key={hotel._id} value={hotel._id}>{hotel.name}</option>
+                          ))}
+                        </select>
+                        {!isEditing && <p className="text-xs text-gray-500 mt-2">Giữ Ctrl/Cmd để chọn nhiều</p>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Column 2: Description & Image */}
+                  <div className="space-y-4">
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="text-sm font-semibold text-gray-700 mb-3">Mô tả & Hình ảnh</h3>
+                      <InputField
+                        label="Mô tả chi tiết"
+                        name="description"
+                        value={formData.description}
+                        onChange={handleInputChange}
+                        type="textarea"
+                        placeholder="Nhập mô tả về dịch vụ..."
+                      />
+                      <InputField
+                        label="URL hình ảnh"
+                        name="imageUrl"
+                        value={formData.imageUrl}
+                        onChange={handleInputChange}
+                        placeholder="https://example.com/image.jpg"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Column 3: Pricing & Options */}
+                  <div className="space-y-4">
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="text-sm font-semibold text-gray-700 mb-3">Giá & Tùy chọn</h3>
+                      <InputField
+                        label="Giá dịch vụ (VNĐ)"
+                        name="price"
+                        type="number"
+                        value={formData.price}
+                        onChange={handleInputChange}
+                        disabled={formData.isFree}
+                        placeholder="0"
+                      />
+                      <div className="space-y-3 mt-4">
+                        <CheckBox
+                          label="Dịch vụ miễn phí"
+                          name="isFree"
+                          checked={formData.isFree}
+                          onChange={handleInputChange}
+                        />
+                        <CheckBox
+                          label="Yêu cầu đặt trước"
+                          name="requiresBooking"
+                          checked={formData.requiresBooking}
+                          onChange={handleInputChange}
+                        />
+                      </div>
+                      {formData.isFree && (
+                        <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <p className="text-xs text-green-700">Dịch vụ này sẽ được cung cấp miễn phí</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Form Actions */}
+                <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => { resetForm(); setShowAddForm(false); }}
+                    className="px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Hủy bỏ
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                  >
+                    {isEditing ? 'Cập nhật dịch vụ' : 'Thêm dịch vụ'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filter Section (giữ nguyên) */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Lọc theo khách sạn</label>
+            <select
+              value={filters.hotelId}
+              onChange={(e) => setFilters({ ...filters, hotelId: e.target.value })}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            >
+              <option value="">Tất cả khách sạn</option>
+              {hotels.map(hotel => <option key={hotel._id} value={hotel._id}>{hotel.name}</option>)}
+            </select>
+          </div>
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Lọc theo trạng thái</label>
+            <select
+              value={filters.isAvailable}
+              onChange={(e) => setFilters({ ...filters, isAvailable: e.target.value })}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="true">Hoạt động</option>
+              <option value="false">Tạm ngưng</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Table Section (giữ nguyên) */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
             <thead>
-              <tr className="bg-gray-100 text-left">
-                <th className="py-4 px-4 font-medium text-slate-800">Dịch vụ</th>
-                <th className="py-4 px-4 font-medium text-slate-800">Khách sạn</th>
-                <th className="py-4 px-4 font-medium text-slate-800">Giá</th>
-                <th className="py-4 px-4 font-medium text-slate-800">Trạng thái</th>
-                <th className="py-4 px-4 font-medium text-slate-800">Hành động</th>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="text-left py-4 px-6 text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Thông tin dịch vụ
+                </th>
+                <th className="text-left py-4 px-6 text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Khách sạn
+                </th>
+                <th className="text-left py-4 px-6 text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Giá
+                </th>
+                <th className="text-left py-4 px-6 text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Yêu cầu
+                </th>
+                <th className="text-center py-4 px-6 text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Trạng thái
+                </th>
+                <th className="text-center py-4 px-6 text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  Thao tác
+                </th>
               </tr>
             </thead>
-            <tbody>
-              {services.map(service => (
-                <tr key={service._id}>
-                  <td className="border-b border-gray-200 py-4 px-4">
-                    <p className="font-medium text-slate-800">{service.name}</p>
-                    <p className="text-sm text-gray-500">{service.description}</p>
-                  </td>
-                  <td className="border-b border-gray-200 py-4 px-4"><p>{service.hotelId?.name || 'N/A'}</p></td>
-                  <td className="border-b border-gray-200 py-4 px-4">
-                    {service.isFree ? <p className="text-green-600 font-medium">Miễn phí</p> : <p>{service.price.toLocaleString('vi-VN')} VNĐ</p>}
-                  </td>
-                  <td className="border-b border-gray-200 py-4 px-4">
-                    {service.isAvailable ? <p className="inline-flex rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-600">Hoạt động</p> : <p className="inline-flex rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-600">Tạm ngưng</p>}
-                  </td>
-                  <td className="border-b border-gray-200 py-4 px-4">
-                    <div className="flex items-center space-x-3.5">
-                      <button onClick={() => handleEdit(service)} className="text-blue-600 hover:text-blue-800" title="Sửa"><FiEdit size={18} /></button>
-                      {/* ✅ ĐÃ SỬA LẠI ICON */}
-                      <button onClick={() => handleToggleAvailability(service._id)} className={service.isAvailable ? 'text-yellow-600 hover:text-yellow-800' : 'text-green-600 hover:text-green-800'} title={service.isAvailable ? 'Tạm ngưng' : 'Kích hoạt'}>{service.isAvailable ? <FiEyeOff size={18} /> : <FiEye size={18} />}</button>
-                      <button onClick={() => handleDelete(service._id)} className="text-red-600 hover:text-red-800" title="Xóa"><FiTrash2 size={18} /></button>
+            <tbody className="divide-y divide-gray-200">
+              {loading ? (
+                <tr>
+                  <td colSpan="6" className="py-12 text-center text-gray-500">
+                    <div className="flex justify-center items-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <span className="ml-3">Đang tải...</span>
                     </div>
                   </td>
                 </tr>
-              ))}
+              ) : services.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="py-12 text-center text-gray-500">
+                    Không có dịch vụ nào
+                  </td>
+                </tr>
+              ) : (
+                services.map((service) => (
+                  <tr key={service._id} className="hover:bg-gray-50 transition-colors">
+                    <td className="py-4 px-6">
+                      <div className="flex items-start gap-3">
+                        {service.imageUrl && (
+                          <img
+                            src={service.imageUrl}
+                            alt={service.name}
+                            className="w-12 h-12 rounded-lg object-cover border border-gray-200"
+                          />
+                        )}
+                        <div>
+                          <p className="font-semibold text-gray-900">{service.name}</p>
+                          <p className="text-sm text-gray-600 mt-0.5 line-clamp-2">{service.description}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                        {service.hotelId?.name || 'N/A'}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      {service.isFree ? (
+                        <span className="text-green-600 font-semibold">Miễn phí</span>
+                      ) : (
+                        <span className="font-semibold text-gray-900">
+                          {Number(service.price || 0).toLocaleString('vi-VN')} ₫
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-4 px-6">
+                      {service.requiresBooking ? (
+                        <span className="text-xs text-orange-600 font-medium">Đặt trước</span>
+                      ) : (
+                        <span className="text-xs text-gray-400">Không yêu cầu</span>
+                      )}
+                    </td>
+                    <td className="py-4 px-6 text-center">
+                      {service.isAvailable ? (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                          Hoạt động
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+                          Tạm ngưng
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => handleEdit(service)}
+                          className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                          title="Chỉnh sửa"
+                        >
+                          Sửa
+                        </button>
+                        <button
+                          onClick={() => handleToggleAvailability(service._id)}
+                          className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                            service.isAvailable
+                              ? 'text-orange-700 bg-orange-50 hover:bg-orange-100'
+                              : 'text-green-700 bg-green-50 hover:bg-green-100'
+                          }`}
+                          title={service.isAvailable ? 'Tạm ngưng' : 'Kích hoạt'}
+                        >
+                          {service.isAvailable ? 'Tắt' : 'Bật'}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(service._id)}
+                          className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                          title="Xóa"
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -240,25 +501,49 @@ const ServiceManagement = () => {
   );
 };
 
-// Component phụ để render các trường input
-const InputField = ({ label, name, type = 'text', value, onChange, required, disabled, type: inputType }) => (
-    <div className="mb-4">
-        <label className="block mb-2 text-sm font-medium text-slate-700">{label}</label>
-        {inputType === 'textarea' ? (
-            <textarea name={name} value={value} onChange={onChange} required={required} disabled={disabled} rows="3"
-                className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"/>
-        ) : (
-            <input type={type} name={name} value={value} onChange={onChange} required={required} disabled={disabled}
-                className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"/>
-        )}
-    </div>
+const InputField = ({ label, name, type = 'text', value, onChange, required, disabled, placeholder }) => (
+  <div className="mb-4">
+    <label className="block mb-2 text-sm font-medium text-gray-700">{label}</label>
+    {type === 'textarea' ? (
+      <textarea
+        name={name}
+        value={value}
+        onChange={onChange}
+        required={required}
+        disabled={disabled}
+        rows="4"
+        placeholder={placeholder}
+        className="w-full rounded-lg border border-gray-300 bg-white p-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:bg-gray-100 transition-all resize-none"
+      />
+    ) : (
+      <input
+        type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        required={required}
+        disabled={disabled}
+        placeholder={placeholder}
+        className="w-full rounded-lg border border-gray-300 bg-white p-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:bg-gray-100 transition-all"
+      />
+    )}
+  </div>
 );
 
 const CheckBox = ({ label, name, checked, onChange }) => (
-    <div className="flex items-center">
-        <input type="checkbox" name={name} checked={checked} onChange={onChange} id={name} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-        <label htmlFor={name} className="ml-2 block text-sm text-slate-700">{label}</label>
-    </div>
+  <div className="flex items-center p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
+    <input
+      type="checkbox"
+      name={name}
+      checked={checked}
+      onChange={onChange}
+      id={name}
+      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+    />
+    <label htmlFor={name} className="ml-3 text-sm font-medium text-gray-700 cursor-pointer select-none">
+      {label}
+    </label>
+  </div>
 );
 
 export default ServiceManagement;
