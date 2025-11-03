@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Table, Button, message, Modal, Form, Select, Input as AntdInput } from "antd"; // Đổi tên Input để tránh trùng lặp
+import { Table, Button, Modal, Form, Select, Input as AntdInput } from "antd";
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import Loader from "../../AlertMessage"; 
 import { useNavigate, Link } from "react-router-dom";
 import { FiSearch, FiPlus } from 'react-icons/fi';
@@ -14,11 +16,12 @@ const UserStaffManagement = () => {
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
   const [form] = Form.useForm();
   const navigate = useNavigate();
   const [roleFilter, setRoleFilter] = useState("all");
   
-  // Lấy userInfo một cách an toàn
   const getUserInfo = () => {
     try {
       const storedInfo = localStorage.getItem("userInfo");
@@ -29,7 +32,6 @@ const UserStaffManagement = () => {
   };
   const userInfo = getUserInfo();
 
-  // --- LOGIC (Không thay đổi, chỉ tối ưu hóa) ---
   const fetchUsers = async () => {
     try {
       setLoading(true);
@@ -38,8 +40,10 @@ const UserStaffManagement = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUsers(response.data);
+      toast.success("Tải danh sách người dùng thành công!");
     } catch (error) {
-      message.error("Không thể tải danh sách người dùng.");
+      toast.error("Không thể tải danh sách người dùng. Vui lòng thử lại!");
+      console.error("Fetch users error:", error);
     } finally {
       setLoading(false);
     }
@@ -48,6 +52,7 @@ const UserStaffManagement = () => {
   useEffect(() => {
     const userData = userInfo?.user || userInfo;
     if (!userData || (userData.role !== "admin" && userData.role !== "staff")) {
+      toast.warning("Bạn không có quyền truy cập trang này!");
       navigate("/", { replace: true });
       return;
     }
@@ -70,34 +75,90 @@ const UserStaffManagement = () => {
     setFilteredUsers(result);
   }, [searchText, roleFilter, users]);
   
-  const handleRemoveUser = async (id) => {
-    try {
-      await axios.delete(`/api/users/staff/${id}`, {
-        headers: { Authorization: `Bearer ${userInfo?.token}` },
-      });
-      message.success("Xóa người dùng thành công");
-      fetchUsers();
-    } catch (error) {
-      message.error("Xóa người dùng thất bại");
+  const showDeleteConfirm = (id) => {
+    setUserToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteOk = async () => {
+    if (userToDelete) {
+      try {
+        // Thông báo đang xử lý
+        const loadingToast = toast.loading("Đang xóa người dùng...");
+        
+        await axios.delete(`/api/users/staff/${userToDelete}`, {
+          headers: { Authorization: `Bearer ${userInfo?.token}` },
+        });
+        
+        // Dismiss loading toast và hiển thị success
+        toast.dismiss(loadingToast);
+        toast.success("🗑️ Đã xóa người dùng thành công!");
+        
+        fetchUsers();
+      } catch (error) {
+        toast.error(`❌ Xóa người dùng thất bại: ${error.response?.data?.message || "Lỗi không xác định"}`);
+        console.error("Delete user error:", error);
+      }
     }
+    setIsDeleteModalOpen(false);
+    setUserToDelete(null);
+  };
+
+  const handleDeleteCancel = () => {
+    setIsDeleteModalOpen(false);
+    setUserToDelete(null);
+    toast.info("Đã hủy thao tác xóa");
+  };
+
+  const handleRemoveUser = async (id) => {
+    showDeleteConfirm(id);
   };
 
   const handleAddUser = async (values) => {
     try {
+      // Thông báo đang xử lý
+      const loadingToast = toast.loading("Đang thêm tài khoản mới...");
+      
       const endpoint = values.role === "staff" ? "/api/users/staff" : "/api/users";
       await axios.post(endpoint, values, {
         headers: { Authorization: `Bearer ${userInfo?.token}` },
       });
-      message.success(`Thêm ${values.role} thành công`);
+      
+      // Dismiss loading toast và hiển thị success
+      toast.dismiss(loadingToast);
+      toast.success(`✅ Đã thêm ${values.role === "staff" ? "nhân viên" : "người dùng"} "${values.name}" thành công!`);
+      
       setIsAddModalOpen(false);
       form.resetFields();
       fetchUsers();
     } catch (error) {
-      message.error(error.response?.data?.message || "Thêm người dùng thất bại");
+      toast.error(`❌ Thêm người dùng thất bại: ${error.response?.data?.message || "Vui lòng kiểm tra lại thông tin"}`);
+      console.error("Add user error:", error);
     }
   };
 
-  // --- GIAO DIỆN (Đã viết lại) ---
+  const handleOpenAddModal = () => {
+    setIsAddModalOpen(true);
+    toast.info("📝 Điền thông tin để thêm tài khoản mới");
+  };
+
+  const handleCancelAddModal = () => {
+    setIsAddModalOpen(false);
+    form.resetFields();
+    toast.info("Đã hủy thêm tài khoản");
+  };
+
+  const handleRoleFilterChange = (value) => {
+    setRoleFilter(value);
+    const roleNames = {
+      all: "Tất cả",
+      user: "User",
+      staff: "Staff",
+      admin: "Admin"
+    };
+    toast.info(`🔍 Đang hiển thị: ${roleNames[value]}`);
+  };
+
   const columns = [
     {
       title: "User",
@@ -136,7 +197,7 @@ const UserStaffManagement = () => {
         if (userData?.role === 'admin' && record.role !== 'admin') {
             return <Button type="primary" danger onClick={() => handleRemoveUser(record._id)}>Remove</Button>;
         }
-        return null; // Không hiển thị nút Remove cho chính admin hoặc khi staff xem
+        return null;
       },
     },
   ];
@@ -145,7 +206,19 @@ const UserStaffManagement = () => {
 
   return (
     <div className="p-4 md:p-6 2xl:p-10">
-      {/* Breadcrumb và Tiêu đề */}
+      <ToastContainer 
+        position="top-right" 
+        autoClose={3000} 
+        hideProgressBar={false}
+        newestOnTop={true}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
+      
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl font-semibold text-slate-800">Quản lý User & Staff</h2>
         <nav>
@@ -156,7 +229,6 @@ const UserStaffManagement = () => {
         </nav>
       </div>
 
-      {/* Bảng dữ liệu */}
       <div className="rounded-lg border border-gray-200 bg-white px-5 pt-6 pb-4 shadow-sm sm:px-7.5">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
           <div className="relative w-full md:w-1/2">
@@ -172,7 +244,7 @@ const UserStaffManagement = () => {
           <div className="flex gap-2 items-center w-full md:w-auto">
             <Select
               value={roleFilter}
-              onChange={(value) => setRoleFilter(value)}
+              onChange={handleRoleFilterChange}
               className="w-full md:w-40"
             >
               <Option value="all">Tất cả Role</Option>
@@ -181,7 +253,7 @@ const UserStaffManagement = () => {
               <Option value="admin">Admin</Option>
             </Select>
             {(userInfo?.user?.role === 'admin' || userInfo?.role === 'admin') && (
-              <Button type="primary" icon={<FiPlus />} onClick={() => setIsAddModalOpen(true)}>
+              <Button type="primary" icon={<FiPlus />} onClick={handleOpenAddModal}>
                 Add Account
               </Button>
             )}
@@ -198,8 +270,13 @@ const UserStaffManagement = () => {
         </div>
       </div>
 
-      {/* Modal Thêm User/Staff */}
-      <Modal title="Add New Account" open={isAddModalOpen} onCancel={() => setIsAddModalOpen(false)} footer={null} centered>
+      <Modal 
+        title="Add New Account" 
+        open={isAddModalOpen} 
+        onCancel={handleCancelAddModal} 
+        footer={null} 
+        centered
+      >
         <Form form={form} layout="vertical" onFinish={handleAddUser} className="p-4">
           <Form.Item label="Name" name="name" rules={[{ required: true, message: "Vui lòng nhập tên" }]}>
             <AntdInput placeholder="Full name" />
@@ -223,6 +300,19 @@ const UserStaffManagement = () => {
             <Button type="primary" htmlType="submit" className="w-full">Add Account</Button>
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="Xác nhận xóa"
+        open={isDeleteModalOpen}
+        onOk={handleDeleteOk}
+        onCancel={handleDeleteCancel}
+        okText="Xóa"
+        cancelText="Hủy"
+        okButtonProps={{ danger: true }}
+        centered
+      >
+        <p>Bạn có chắc muốn xóa người dùng này?</p>
       </Modal>
     </div>
   );

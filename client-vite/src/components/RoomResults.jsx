@@ -36,7 +36,6 @@ const RoomResults = ({ rooms = [] }) => {
 
   const [filters, setFilters] = useState({
     region: "",
-    city: "",
     minPrice: 0,
     maxPrice: 10000000,
     rating: 0,
@@ -51,6 +50,22 @@ const RoomResults = ({ rooms = [] }) => {
 
   const navigate = useNavigate();
 
+  // --- Helpers for Booking.com-like UI ---
+  const getRatingLabel = (avg) => {
+    if (avg >= 9) return "Tuyệt hảo";
+    if (avg >= 8) return "Tuyệt vời";
+    if (avg >= 7) return "Rất tốt";
+    if (avg >= 6) return "Dễ chịu";
+    return "Khá";
+  };
+
+  const getScoreBg = (avg) => {
+    if (avg >= 9) return "bg-[#003580]";
+    if (avg >= 8) return "bg-[#4CAF50]";
+    if (avg >= 7) return "bg-[#8BC34A]";
+    return "bg-gray-400";
+  };
+
   // Kéo lên dầu trang
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -60,12 +75,8 @@ const RoomResults = ({ rooms = [] }) => {
     fetchRegions();
     fetchServices();
     fetchAmenities();
-  }, [location.search]);
-
-  // Khi người dùng chọn region hoặc city (hoặc URL thay đổi), lấy lại danh sách khách sạn
-  useEffect(() => {
     fetchHotels();
-  }, [location.search, filters.region, filters.city]);
+  }, [location.search]);
 
 
   useEffect(() => {
@@ -79,7 +90,7 @@ const RoomResults = ({ rooms = [] }) => {
     const destination = params.get("destination");
 
     if (destination) {
-      setFilters((prev) => ({ ...prev, region: destination, city: "" }));
+      setFilters((prev) => ({ ...prev, region: destination }));
     }
   }, [location.search]);
 
@@ -119,64 +130,61 @@ const RoomResults = ({ rooms = [] }) => {
 
   // 🏨 Lấy danh sách khách sạn
   const fetchHotels = async () => {
-  const searchParams = new URLSearchParams(location.search);
-  const festival = searchParams.get("festival");
+    const searchParams = new URLSearchParams(location.search);
+    const destination = searchParams.get("destination");
+    const festival = searchParams.get("festival");
 
-  // ✅ Lấy region + city từ filters (separate selects)
-  const regionParam = filters.region || ""; // region id or name
-  const cityParam = filters.city || "";
+    setLoading(true);
+    try {
+      let hotelsWithExtras = [];
 
-  setLoading(true);
-  try {
-    let hotelsWithExtras = [];
+      if (festival) {
+        // Nếu có ưu đãi lễ hội
+        const { data } = await axios.get(`/api/discounts/${festival}/festival-hotels`);
+        let filtered = data.hotels;
 
-    if (festival) {
-      const { data } = await axios.get(`/api/discounts/${festival}/festival-hotels`);
-      let filtered = data.hotels;
-      if (regionParam) {
-        const isIdLike = /^[0-9a-fA-F]{24}$/.test(regionParam);
-        if (isIdLike) {
-          filtered = filtered.filter((h) => (h.region && (h.region._id?.toString() === regionParam || h.region === regionParam)));
-        } else {
-          filtered = filtered.filter((h) => h.regionName === regionParam || h.region?.name === regionParam);
+        if (destination) {
+          filtered = filtered.filter(
+            (hotel) => hotel.region?._id === destination
+          );
         }
+
+        hotelsWithExtras = filtered.map((hotel) => {
+          const lowestPrice = Math.min(
+            ...hotel.rooms.map((r) => r.discountedPrice)
+          );
+          return { ...hotel, lowestPrice };
+        });
+      } else {
+        // Nếu không có festival
+        const { data } = await axios.get("/api/hotels");
+        const filtered = destination
+          ? data.filter((hotel) => hotel.region?._id === destination)
+          : data;
+
+        hotelsWithExtras = await Promise.all(
+          filtered.map(async (hotel) => {
+            const servicesRes = await axios.get(
+              `/api/services?hotelId=${hotel._id}&isAvailable=true`
+            );
+            const services = servicesRes.data || [];
+            const lowestPrice = hotel.rooms?.length
+              ? Math.min(...hotel.rooms.map((r) => r.rentperday))
+              : 0;
+            return { ...hotel, services, lowestPrice };
+          })
+        );
       }
-      if (cityParam) filtered = filtered.filter((h) => h.city === cityParam);
 
-      hotelsWithExtras = filtered.map((hotel) => {
-        const lowestPrice = Math.min(...hotel.rooms.map((r) => r.discountedPrice));
-        return { ...hotel, lowestPrice };
-      });
-    } else {
-      // ✅ Gọi API BE có query region + city (region may be id or name)
-      const { data } = await axios.get(`/api/hotels`, {
-        params: { region: regionParam || undefined, district: cityParam || undefined },
-      });
 
-      hotelsWithExtras = await Promise.all(
-        data.map(async (hotel) => {
-          const servicesRes = await axios.get(`/api/services?hotelId=${hotel._id}&isAvailable=true`);
-          const services = servicesRes.data || [];
-          const lowestPrice = hotel.rooms?.length
-            ? Math.min(...hotel.rooms.map((r) => r.rentperday))
-            : 0;
-          return { ...hotel, services, lowestPrice };
-        })
-      );
+      setHotels(hotelsWithExtras);
+      await fetchAverageRatings(hotelsWithExtras);
+    } catch (err) {
+      console.error("Lỗi khi lấy khách sạn:", err);
+    } finally {
+      setLoading(false);
     }
-
-    setHotels(hotelsWithExtras);
-    await fetchAverageRatings(hotelsWithExtras);
-  } catch (err) {
-    console.error("Lỗi khi lấy khách sạn:", err);
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-
-  
+  };
 
   //Lưu khách sạn
   const fetchFavorites = async () => {
@@ -252,19 +260,7 @@ const RoomResults = ({ rooms = [] }) => {
         const priceMin = Math.min(...hotel.rooms.map((r) => r.rentperday));
         const priceMax = Math.max(...hotel.rooms.map((r) => r.rentperday));
 
-        let matchRegion = true;
-        if (filters.region) {
-          const regionPart = filters.region;
-          const regionMatches =
-            (hotel.region && (hotel.region._id?.toString() === regionPart || hotel.region === regionPart)) ||
-            hotel.regionName === regionPart ||
-            hotel.region?.name === regionPart;
-          matchRegion = regionMatches;
-        }
-        if (filters.city) {
-          matchRegion = matchRegion && hotel.district === filters.city;
-        }
-
+        const matchRegion = filters.region ? hotel.region?._id === filters.region : true;
         const matchRating = avg >= filters.rating;
         const matchPrice = priceMax >= filters.minPrice && priceMin <= filters.maxPrice;
         const matchStars = filters.starRatings.length === 0 || filters.starRatings.includes(hotel.starRating || 3);
@@ -299,7 +295,6 @@ const RoomResults = ({ rooms = [] }) => {
   const resetFilters = () => {
     setFilters({
       region: "",
-      city: "",
       minPrice: 0,
       maxPrice: 10000000,
       rating: 0,
@@ -342,7 +337,7 @@ const RoomResults = ({ rooms = [] }) => {
          <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6 sm:gap-8 px-4 sm:px-0">
 
           {/* SIDEBAR */}
-          <aside className="hidden lg:block bg-white rounded-xl shadow-md sticky top-24 h-fit p-4 col-span-1 mr-4 w-[105%]">
+          <aside className="hidden lg:block bg-white rounded-xl shadow-md h-fit p-4 col-span-1 mr-4 w-full">
           <h3 className="text-xl font-semibold text-[#003580] mb-4">
             Bộ lọc tìm kiếm
           </h3>
@@ -350,7 +345,7 @@ const RoomResults = ({ rooms = [] }) => {
             {/* 🗺️ Bản đồ khu vực */}
             <div className="border-b pb-4 mb-4">
 
-              <div className="h-60 w-70 rounded-lg overflow-hidden relative border">
+              <div className="h-60 w-full rounded-lg overflow-hidden relative border">
                 <MapContainer
                   center={[10.7769, 106.7009]} 
                   zoom={12}
@@ -389,41 +384,18 @@ const RoomResults = ({ rooms = [] }) => {
             {/* Region */}
             <div className="border-b pb-4 mb-4 ">
               <h4 className="text-gray-700 font-medium mb-2">Khu vực</h4>
-            <select
-    value={filters.region}
-    onChange={(e) => setFilters({ ...filters, region: e.target.value, city: "" })}
-    className="w-full border border-gray-300 rounded-lg p-2 text-gray-600"
-  >
-      <option value="">Tất cả khu vực</option>
-  {regions.map((r) => (
-    <option key={r._id} value={r._id}>{r.name}</option>
-  ))}
-  </select>
-
-              {/* City select (depends on region) */}
-              {filters.region && (
-                (() => {
-                  const selected = regions.find((x) => x._id === filters.region || x._id?.toString() === filters.region);
-                  if (!selected || !Array.isArray(selected.cities) || selected.cities.length === 0) return null;
-                  return (
-                    <div className="mt-3">
-                      <h4 className="text-gray-700 font-medium mb-2 text-sm">Thành phố / Quận</h4>
-                      <select
-                        value={filters.city}
-                        onChange={(e) => setFilters((prev) => ({ ...prev, city: e.target.value }))}
-                        className="w-full border border-gray-300 rounded-lg p-2 text-gray-600"
-                      >
-                        <option value="">Tất cả thành phố</option>
-                        {selected.cities.map((cityObj, idx) => (
-                          <option key={idx} value={cityObj.name}>{cityObj.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  );
-                })()
-              )}
-              
-              
+              <select
+                value={filters.region}
+                onChange={(e) => setFilters({ ...filters, region: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg p-2 text-gray-600 focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="">Tất cả khu vực</option>
+                {regions.map((r) => (
+                  <option key={r._id} value={r._id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Price */}
@@ -576,140 +548,117 @@ const RoomResults = ({ rooms = [] }) => {
               Không tìm thấy khách sạn phù hợp.
             </p>
           ) : (
-            filteredHotels.map((hotel) => (
-              <div
-                key={hotel._id}
-                onClick={() => navigate(`/hotel/${hotel._id}`)}
-                className="
-                  bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition cursor-pointer
-                  flex flex-col md:flex-row
-                "
-              >
-                {/* Ảnh */}
-                <div className="relative md:w-1/3 h-48 sm:h-56 m-3 sm:m-4 overflow-hidden rounded-md">
-                  <img
-                    src={hotel.imageurls?.[0] || "/images/default-hotel.jpg"}
-                    alt={hotel.name}
-                    className="w-full h-full object-cover hover:scale-105 transition"
-                  />
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFavorite(hotel._id);
-                    }}
-                    className="absolute top-3 right-3 bg-white/80 hover:bg-white rounded-full p-2 shadow-md"
-                  >
-                    {favorites.includes(hotel._id) ? (
-                      <FaHeart className="text-red-500 text-lg scale-110" />
-                    ) : (
-                      <FaRegHeart className="text-gray-400 text-lg" />
-                    )}
-                  </button>
-                </div>
+            filteredHotels.map((hotel) => {
+              const avg = averageRatings[hotel._id]?.average || 0;
+              const label = avg ? getRatingLabel(avg) : null;
 
-                {/* Nội dung */}
-                <div className="flex-1 p-4 sm:p-5 flex flex-col justify-between">
-                  {/* Thông tin chính */}
-                  <div className="flex flex-col md:flex-row justify-between gap-3 sm:gap-4">
-                    {/* Tên + mô tả */}
-                    <div className="flex-1">
-                      <h3 className="text-lg sm:text-2xl font-semibold text-[#003580]">
+              return (
+                <div
+                  key={hotel._id}
+                  onClick={() => navigate(`/hotel/${hotel._id}`)}
+                  className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition cursor-pointer flex flex-col md:flex-row"
+                >
+                  {/* Image + badges */}
+                  <div className="relative md:w-1/3 h-52 sm:h-56 m-3 sm:m-4 overflow-hidden rounded-md">
+                    <img
+                      src={hotel.imageurls?.[0] || "/images/default-hotel.jpg"}
+                      alt={hotel.name}
+                      className="w-full h-full object-cover hover:scale-105 transition"
+                    />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFavorite(hotel._id);
+                      }}
+                      className="absolute top-3 right-3 bg-white/90 hover:bg-white rounded-full p-2 shadow-md"
+                    >
+                      {favorites.includes(hotel._id) ? (
+                        <FaHeart className="text-red-500 text-lg scale-110" />
+                      ) : (
+                        <FaRegHeart className="text-gray-400 text-lg" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Middle content */}
+                  <div className="flex-1 p-4 sm:p-5 flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-[18px] sm:text-2xl font-semibold text-[#003580]">
                         {hotel.name}
                       </h3>
-                      <p className="text-sm text-gray-600">{hotel.address}</p>
-
-                      <div className="flex items-center mt-1">
+                      <div className="flex items-center mt-0.5">
                         {[...Array(hotel.starRating)].map((_, i) => (
                           <FaStar key={i} className="text-yellow-400 text-xs sm:text-sm" />
                         ))}
                       </div>
-
-                      {/* Phòng hiển thị */}
-                      {hotel.rooms?.length > 0 && (
-                        <div className="mt-2 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                          {hotel.rooms.slice(0, 1).map((room, idx) => (
-                            <div key={idx}>
-                              <p className="font-semibold text-[#003580] text-sm sm:text-[15px]">
-                                {room.name}
-                              </p>
-                              <p className="text-gray-600 text-xs sm:text-sm mt-1">
-                                {room.beds ? `${room.beds} giường • ` : ""}
-                                {room.baths ? `${room.baths} phòng tắm` : ""}
-                              </p>
-                              <ul className="text-green-600 text-xs sm:text-sm mt-1 space-y-0.5">
-                                <li>✔ Miễn phí hủy</li>
-                                <li>✔ Thanh toán tại chỗ nghỉ</li>
-                              </ul>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
+                    <div className="text-sm text-[#0071c2]">
+                      {hotel.region?.name || "Việt Nam"} · <span className="underline">Xem trên bản đồ</span>
+                    </div>
+                    <p className="text-gray-600 text-sm">{hotel.address}</p>
 
-                    {/* Giá và đánh giá */}
-                    <div className="flex flex-col items-end text-right min-w-[160px] sm:min-w-[220px]">
-                      {averageRatings[hotel._id]?.average ? (
-                        <div className="flex flex-col items-end mb-2">
+                    {/* Room snippet */}
+                    {hotel.rooms?.length > 0 && (
+                      <div className="mt-2 text-[13px]">
+                        {hotel.rooms.slice(0, 1).map((room, idx) => (
+                          <div key={idx}>
+                            <p className="font-semibold text-[#003580]">{room.name}</p>
+                            <p className="text-gray-600 mt-1">
+                              {room.beds ? `${room.beds} giường • ` : ""}
+                              {room.baths ? `${room.baths} phòng tắm` : ""}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Perks like Booking.com */}
+                    <ul className="mt-2 text-xs sm:text-sm text-green-700 space-y-1">
+                      <li>✔ Miễn phí hủy</li>
+                      <li>✔ Không cần thanh toán trước – thanh toán tại chỗ nghỉ</li>
+                    </ul>
+                  </div>
+
+                  {/* Right column: score + price + CTA */}
+                  <div className="flex flex-col justify-between items-end text-right min-w-[190px] sm:min-w-[240px] p-4 sm:p-5">
+                    <div className="flex flex-col items-end">
+                      {avg ? (
+                        <>
                           <div className="flex items-center gap-2">
-                            <span
-                              className={`px-2 py-1 rounded-md font-semibold text-xs sm:text-sm text-white ${
-                                averageRatings[hotel._id].average >= 9
-                                  ? "bg-[#003580]"
-                                  : averageRatings[hotel._id].average >= 8
-                                  ? "bg-[#4CAF50]"
-                                  : averageRatings[hotel._id].average >= 7
-                                  ? "bg-[#8BC34A]"
-                                  : "bg-gray-400"
-                              }`}
-                            >
-                              {averageRatings[hotel._id].average.toFixed(1)}
+                            <span className={`${getScoreBg(avg)} text-white px-2 py-1 rounded-md font-semibold text-xs sm:text-sm`}>
+                              {avg.toFixed(1)}
                             </span>
-                            <span className="text-gray-700 font-medium text-xs sm:text-sm">
-                              {averageRatings[hotel._id].average >= 4.7
-                                ? "Tuyệt hảo"
-                                : averageRatings[hotel._id].average >= 4
-                                ? "Rất tốt"
-                                : averageRatings[hotel._id].average >= 3
-                                ? "Tốt"
-                                : "Khá"}
-                            </span>
+                            <span className="text-gray-700 font-medium text-xs sm:text-sm">{label}</span>
                           </div>
                           <span className="text-[11px] sm:text-xs text-gray-500 mt-0.5">
-                            {averageRatings[hotel._id].totalReviews} đánh giá
+                            {averageRatings[hotel._id]?.totalReviews || 0} đánh giá
                           </span>
-                        </div>
+                        </>
                       ) : (
-                        <span className="text-gray-400 text-xs sm:text-sm mb-2">
-                          Chưa có đánh giá
-                        </span>
+                        <span className="text-gray-400 text-xs sm:text-sm">Chưa có đánh giá</span>
                       )}
-
-                      {/* Giá */}
-                      {hotel.lowestPrice > 0 && (
-                        <div className="mt-1 sm:mt-[100px]">
-                          <p className="text-xs sm:text-sm text-gray-500">
-                            1 đêm, 5 người lớn
-                          </p>
-                          <p className="text-lg sm:text-2xl font-semibold text-[#0071c2]">
-                            {hotel.lowestPrice.toLocaleString()} ₫
-                          </p>
-                          <p className="text-[10px] sm:text-xs text-gray-500 mb-1 sm:mb-2">
-                            Đã bao gồm thuế và phí
-                          </p>
-                        </div>
-                      )}
-
-                      <button
-                        onClick={() => navigate(`/hotel/${hotel._id}`)}
-                        className="bg-[#0071c2] text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium hover:bg-blue-800 transition text-xs sm:text-sm"
-                      >
-                        Xem chi tiết
-                      </button>
                     </div>
+
+                    {hotel.lowestPrice > 0 && (
+                      <div className="mt-2 text-right leading-tight">
+                        <p className="text-[12px] text-gray-600">1 đêm · 2 người lớn</p>
+                        <span className="block text-[#0071c2] text-2xl sm:text-[26px] font-bold tracking-tight">
+                          {hotel.lowestPrice.toLocaleString()} ₫
+                        </span>
+                        <p className="text-[11px] sm:text-[11px] text-gray-500">+thuế và phí</p>
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => navigate(`/hotel/${hotel._id}`)}
+                      className="mt-3 bg-[#0071c2] text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium hover:bg-blue-800 transition text-xs sm:text-sm"
+                    >
+                      Xem chỗ trống
+                    </button>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
