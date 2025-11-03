@@ -134,7 +134,7 @@ passport.deserializeUser(async (id, done) => {
   }
 });
 
-// Routes
+// Routes /api/users/+
 router.post('/register', usersController.register);
 router.post('/login', usersController.login);
 router.post('/google/send-otp', usersController.sendGoogleOTP);
