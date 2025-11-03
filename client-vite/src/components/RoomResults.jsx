@@ -26,7 +26,7 @@ L.Icon.Default.mergeOptions({
 });
 
 
-const RoomResults = ({ rooms = [] }) => {
+const RoomResults = () => {
   const [hotels, setHotels] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const userInfo = JSON.parse(localStorage.getItem("userInfo"));
@@ -57,21 +57,21 @@ const RoomResults = ({ rooms = [] }) => {
 
   const navigate = useNavigate();
 
-  // --- Helpers for Booking.com-like UI ---
-  const getRatingLabel = (avg) => {
-    if (avg >= 9) return "Tuyệt hảo";
-    if (avg >= 8) return "Tuyệt vời";
-    if (avg >= 7) return "Rất tốt";
-    if (avg >= 6) return "Dễ chịu";
-    return "Khá";
-  };
+  // // --- Helpers for Booking.com-like UI ---
+  // const getRatingLabel = (avg) => {
+  //   if (avg >= 9) return "Tuyệt hảo";
+  //   if (avg >= 8) return "Tuyệt vời";
+  //   if (avg >= 7) return "Rất tốt";
+  //   if (avg >= 6) return "Dễ chịu";
+  //   return "Khá";
+  // };
 
-  const getScoreBg = (avg) => {
-    if (avg >= 9) return "bg-[#003580]";
-    if (avg >= 8) return "bg-[#4CAF50]";
-    if (avg >= 7) return "bg-[#8BC34A]";
-    return "bg-gray-400";
-  };
+  // const getScoreBg = (avg) => {
+  //   if (avg >= 9) return "bg-[#003580]";
+  //   if (avg >= 8) return "bg-[#4CAF50]";
+  //   if (avg >= 7) return "bg-[#8BC34A]";
+  //   return "bg-gray-400";
+  // };
 
   // Kéo lên dầu trang
   useEffect(() => {
@@ -101,10 +101,11 @@ const RoomResults = ({ rooms = [] }) => {
     if (regionFromQuery) {
       setFilters((prev) => ({
         ...prev,
-        region: regionFromQuery,
-        city: districtFromQuery || "",
+        region: decodeURIComponent(regionFromQuery),
+        city: decodeURIComponent(districtFromQuery || ""),
       }));
     }
+
   }, [location.search]);
 
 
@@ -185,7 +186,7 @@ const RoomResults = ({ rooms = [] }) => {
         setFestivalInfo(null);
         // ✅ Gọi API BE có query region + city (region may be id or name)
         const { data } = await axios.get(`/api/hotels`, {
-          params: { region: regionParam || undefined, district: cityParam || undefined },
+          params: { region: regionParam || undefined, city: cityParam || undefined },
         });
 
         hotelsWithExtras = await Promise.all(
@@ -283,7 +284,10 @@ const RoomResults = ({ rooms = [] }) => {
         const priceMin = Math.min(...hotel.rooms.map((r) => r.rentperday));
         const priceMax = Math.max(...hotel.rooms.map((r) => r.rentperday));
 
-        const matchRegion = filters.region ? hotel.region?._id === filters.region : true;
+        const matchRegion = filters.region
+          ? hotel.region?.name?.toLowerCase() === filters.region.toLowerCase()
+          : true;
+
         const matchRating = avg >= filters.rating;
         const matchPrice = priceMax >= filters.minPrice && priceMin <= filters.maxPrice;
         const matchStars = filters.starRatings.length === 0 || filters.starRatings.includes(hotel.starRating || 3);
@@ -375,15 +379,17 @@ const RoomResults = ({ rooms = [] }) => {
             <>
               <span className="mx-1">›</span>
               <span
-                onClick={() =>
-                  navigate(`/hotel-results?region=${encodeURIComponent(filters.region)}`)
-                }
+                onClick={() => {
+                  setFilters({ ...filters, city: "" });
+                  navigate(`/hotel-results?region=${encodeURIComponent(filters.region)}`);
+                }}
                 className="cursor-pointer hover:underline text-[#0071c2]"
               >
                 {filters.region}
               </span>
             </>
           )}
+
 
           {filters.city && (
             <>
@@ -526,9 +532,13 @@ const RoomResults = ({ rooms = [] }) => {
                     {selected.cities.map((c, i) => (
                       <button
                         key={i}
-                        onClick={() =>
-                          setFilters({ ...filters, city: c.name })
-                        }
+                        onClick={() => {
+                          setFilters({ ...filters, city: c.name });
+                          navigate(
+                            `/hotel-results?region=${encodeURIComponent(filters.region)}&district=${encodeURIComponent(c.name)}`
+                          );
+                        }}
+
                         className={`text-xs sm:text-sm rounded-lg border p-2 transition-all duration-200 ${filters.city === c.name
                           ? "bg-[#0071c2] text-white border-[#0071c2]"
                           : "bg-gray-50 hover:bg-blue-50 border-gray-200 text-gray-700"

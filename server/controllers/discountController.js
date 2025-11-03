@@ -112,30 +112,36 @@ const updateDiscount = async (req, res) => {
   }
 };
 
-// @desc    Get all public discounts
+// @desc    Get all public discounts (voucher + limited)
 // @route   GET /api/discounts
 // @access  Public
 const getPublicDiscounts = async (req, res) => {
   try {
     const now = new Date();
+
+    // ✅ Cho phép cả voucher lẫn limited, kể cả khi type bị thiếu hoặc viết hoa
     const discounts = await Discount.find({
-      isPublic: true,
       isDeleted: false,
-      startDate: {
-        $lte: now
-      },
-      endDate: {
-        $gte: now
-      },
-    }).populate('applicableHotels', 'name region imageurls address rating');
-    res.json(discounts);
+      startDate: { $lte: now },
+      endDate: { $gte: now },
+      $or: [
+        { type: /voucher/i },
+        { type: /festival/i },
+        { type: /limited/i },
+        { type: { $exists: false } },
+      ],
+    }).populate("applicableHotels", "name region imageurls address rating");
+
+    res.status(200).json(discounts);
   } catch (error) {
     res.status(500).json({
-      message: 'Lỗi khi lấy danh sách khuyến mãi công khai',
-      error: error.message
+      message: "Lỗi khi lấy danh sách khuyến mãi công khai",
+      error: error.message,
     });
   }
 };
+
+
 
 // @desc    Get all discounts for admin
 // @route   GET /api/discounts/admin
