@@ -1,82 +1,126 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
-export default function VietnamDestinations({ regions }) {
-  const scrollRef = useRef(null);
+export default function VietnamDestinations() {
   const navigate = useNavigate();
+  const scrollRef = useRef(null);
+  const [regions, setRegions] = useState([]);
   const [hovered, setHovered] = useState(false);
 
-  const scroll = (direction) => {
-    const { current } = scrollRef;
-    if (current) {
-      const scrollAmount =
-        direction === "left"
-          ? -current.offsetWidth / 1.2
-          : current.offsetWidth / 1.2;
-      current.scrollBy({ left: scrollAmount, behavior: "smooth" });
-    }
+  const API_BASE_URL = "http://localhost:5000/api/regions";
+
+  const preferredRegions = [
+    "Hà Nội",
+    "Hồ Chí Minh",
+    "Đà Nẵng",
+    "Khánh Hòa",
+    "Lâm Đồng",
+    "Vũng Tàu",
+    "Đồng Nai",
+    "Hội An",
+    "Huế",
+    "Sapa",
+  ];
+
+  useEffect(() => {
+    const fetchRegions = async () => {
+      try {
+        const res = await axios.get(API_BASE_URL);
+        const filtered = res.data.filter((r) =>
+          preferredRegions.some(
+            (name) => r.name.toLowerCase().trim() === name.toLowerCase().trim()
+          )
+        );
+        const sorted = preferredRegions
+          .map((name) =>
+            filtered.find(
+              (r) => r.name.toLowerCase().trim() === name.toLowerCase().trim()
+            )
+          )
+          .filter(Boolean);
+        setRegions(sorted);
+      } catch (err) {
+        console.error("Lỗi khi lấy danh sách khu vực:", err);
+      }
+    };
+    fetchRegions();
+  }, []);
+
+  const scroll = (dir) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const scrollValue =
+      dir === "left" ? -el.offsetWidth / 1.5 : el.offsetWidth / 1.5;
+    el.scrollBy({ left: scrollValue, behavior: "smooth" });
   };
 
   return (
-    <section className="py-16 bg-white">
+    <section className="py-14 bg-white">
       <div className="max-w-6xl mx-auto px-4 relative">
         {/* Header */}
-        <div className="mb-8">
-          <h2 className="text-[22px] font-bold text-[#003580]">
+        <div className="mb-7">
+          <h2 className="text-[22px] md:text-[26px] font-bold text-[#1a1a1a]">
             Khám phá Việt Nam
           </h2>
-          <p className="text-gray-500 text-[15px]">
+          <p className="text-gray-600 text-[15px]">
             Các điểm đến phổ biến này có nhiều điều chờ đón bạn
           </p>
         </div>
 
-        {/* Scroll Container */}
+        {/* Container */}
         <div
           className="relative"
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
         >
-          {/* Nút trái */}
+          {/* Nút trái kiểu Booking */}
           <button
             onClick={() => scroll("left")}
-            className={`absolute left-0 top-1/2 -translate-y-1/2 z-10 rounded-full w-8 h-8 flex items-center justify-center border border-gray-300 transition-all duration-300 ${
-              hovered
-                ? "opacity-100 bg-white shadow-md hover:bg-gray-100"
-                : "opacity-0 pointer-events-none"
-            }`}
+            className={`absolute left-[-22px] top-1/3 -translate-y-1/2 w-[48px] h-[48px] 
+                       rounded-full bg-white border border-gray-200 shadow-[0_3px_8px_rgba(0,0,0,0.15)]
+                       flex items-center justify-center transition-all duration-300
+                       hover:shadow-[0_5px_14px_rgba(0,0,0,0.25)] hover:scale-105 active:scale-95
+                       z-10 ${
+                         hovered
+                           ? "opacity-100 pointer-events-auto"
+                           : "opacity-0 pointer-events-none"
+                       }`}
           >
-            <FaChevronLeft className="text-gray-700 text-sm" />
+            <FaChevronLeft className="text-[17px] text-gray-800" />
           </button>
 
-          {/* Danh sách các region (scroll ngang) */}
+          {/* Danh sách khu vực */}
           <div
             ref={scrollRef}
-            className="flex overflow-x-auto no-scrollbar scroll-smooth gap-4"
+            className="flex overflow-x-auto scroll-smooth no-scrollbar gap-5"
           >
             {regions.map((region, index) => (
               <div
                 key={region._id}
-                className="min-w-[180px] cursor-pointer group flex-shrink-0"
+                className="min-w-[180px] sm:min-w-[200px] flex-shrink-0 cursor-pointer group relative"
                 onClick={() =>
-                  navigate(`/room-results?destination=${region._id}`)
+                  navigate(
+                    `/hotel-results?region=${encodeURIComponent(region.name)}`
+                  )
                 }
               >
-                <div className="relative rounded-lg overflow-hidden shadow-sm">
+                <div className="relative rounded-[12px] overflow-hidden">
                   <img
                     src={region.imageUrl || `/images/region-${index + 1}.jpg`}
                     alt={region.name}
-                    className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-500"
+                    className="w-full h-[120px] sm:h-[130px] object-cover rounded-[12px]
+                               group-hover:scale-105 transition-transform duration-500"
                   />
                 </div>
-
                 <div className="mt-2">
-                  <h3 className="text-[15px] font-medium text-[#262626] group-hover:text-[#0071c2] transition">
+                  <h3 className="text-[15px] font-semibold text-[#262626] group-hover:text-[#0071c2] transition">
                     {region.name}
                   </h3>
                   <p className="text-[13px] text-gray-500">
-                    {region.hotelCount
-                      ? `${region.hotelCount.toLocaleString()} chỗ nghỉ`
+                    {region.hotels?.length
+                      ? `${region.hotels.length.toLocaleString()} chỗ nghỉ`
                       : "Đang cập nhật"}
                   </p>
                 </div>
@@ -84,16 +128,20 @@ export default function VietnamDestinations({ regions }) {
             ))}
           </div>
 
-          {/* Nút phải */}
+          {/* Nút phải kiểu Booking */}
           <button
             onClick={() => scroll("right")}
-            className={`absolute right-0 top-1/2 -translate-y-1/2 z-10 rounded-full w-8 h-8 flex items-center justify-center border border-gray-300 transition-all duration-300 ${
-              hovered
-                ? "opacity-100 bg-white shadow-md hover:bg-gray-100"
-                : "opacity-0 pointer-events-none"
-            }`}
+            className={`absolute right-[-22px] top-1/3 -translate-y-1/2 w-[48px] h-[48px]
+                       rounded-full bg-white border border-gray-200 shadow-[0_3px_8px_rgba(0,0,0,0.15)]
+                       flex items-center justify-center transition-all duration-300
+                       hover:shadow-[0_5px_14px_rgba(0,0,0,0.25)] hover:scale-105 active:scale-95
+                       z-10 ${
+                         hovered
+                           ? "opacity-100 pointer-events-auto"
+                           : "opacity-0 pointer-events-none"
+                       }`}
           >
-            <FaChevronRight className="text-gray-700 text-sm" />
+            <FaChevronRight className="text-[17px] text-gray-800" />
           </button>
         </div>
       </div>

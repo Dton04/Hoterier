@@ -151,7 +151,7 @@ function BookingForm() {
       childrenAges: formData.children > 0 ? childrenAges : [],
     };
     localStorage.setItem("bookingInfo", JSON.stringify(submitData));
-    navigate(`/room-results?${new URLSearchParams(submitData).toString()}`);
+    navigate(`/hotel-results?${new URLSearchParams(submitData).toString()}`);
   };
 
   useEffect(() => {

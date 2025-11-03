@@ -10,6 +10,10 @@ import DiscountTab from "./tabs/DiscountTab";
 import RulesTab from "./tabs/RulesTab";
 import Banner from "../Banner";
 import BookingForm from "../BookingForm";
+
+import HeaderTab from "./tabs/HeaderTab"
+
+
 import Loader from "../Loader";
 
 export default function HotelDetail() {
@@ -29,6 +33,24 @@ export default function HotelDetail() {
   const reviewsRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
+
+  const [activeTab, setActiveTab] = useState("overview");
+
+  useEffect(() => {
+    const sections = ["overview", "rooms", "amenities", "rules", "reviews"];
+    const handleScroll = () => {
+      const scrollY = window.scrollY + 100;
+      for (let id of sections) {
+        const el = document.getElementById(id);
+        if (el && el.offsetTop <= scrollY && el.offsetTop + el.offsetHeight > scrollY) {
+          setActiveTab(id);
+          break;
+        }
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
 
   useEffect(() => {
@@ -74,50 +96,57 @@ export default function HotelDetail() {
   return (
     <>
 
-    {/* ======= PANEL HIỂN THỊ REVIEW CHI TIẾT ======= */}
-{showReviews && (
-  <div className="fixed inset-0 z-50 flex">
-    {/* Lớp phủ mờ bên trái */}
-    <div
-      className="flex-1 bg-black/40 backdrop-blur-sm"
-      onClick={() => setShowReviews(false)}
-    ></div>
 
-    {/* Panel nửa màn hình bên phải */}
-    <div className="w-full sm:w-[55%] md:w-[50%] lg:w-[45%] bg-white shadow-2xl h-full overflow-y-auto animate-slide-left relative">
-      <button
-        onClick={() => setShowReviews(false)}
-        className="absolute top-4 right-4 text-gray-500 hover:text-red-500 text-2xl"
-      >
-        ✕
-      </button>
-      <div className="p-6">
-        <h2 className="text-2xl font-bold text-[#003580] mb-4">
-          Đánh giá từ khách hàng
-        </h2>
-        <ReviewsTab reviews={reviews} average={average} />
-      </div>
-    </div>
-  </div>
-)}
+      {/* ======= PANEL HIỂN THỊ REVIEW CHI TIẾT ======= */}
+      {showReviews && (
+        <div className="fixed inset-0 z-[1000] flex">
+          {/* Lớp phủ mờ bên trái */}
+          <div
+            className="flex-1 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowReviews(false)}
+          ></div>
+
+          {/* Panel nửa màn hình bên phải */}
+          <div className="w-full sm:w-[55%] md:w-[50%] lg:w-[45%] bg-white shadow-2xl h-full overflow-y-auto animate-slide-left relative">
+            <button
+              onClick={() => setShowReviews(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-red-500 text-2xl"
+            >
+              ✕
+            </button>
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-[#003580] mb-4">
+                Đánh giá từ khách hàng
+              </h2>
+              <ReviewsTab reviews={reviews} average={average} />
+            </div>
+          </div>
+        </div>
+      )}
 
 
       {/* ==== BANNER & BOOKING FORM ==== */}
-      <div className="relative w-full -mt-[280px] sm:-mt-[290px]">
+
+      <div className="relative w-full -mt-[280px] sm:-mt-[330px]">
         <Banner />
+
 
         {/* BookingForm (Desktop & Tablet) */}
         <div
           className="
           hidden sm:block
-          absolute left-1/2 -translate-x-1/2 bottom-[-50px] 
-          w-full max-w-5xl px-4 sm:px-6
+          absolute left-1/2 -translate-x-1/2 bottom-[-30px] 
+          w-full max-w-6xl px-4 sm:px-6
           z-30
         "
         >
           <BookingForm />
         </div>
       </div>
+      <div className="p-5">
+        <HeaderTab hotel={hotel} />
+      </div>
+
 
       {/* BookingForm (Mobile Only) */}
       <div className="block sm:hidden mt-4 px-4 relative z-20">
@@ -126,73 +155,47 @@ export default function HotelDetail() {
 
 
 
-      <div className="max-w-6xl mx-auto px-4 py-8 space-y-10 mt-10">
+      <div className="max-w-6xl mx-auto  space-y-10 ">
 
         {/* ======= THANH MỤC LỤC ======= */}
-        <nav className="sticky top-0 z-40 bg-white shadow-sm border-t mt-10  ">
-          <ul className="flex  gap-8 text-sm font-medium text-gray-700 py-3">
-            <li>
-              <button
-                onClick={() =>
-                  document
-                    .getElementById("overview")
-                    ?.scrollIntoView({ behavior: "smooth" })
-                }
-                className="hover:text-blue-600"
-              >
-                Tổng quan
-              </button>
-            </li>
-            <li>
-              <button
-                onClick={() =>
-                  document
-                    .getElementById("rooms")
-                    ?.scrollIntoView({ behavior: "smooth" })
-                }
-                className="hover:text-blue-600"
-              >
-                Thông tin & Giá
-              </button>
-            </li>
-            <li>
-              <button
-                onClick={() =>
-                  document
-                    .getElementById("amenities")
-                    ?.scrollIntoView({ behavior: "smooth" })
-                }
-                className="hover:text-blue-600"
-              >
-                Tiện nghi
-              </button>
-            </li>
-            <li>
-              <button
-                onClick={() =>
-                  document
-                    .getElementById("rules")
-                    ?.scrollIntoView({ behavior: "smooth" })
-                }
-                className="hover:text-blue-600"
-              >
-                Quy tắc chung
-              </button>
-            </li>
-            <li>
-              <button
-                onClick={() =>
-                  document
-                    .getElementById("reviews")
-                    ?.scrollIntoView({ behavior: "smooth" })
-                }
-                className="hover:text-blue-600"
-              >
-                Đánh giá
-              </button>
-            </li>
-          </ul>
+
+        <nav className="relative top-0 z-40 border-b shadow-sm w-full">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <ul className="flex overflow-x-auto no-scrollbar gap-12 text-[17px] font-medium text-gray-700 whitespace-nowrap justify-start sm:justify-center">
+              {[
+                { id: "overview", label: "Tổng quan" },
+                { id: "rooms", label: "Thông tin & Giá" },
+                { id: "amenities", label: "Tiện nghi" },
+                { id: "rules", label: "Quy tắc chung" },
+                { id: "reviews", label: "Đánh giá" },
+              ].map((tab) => (
+                <li key={tab.id} className="relative py-3 group px-4">
+                  <button
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      document
+                        .getElementById(tab.id)
+                        ?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                    className={`transition-colors ${activeTab === tab.id
+                      ? "text-[#003580] font-semibold"
+                      : "text-gray-700 hover:text-[#003580]"
+                      }`}
+                  >
+                    {tab.label}
+                  </button>
+
+                  {activeTab === tab.id && (
+                    <span className="absolute left-1/2 -translate-x-1/2 bottom-0 w-[120%] h-[4px] bg-[#0071c2] rounded-md transition-all duration-300" />
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
         </nav>
+
+
+
 
         {/* ======= TỔNG QUAN ======= */}
         <section id="overview" className="grid lg:grid-cols-3 gap-6">
@@ -289,11 +292,11 @@ export default function HotelDetail() {
 
 
 
-      {/* ======= QUY TẮC ======= */}
-      <section id="rules">
-        {/* use RulesTab component for nicer layout */}
-        <RulesTab hotel={hotel} />
-      </section>
+        {/* ======= QUY TẮC ======= */}
+        <section id="rules">
+          {/* use RulesTab component for nicer layout */}
+          <RulesTab hotel={hotel} />
+        </section>
 
         {/* ======= ƯU ĐÃI ======= */}
         <DiscountTab discounts={discounts} />

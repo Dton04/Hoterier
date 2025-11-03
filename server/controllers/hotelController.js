@@ -9,6 +9,7 @@ const Discount = require('../models/discount');
 const fs = require('fs');
 const path = require('path');
 
+
 // GET /api/hotels - Lấy danh sách tất cả khách sạn
 exports.getAllHotels = async (req, res) => {
   try {
@@ -110,6 +111,7 @@ exports.getHotelById = async (req, res) => {
       name: hotel.name,
       address: hotel.address,
       region: hotel.region,
+      district: hotel.district,
       contactNumber: hotel.contactNumber,
       email: hotel.email,
       description: hotel.description,
@@ -125,15 +127,21 @@ exports.getHotelById = async (req, res) => {
   }
 };
 
-// POST /api/hotels/:id/images - Tải ảnh khách sạn
+// hotelController.js
+const cloudinary = require('cloudinary').v2;
+
+// Cấu hình Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// POST /api/hotels/:id/images - Tải ảnh khách sạn lên CLOUDINARY
 exports.uploadHotelImages = async (req, res) => {
   const { id } = req.params;
 
   try {
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({ message: 'Kết nối cơ sở dữ liệu chưa sẵn sàng' });
-    }
-
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: 'ID khách sạn không hợp lệ' });
     }
@@ -147,13 +155,30 @@ exports.uploadHotelImages = async (req, res) => {
       return res.status(400).json({ message: 'Vui lòng cung cấp ít nhất một ảnh' });
     }
 
-    const newImages = req.files.map(file => `${req.protocol}://${req.get('host')}/Uploads/${file.filename}`);
-    hotel.imageurls = [...(hotel.imageurls || []), ...newImages];
+    const uploadPromises = req.files.map(file => {
+      return cloudinary.uploader.upload(file.path, {
+        folder: 'hotels', // Thư mục trên Cloudinary
+        upload_preset: 'hotel_images',
+        public_id: `${hotel._id}_${Date.now()}`, // Tên file unique
+      });
+    });
+
+    const results = await Promise.all(uploadPromises);
+    const newImageUrls = results.map(result => result.secure_url); // HTTPS URL
+
+    // Xóa file tạm trên server
+    req.files.forEach(file => {
+      fs.unlink(file.path, err => {
+        if (err) console.error("Lỗi xóa file tạm:", err);
+      });
+    });
+
+    hotel.imageurls = [...(hotel.imageurls || []), ...newImageUrls];
     const updatedHotel = await hotel.save();
 
     res.status(201).json({ message: 'Tải ảnh khách sạn thành công', hotel: updatedHotel });
   } catch (error) {
-    console.error('Lỗi khi tải ảnh khách sạn:', error.message, error.stack);
+    console.error('Lỗi khi tải ảnh khách sạn:', error.message);
     res.status(500).json({ message: 'Lỗi khi tải ảnh khách sạn', error: error.message });
   }
 };
@@ -199,7 +224,7 @@ exports.deleteHotelImage = async (req, res) => {
 
 // POST /api/hotels - Tạo khách sạn mới
 exports.createHotel = async (req, res) => {
-  const { name, address, region, contactNumber, email, description, rooms } = req.body;
+  const { name, address, region, district, contactNumber, email, description, rooms } = req.body;
 
   try {
     if (mongoose.connection.readyState !== 1) {
@@ -241,6 +266,7 @@ exports.createHotel = async (req, res) => {
       email,
       description,
       rooms: rooms || [],
+      district: district || null,
     });
 
     const savedHotel = await hotel.save();
@@ -254,7 +280,7 @@ exports.createHotel = async (req, res) => {
 // PUT /api/hotels/:id - Cập nhật thông tin khách sạn
 exports.updateHotel = async (req, res) => {
   const { id } = req.params;
-  const { name, address, region, contactNumber, email, description, rooms } = req.body;
+  const { name, address, region, district, contactNumber, email, description, rooms } = req.body;
 
   try {
     if (mongoose.connection.readyState !== 1) {
@@ -299,6 +325,7 @@ exports.updateHotel = async (req, res) => {
     hotel.email = email;
     hotel.description = description || hotel.description;
     hotel.rooms = rooms || hotel.rooms;
+    hotel.district = district || hotel.district;
 
     const updatedHotel = await hotel.save();
     res.status(200).json({ message: 'Cập nhật khách sạn thành công', hotel: updatedHotel });

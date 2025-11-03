@@ -30,37 +30,43 @@ exports.getAllRooms = async (req, res) => {
   }
 };
 
-// POST /api/rooms/getroombyid - Lấy phòng theo ID
+// POST /api/rooms/getroombyid - Lấy phòng theo ID (kèm thông tin khách sạn)
+
 exports.getRoomById = async (req, res) => {
   const { roomid } = req.body;
-
   try {
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({ message: "Kết nối cơ sở dữ liệu chưa sẵn sàng" });
-    }
-
     if (!mongoose.Types.ObjectId.isValid(roomid)) {
       return res.status(400).json({ message: "ID phòng không hợp lệ" });
     }
 
-    const room = await Room.findById(roomid);
-    if (room) {
-      const r = room.toObject();
-      r.availabilityStatus = room.quantity > 0 ? "available" : "unavailable";
-      res.send(r);
+    const room = await Room.findById(roomid)
+      .populate("hotelId", "name address imageurls region")
+      .lean();
+
+    if (!room) {
+      return res.status(404).json({ message: "Không tìm thấy phòng" });
     }
 
-
-    if (room) {
-      res.send(room);
-    } else {
-      res.status(404).json({ message: "Không tìm thấy phòng" });
+    room.availabilityStatus = room.quantity > 0 ? "available" : "unavailable";
+    // Đưa hotelId thành field "hotel" để FE dễ dùng
+    if (room.hotelId) {
+      room.hotel = {
+        _id: room.hotelId._id,
+        name: room.hotelId.name,
+        address: room.hotelId.address,
+        imageurls: room.hotelId.imageurls,
+        region: room.hotelId.region,
+      };
+      delete room.hotelId;
     }
+
+    res.status(200).json(room);
   } catch (error) {
-    console.error("Lỗi khi lấy thông tin phòng:", error.message, error.stack);
-    res.status(500).json({ message: "Lỗi khi lấy thông tin phòng", error: error.message });
+    console.error("Lỗi khi lấy thông tin phòng:", error);
+    res.status(500).json({ message: "Lỗi khi lấy thông tin phòng" });
   }
 };
+
 
 // POST /api/rooms - Tạo phòng mới (chỉ admin)
 // roomController.js

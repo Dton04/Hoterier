@@ -1,90 +1,90 @@
 import React from "react";
-import { Link } from "react-router-dom";
-
-const FooterSection = ({ title, children }) => (
-  <div className="space-y-3">
-    {title && <h3 className="font-semibold text-white text-lg mb-2">{title}</h3>}
-    <div className="text-gray-200 text-sm leading-relaxed">{children}</div>
-  </div>
-);
 
 const Footer = () => {
   return (
-    <footer className="bg-[#003580] text-white mt-16 pt-10 pb-6 border-t border-blue-900">
-      <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-10 px-6">
-        {/* Brand */}
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold tracking-wide text-[#febb02]">HOTELIER</h2>
-          <p className="text-gray-200 text-sm">
-            “Chạm đến kỳ nghỉ trong mơ – Đặt phòng đẳng cấp chỉ với một cú click.”
-          </p>
-          <div className="flex items-center gap-3 mt-4">
-            <a href="https://facebook.com/tandat0811" target="_blank" rel="noopener noreferrer" className="hover:text-[#febb02] transition">
-              <i className="fab fa-facebook-f text-lg"></i>
-            </a>
-            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="hover:text-[#febb02] transition">
-              <i className="fab fa-twitter text-lg"></i>
-            </a>
-            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="hover:text-[#febb02] transition">
-              <i className="fab fa-instagram text-lg"></i>
-            </a>
-            <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="hover:text-[#febb02] transition">
-              <i className="fab fa-youtube text-lg"></i>
-            </a>
-          </div>
+    <footer className="bg-[#f9f9f9] text-[#222] text-sm mt-20 border-t border-gray-200">
+      {/* Phần nội dung chính (5 cột) */}
+      <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-8 px-6 py-10">
+        {/* Hỗ trợ */}
+        <div>
+          <h3 className="font-semibold mb-4">Hỗ trợ</h3>
+          <ul className="space-y-2">
+            <li>Quản lí các chuyến đi của bạn</li>
+            <li>Liên hệ Dịch vụ Khách hàng</li>
+            <li>Trung tâm thông tin bảo mật</li>
+          </ul>
         </div>
 
-        {/* Contact */}
-        <FooterSection title="LIÊN HỆ">
-          <p>📍 123 Street, Thủ Đức, TP.HCM</p>
-          <p>📞 0869 708 914</p>
-          <p>✉️ Hotelier@gmail.com</p>
-        </FooterSection>
-
-        {/* Company */}
-        <FooterSection title="CÔNG TY">
+        {/* Khám phá thêm */}
+        <div>
+          <h3 className="font-semibold mb-4">Khám phá thêm</h3>
           <ul className="space-y-2">
-            <li><Link to="/" className="hover:text-[#febb02] transition">Về chúng tôi</Link></li>
-            <li><Link to="/contact" className="hover:text-[#febb02] transition">Liên hệ</Link></li>
-            <li><Link to="/privacy" className="hover:text-[#febb02] transition">Chính sách bảo mật</Link></li>
-            <li><Link to="/terms" className="hover:text-[#febb02] transition">Điều khoản sử dụng</Link></li>
-            <li><Link to="/support" className="hover:text-[#febb02] transition">Hỗ trợ</Link></li>
+            <li>Chương trình khách hàng thân thiết Genius</li>
+            <li>Ưu đãi theo mùa và dịp lễ</li>
+            <li>Bài viết về du lịch</li>
+            <li>Booking.com dành cho Doanh nghiệp</li>
+            <li>Traveller Review Awards</li>
+            <li>Đặt nhà hàng</li>
+            <li>Booking.com dành cho Đại lý Du lịch</li>
           </ul>
-        </FooterSection>
+        </div>
 
-        {/* Services */}
-        <FooterSection title="DỊCH VỤ">
+        {/* Điều khoản */}
+        <div>
+          <h3 className="font-semibold mb-4">Điều khoản và cài đặt</h3>
           <ul className="space-y-2">
-            <li><Link to="/services" className="hover:text-[#febb02] transition">Ẩm thực & Nhà hàng</Link></li>
-            <li><Link to="/services" className="hover:text-[#febb02] transition">Spa & Fitness</Link></li>
-            <li><Link to="/services" className="hover:text-[#febb02] transition">Thể thao & Giải trí</Link></li>
-            <li><Link to="/services" className="hover:text-[#febb02] transition">Sự kiện & Tiệc cưới</Link></li>
-            <li><Link to="/services" className="hover:text-[#febb02] transition">Gym & Yoga</Link></li>
+            <li>Bảo mật & Cookie</li>
+            <li>Điều khoản dịch vụ</li>
+            <li>Chính sách về Khả năng tiếp cận</li>
+            <li>Tranh chấp đối tác</li>
+            <li>Chính sách chống Nô lệ Hiện đại</li>
+            <li>Chính sách về Quyền con người</li>
           </ul>
-        </FooterSection>
+        </div>
+
+        {/* Đối tác */}
+        <div>
+          <h3 className="font-semibold mb-4">Dành cho đối tác</h3>
+          <ul className="space-y-2">
+            <li>Đăng nhập vào trang Extranet</li>
+            <li>Trợ giúp đối tác</li>
+            <li>Đăng chỗ nghỉ của Quý vị</li>
+            <li>Trở thành đối tác phân phối</li>
+          </ul>
+        </div>
+
+        {/* Về chúng tôi */}
+        <div>
+          <h3 className="font-semibold mb-4">Về chúng tôi</h3>
+          <ul className="space-y-2">
+            <li>Về Booking.com</li>
+            <li>Chúng tôi hoạt động như thế nào</li>
+            <li>Du lịch bền vững</li>
+            <li>Truyền thông</li>
+            <li>Cơ hội việc làm</li>
+            <li>Quan hệ cổ đông</li>
+            <li>Liên hệ công ty</li>
+            <li>Hướng dẫn và cáo báo nội dung</li>
+          </ul>
+        </div>
       </div>
 
-      {/* Bottom */}
-      <div className="mt-10 border-t border-blue-800 pt-4 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center text-sm text-gray-300 gap-3">
-          <p>
-            © {new Date().getFullYear()} <span className="font-semibold text-white">HOTELIER</span>. Thiết kế bởi{" "}
-            <a
-              href="https://facebook.com/tandat0811"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#febb02] hover:underline"
-            >
-              DatTon
-            </a>
+      {/* Phần bản quyền + logo */}
+      <div className="border-t border-gray-200 bg-[#f5f5f5]">
+        <div className="max-w-6xl mx-auto text-center py-6">
+          <p className="text-[#333] mb-1">
+            Hotelier là một phần của <strong>Booking Holdings Inc.</strong>, tập đoàn đứng đầu thế giới về du lịch trực tuyến và các dịch vụ liên quan.
+          </p>
+          <p className="text-[#333] mb-3">
+            Bản quyền © 1996 - {new Date().getFullYear()} <strong>Hotelier</strong>. Bảo lưu mọi quyền.
           </p>
 
-          <div className="flex gap-5 text-gray-300">
-            <Link to="/" className="hover:text-[#febb02] transition">Trang chủ</Link>
-            <Link to="/privacy" className="hover:text-[#febb02] transition">Bảo mật</Link>
-            <Link to="/cookies" className="hover:text-[#febb02] transition">Cookies</Link>
-            <Link to="/help" className="hover:text-[#febb02] transition">Hỗ trợ</Link>
-            <Link to="/faqs" className="hover:text-[#febb02] transition">FAQs</Link>
+          <div className="flex flex-wrap justify-center items-center gap-6 mt-3">
+            <img src="https://download.logo.wine/logo/Booking.com/Booking.com-Logo.wine.png" alt="Booking" className="h-20" />
+            <img src="https://latestlogo.com/wp-content/uploads/2024/02/priceline.png" alt="Priceline" className="h-5" />
+            <img src="https://logos-world.net/wp-content/uploads/2021/03/Kayak-Logo-2004-2017.png" alt="Kayak" className="h-9" />
+            <img src="https://logos-world.net/wp-content/uploads/2024/07/Agoda-Logo.png" alt="Agoda" className="h-7" />
+            <img src="https://help.opentable.com/resource/1590622564000/OTCommunity_Assets/logos/OpenTable_logo_fullcolor.png" alt="OpenTable" className="h-6" />
           </div>
         </div>
       </div>

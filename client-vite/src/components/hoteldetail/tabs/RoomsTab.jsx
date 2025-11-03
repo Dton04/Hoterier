@@ -103,7 +103,7 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
                         {/* Số lượng khách */}
                         <td className="py-1.5 px-2 text-center align-middle">
                            <div className="flex justify-center gap-0.5">
-                              {Array.from({ length: room.maxPeople || 2 }).map((_, i) => (
+                              {Array.from({ length: room.maxcount || 2 }).map((_, i) => (
                                  <User key={i} className="text-gray-700" size={15} />
                               ))}
                            </div>

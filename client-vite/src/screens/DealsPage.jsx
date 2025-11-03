@@ -24,7 +24,7 @@ const DealsPage = () => {
         <div className="row">
           {regions.map((region, i) => (
             <div className="col-md-3 mb-4" key={region._id}>
-              <div className="deal-region-card" onClick={() => navigate(`/room-results?destination=${region._id}&deal=true`)}>
+              <div className="deal-region-card" onClick={() => navigate(`/hotel-results?destination=${region._id}&deal=true`)}>
                 <img
                   src={region.imageUrl || `/images/region-${i + 1}.jpg`}
                   alt={region.name}
