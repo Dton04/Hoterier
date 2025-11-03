@@ -1,4 +1,9 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+
+
+
+
+
 
 export default function BookingForm({
   register,
@@ -15,9 +20,38 @@ export default function BookingForm({
   handleServiceChange,
   bookingStatus,
   room,
-
   setRoomsNeeded,
+  setValue,
 }) {
+  const [checkinDate, setCheckinDate] = useState("");
+  const [checkoutDate, setCheckoutDate] = useState("");
+
+
+  useEffect(() => {
+  try {
+    const bookingInfo = JSON.parse(localStorage.getItem("bookingInfo"));
+    if (bookingInfo?.checkin && bookingInfo?.checkout) {
+      const checkin = bookingInfo.checkin.split("T")[0];
+      const checkout = bookingInfo.checkout.split("T")[0];
+
+      setCheckinDate(checkin);
+      setCheckoutDate(checkout);
+
+      // ✅ Đồng bộ với react-hook-form để Yup validation nhận được
+      if (typeof setValue === "function") {
+        setValue("checkin", checkin);
+        setValue("checkout", checkout);
+      }
+    }
+  } catch (error) {
+    console.error("Không thể đọc bookingInfo từ localStorage:", error);
+  }
+}, [setValue]);
+
+
+
+
+
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
@@ -90,11 +124,16 @@ export default function BookingForm({
           <input
             type="date"
             id="checkin"
+            value={checkinDate}
+            onChange={(e) => {
+              setCheckinDate(e.target.value);
+              setValue("checkin", e.target.value); //cập nhật cho react-hook-form
+            }}
             {...register("checkin", { required: "Vui lòng chọn ngày nhận phòng" })}
-            required
             className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${errors.checkin ? "border-red-500" : "border-gray-300"
               }`}
           />
+
           {errors.checkin && (
             <p className="text-red-500 text-sm mt-1">
               {errors.checkin.message}
@@ -108,6 +147,11 @@ export default function BookingForm({
           <input
             type="date"
             id="checkout"
+            value={checkoutDate}
+            onChange={(e) => {
+              setCheckoutDate(e.target.value);
+              setValue("checkout", e.target.value);
+            }}
             {...register("checkout", { required: "Vui lòng chọn ngày trả phòng" })}
             required
             className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${errors.checkout ? "border-red-500" : "border-gray-300"

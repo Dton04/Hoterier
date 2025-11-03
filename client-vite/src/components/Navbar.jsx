@@ -63,7 +63,8 @@ function Navbar() {
   };
 
   return (
-    <header className="relative top-0 left-0 w-full text-white z-50 bg-[#003580] shadow-md">
+    <header className="relative top-0 left-0 w-full text-white z-[999] bg-[#003580]">
+
       <div className="max-w-7xl mx-auto flex justify-between items-center px-5 py-3">
         {/* 🏨 Logo */}
         <Link
@@ -78,7 +79,7 @@ function Navbar() {
         <nav className="hidden md:flex gap-6 text-sm font-medium">
           {[
             { path: "/home", label: "Trang chủ" },
-            { path: "/room-results", label: "Khách sạn & Phòng" },
+            { path: "/hotel-results", label: "Khách sạn & Phòng" },
             { path: "/discounts", label: "Ưu đãi" },
             { path: "/contact", label: "Liên hệ" },
           ].map((item) => (

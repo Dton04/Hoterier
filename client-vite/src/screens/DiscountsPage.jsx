@@ -63,7 +63,7 @@ function DiscountsPage() {
   return (
     <>
     {loading && <Loader message="Đang tải dữ liệu.."/>}
-      <div className="relative w-full -mt-[260px]">
+      <div className="relative w-full -mt-[270px]">
         {/* Banner */}
         <Banner />
 

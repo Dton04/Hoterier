@@ -52,4 +52,8 @@ router.get("/cancel-reason",bookingController.getCancelReason);
 // PATCH /api/bookings/:id/payment-method - Cập nhật phương thức thanh toán
 router.patch("/:id/payment-method", bookingController.updatePaymentMethod);
 
+// /api/bookings/mail/booking-confirmation — Gửi email xác nhận đặt phòng
+router.post("/mail/booking-confirmation", bookingController.sendBookingConfirmationEmail);
+
+
 module.exports = router;

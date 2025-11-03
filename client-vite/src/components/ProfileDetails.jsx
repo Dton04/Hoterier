@@ -1,193 +1,208 @@
-import React, {useEffect, useState, useRef} from 'react';
-import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import { FaUser, FaLock, FaUsers, FaCog, FaCreditCard, FaShieldAlt } from "react-icons/fa";
 
-export default function ProfileDetails(){
+export default function ProfileDetails() {
   const [profile, setProfile] = useState(null);
+  const [activeTab, setActiveTab] = useState("personal");
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const fileRef = useRef(null);
+  const [error, setError] = useState("");
+
   const navigate = useNavigate();
-
-  const storedUserInfo = typeof window !== 'undefined' ? localStorage.getItem('userInfo') : null;
-  const userInfo = storedUserInfo ? JSON.parse(storedUserInfo) : null; // parse once per render
+  const API_BASE_URL = "http://localhost:5000";
+  const userInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
   const token = userInfo?.token;
-  const userIdFromStorage = userInfo?._id || userInfo?.id;
-  const API_BASE_URL = 'http://localhost:5000';
 
-  useEffect(()=>{
-    if(!token){
-      navigate('/login', { replace: true });
+  useEffect(() => {
+    if (!token) {
+      navigate("/login", { replace: true });
       return;
     }
-    const fetchProfile = async ()=>{
-      try{
+
+    const fetchProfile = async () => {
+      try {
         setLoading(true);
-        const headers = { Authorization: `Bearer ${token}` };
-        // try using full API URL first, then fallback to proxy '/api' if it fails
-        let res;
-        try {
-          res = await axios.get(`${API_BASE_URL}/api/users/${userIdFromStorage}/profile`, { headers });
-        } catch (err) {
-          console.warn('Direct API call failed, trying proxied /api path', err.message || err);
-          res = await axios.get(`/api/users/${userIdFromStorage}/profile`, { headers });
-        }
+        const res = await axios.get(
+          `${API_BASE_URL}/api/users/${userInfo._id || userInfo.id}/profile`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
         setProfile(res.data);
-      }catch(err){
-        console.error('fetchProfile error:', err);
-        const serverMsg = err.response?.data?.message || err.message || String(err);
-        setError(`Không thể tải thông tin người dùng: ${serverMsg}`);
-      }finally{
+      } catch (err) {
+        setError("Không thể tải thông tin cá nhân.");
+      } finally {
         setLoading(false);
       }
     };
     fetchProfile();
-  },[navigate, token, userIdFromStorage]);
+  }, [token, navigate]);
 
-  const handleChange = (e)=>{
-    const {name, value} = e.target;
-    setProfile(prev => ({ ...prev, [name]: value }));
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setProfile((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleAvatar = (e)=>{
-    if(e.target.files && e.target.files[0]){
-      setProfile(prev => ({ ...prev, avatarFile: e.target.files[0]}));
-    }
-  };
-
-  const handleSave = async (e)=>{
+  const handleSave = async (e) => {
     e.preventDefault();
-    if(!profile) return;
+    if (!profile) return;
     setSaving(true);
-    try{
-  const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' };
-      const formData = new FormData();
-      formData.append('name', profile.name || '');
-      formData.append('phone', profile.phone || '');
-      formData.append('dob', profile.dob || '');
-      formData.append('nationality', profile.nationality || '');
-      formData.append('gender', profile.gender || '');
-      if(profile.avatarFile){
-        formData.append('avatar', profile.avatarFile);
-      }
-  const userId = userIdFromStorage;
-      const res = await axios.put(`${API_BASE_URL}/api/users/${userId}/profile`, formData, { headers });
-      // NOTE: some userInfo object uses _id; handle both
-      // Update local copy and UI
-      setProfile(res.data);
+    try {
+      await axios.put(
+        `${API_BASE_URL}/api/users/${userInfo._id || userInfo.id}/profile`,
+        profile,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       setEditing(false);
-    }catch(err){
-      console.error(err);
-      setError(err.response?.data?.message || 'Lỗi khi cập nhật hồ sơ');
-    }finally{
+    } catch (err) {
+      setError("Lỗi khi lưu thay đổi.");
+    } finally {
       setSaving(false);
     }
   };
 
-  if(loading) return <div className="p-6">Đang tải...</div>;
-
-  if(!loading && error && !profile) {
-    return (
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded">
-          <p className="font-medium">{error}</p>
-          <p className="text-sm mt-2 text-gray-700">Kiểm tra: 1) Backend đang chạy (port 5000), 2) Bạn đã đăng nhập (localStorage userInfo.token), 3) CORS hoặc proxy.</p>
-          <div className="mt-3 flex gap-3">
-            <button onClick={() => window.location.reload()} className="px-3 py-1 bg-gray-200 rounded">Tải lại trang</button>
-            <button onClick={() => {
-              // retry fetch by reloading component
-              setError('');
-              setLoading(true);
-              const headers = { Authorization: `Bearer ${userInfo?.token}` };
-              axios.get(`/api/users/${userInfo?._id || userInfo?.id}/profile`, { headers })
-                .then(res => setProfile(res.data))
-                .catch(err => setError(err.response?.data?.message || err.message || String(err)))
-                .finally(() => setLoading(false));
-            }} className="px-3 py-1 bg-blue-600 text-white rounded">Thử lại</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="p-8 text-center">Đang tải...</div>;
 
   return (
-    <div className="max-w-5xl mx-auto bg-white rounded-xl shadow p-6">
-      <div className="flex items-start gap-6">
-        <div className="w-28 text-center">
-          <img
-            src={profile?.avatar ? `${API_BASE_URL}/${profile.avatar.replace(/^\/+/, '')}` : '/images/default-avatar.png'}
-            alt="avatar"
-            className="w-28 h-28 rounded-full object-cover mx-auto border"
-          />
-          {editing && (
-            <div className="mt-3">
-              <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatar} />
-            </div>
-          )}
+    <div className="flex flex-col md:flex-row max-w-6xl mx-auto bg-white rounded-xl shadow-sm overflow-hidden mt-6">
+      {/* Sidebar */}
+      <aside className="w-full md:w-1/4 border-r border-gray-200 bg-gray-50">
+        <div className="p-4 border-b text-lg font-semibold text-[#003580]">
+          Tài khoản của tôi
         </div>
+        <ul className="p-4 space-y-3 text-gray-700">
+          {[
+            { id: "personal", label: "Thông tin cá nhân", icon: <FaUser /> },
+            { id: "security", label: "Cài đặt bảo mật", icon: <FaLock /> },
+            { id: "companions", label: "Người đi cùng", icon: <FaUsers /> },
+            { id: "settings", label: "Cài đặt chung", icon: <FaCog /> },
+            { id: "payment", label: "Phương thức thanh toán", icon: <FaCreditCard /> },
+            { id: "privacy", label: "Quyền riêng tư & dữ liệu", icon: <FaShieldAlt /> },
+          ].map((item) => (
+            <li
+              key={item.id}
+              className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition ${
+                activeTab === item.id
+                  ? "bg-blue-100 text-[#003580] font-medium"
+                  : "hover:bg-gray-100"
+              }`}
+              onClick={() => setActiveTab(item.id)}
+            >
+              {item.icon}
+              <span>{item.label}</span>
+            </li>
+          ))}
+        </ul>
+      </aside>
 
-        <div className="flex-1">
-          <div className="flex justify-between items-start">
-            <div>
-              <h2 className="text-2xl font-semibold">Thông tin cá nhân</h2>
-              <p className="text-sm text-gray-500">Cập nhật thông tin của bạn để dễ dàng quản lý đặt phòng.</p>
-            </div>
-            <div>
+      {/* Main content */}
+      <main className="flex-1 p-6">
+        {activeTab === "personal" && (
+          <div>
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h2 className="text-2xl font-semibold text-[#003580]">Thông tin cá nhân</h2>
+                <p className="text-gray-500 text-sm">
+                  Cập nhật thông tin của bạn và tìm hiểu cách thông tin này được sử dụng.
+                </p>
+              </div>
               {!editing && (
-                <button onClick={()=>setEditing(true)} className="text-blue-600 hover:underline">Chỉnh sửa</button>
+                <button
+                  onClick={() => setEditing(true)}
+                  className="text-blue-600 hover:underline"
+                >
+                  Chỉnh sửa
+                </button>
               )}
             </div>
-          </div>
 
-          <form onSubmit={handleSave} className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs text-gray-600">Tên</label>
-              <input name="name" value={profile?.name || ''} onChange={handleChange} disabled={!editing} className="w-full border rounded px-3 py-2" />
-            </div>
+            <div className="border rounded-lg divide-y">
+              {/* Tên */}
+              <div className="flex justify-between items-center p-4 hover:bg-gray-50">
+                <div>
+                  <p className="font-medium text-gray-800">Tên</p>
+                  <p className="text-gray-600">{profile?.name || "Chưa cập nhật"}</p>
+                </div>
+                {editing && (
+                  <input
+                    name="name"
+                    value={profile?.name || ""}
+                    onChange={handleChange}
+                    className="border rounded px-2 py-1 text-sm"
+                  />
+                )}
+                <button className="text-blue-600 text-sm hover:underline">Chỉnh sửa</button>
+              </div>
 
-            <div>
-              <label className="text-xs text-gray-600">Email</label>
-              <input value={profile?.email || ''} disabled className="w-full border rounded px-3 py-2 bg-gray-50" />
-            </div>
+              {/* Email */}
+              <div className="flex justify-between items-center p-4 hover:bg-gray-50">
+                <div>
+                  <p className="font-medium text-gray-800">Địa chỉ email</p>
+                  <p className="text-gray-600">{profile?.email}</p>
+                </div>
+                <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded">
+                  Đã xác thực
+                </span>
+              </div>
 
-            <div>
-              <label className="text-xs text-gray-600">Số điện thoại</label>
-              <input name="phone" value={profile?.phone || ''} onChange={handleChange} disabled={!editing} className="w-full border rounded px-3 py-2" />
-            </div>
+              {/* Số điện thoại */}
+              <div className="flex justify-between items-center p-4 hover:bg-gray-50">
+                <div>
+                  <p className="font-medium text-gray-800">Số điện thoại</p>
+                  <p className="text-gray-600">{profile?.phone || "Thêm số điện thoại"}</p>
+                </div>
+                <button className="text-blue-600 text-sm hover:underline">Chỉnh sửa</button>
+              </div>
 
-            <div>
-              <label className="text-xs text-gray-600">Ngày sinh</label>
-              <input name="dob" type="date" value={profile?.dob ? profile.dob.split('T')[0] : ''} onChange={handleChange} disabled={!editing} className="w-full border rounded px-3 py-2" />
-            </div>
+              {/* Ngày sinh */}
+              <div className="flex justify-between items-center p-4 hover:bg-gray-50">
+                <div>
+                  <p className="font-medium text-gray-800">Ngày sinh</p>
+                  <p className="text-gray-600">
+                    {profile?.dob ? profile.dob.split("T")[0] : "Chưa cập nhật"}
+                  </p>
+                </div>
+                <button className="text-blue-600 text-sm hover:underline">Chỉnh sửa</button>
+              </div>
 
-            <div>
-              <label className="text-xs text-gray-600">Quốc tịch</label>
-              <input name="nationality" value={profile?.nationality || ''} onChange={handleChange} disabled={!editing} className="w-full border rounded px-3 py-2" />
-            </div>
 
-            <div>
-              <label className="text-xs text-gray-600">Giới tính</label>
-              <select name="gender" value={profile?.gender || ''} onChange={handleChange} disabled={!editing} className="w-full border rounded px-3 py-2">
-                <option value="">Không chọn</option>
-                <option value="male">Nam</option>
-                <option value="female">Nữ</option>
-                <option value="other">Khác</option>
-              </select>
+              {/* Giới tính */}
+              <div className="flex justify-between items-center p-4 hover:bg-gray-50">
+                <div>
+                  <p className="font-medium text-gray-800">Giới tính</p>
+                  <p className="text-gray-600">
+                    {profile?.gender === "male"
+                      ? "Nam"
+                      : profile?.gender === "female"
+                      ? "Nữ"
+                      : "Khác"}
+                  </p>
+                </div>
+                <button className="text-blue-600 text-sm hover:underline">Chỉnh sửa</button>
+              </div>
             </div>
 
             {editing && (
-              <div className="md:col-span-2 flex justify-end gap-3 mt-2">
-                <button type="button" onClick={()=>setEditing(false)} className="px-4 py-2 border rounded">Hủy</button>
-                <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded">{saving ? 'Đang lưu...' : 'Lưu thay đổi'}</button>
+              <div className="flex justify-end gap-3 mt-5">
+                <button
+                  onClick={() => setEditing(false)}
+                  className="px-4 py-2 border rounded"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  {saving ? "Đang lưu..." : "Lưu thay đổi"}
+                </button>
               </div>
             )}
-          </form>
-
-          {error && <div className="mt-4 text-sm text-red-600">{error}</div>}
-        </div>
-      </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }

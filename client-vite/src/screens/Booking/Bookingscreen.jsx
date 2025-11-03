@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import Loader from "../../components/Loader";
@@ -8,7 +8,7 @@ import SuggestionCard from "../../components/SuggestionCard";
 import AlertMessage from "../../components/AlertMessage";
 
 // Custom hooks & components
-import useBookingLogic from "./hooks/useBookingLogic";
+import useBookingLogic from "./hooks/useBookingLogic.js";
 import BookingHeader from "./components/BookingHeader";
 
 import BookingForm from "./components/BookingForm";
@@ -57,23 +57,32 @@ export default function Bookingscreen() {
       handleCloseAlert,
       calculateServiceCost,
       roomsNeeded,
+      setValue,
    } = useBookingLogic({ roomid, navigate });
 
    const [hotel, setHotel] = useState(null);
 
+
+   const [currentStep, setCurrentStep] = useState(1);
    useEffect(() => {
-      if (room?.hotelId) {
-         axios.get(`/api/hotels/${room.hotelId}`)
-            .then(res => setHotel(res.data))
-            .catch(err => console.error("Lỗi khi lấy thông tin khách sạn:", err));
+      if (paymentStatus === "paid") setCurrentStep(3);
+      else if (room && !paymentStatus) setCurrentStep(2);
+   }, [paymentStatus, room]);
+
+
+   useEffect(() => {
+      if (room?.hotel) {
+         setHotel(room.hotel);
       }
    }, [room]);
+
 
    return (
       <div className="min-h-screen bg-gray-50 py-8">
          <div className="container mx-auto px-4 md:px-8 max-w-6xl">
             {/* Header */}
-            <BookingHeader />
+            <BookingHeader currentStep={currentStep} timeRemaining={timeRemaining} />
+
 
             {/* Alert */}
             {bookingStatus && (
@@ -97,7 +106,7 @@ export default function Bookingscreen() {
                   Lỗi khi tải dữ liệu phòng.
                </div>
             ) : (
-               <div className="grid grid-cols-1 md:grid-cols-[35%_65%] gap-8 items-start">
+               <div className="grid grid-cols-1 md:grid-cols-[35%_65%] gap-8 items-start mt-5">
                   {/* Left: Room Gallery + Preview */}
                   <div>
 
@@ -188,7 +197,9 @@ export default function Bookingscreen() {
                            room={room}
                            getValues={getValues}
                            setRoomsNeeded={setRoomsNeeded}
+                           setValue={setValue}  
                         />
+
                      )}
                   </div>
                </div>

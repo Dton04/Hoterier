@@ -84,7 +84,7 @@ function Homescreen() {
         </div>
       </section>
 
-    <PromoCarousel festivalDiscounts={festivalDiscounts}/>
+      <PromoCarousel festivalDiscounts={festivalDiscounts} />
 
 
       {/* Điểm đến đang thịnh hành */}
@@ -108,7 +108,10 @@ function Homescreen() {
                   <div
                     key={region._id}
                     className="relative overflow-hidden cursor-pointer group rounded-lg shadow-md hover:shadow-lg transition"
-                    onClick={() => navigate(`/room-results?destination=${region._id}`)}
+                    onClick={() =>
+                      navigate(`/hotel-results?region=${encodeURIComponent(region.name)}`)
+                    }
+
                   >
                     <img
                       src={region.imageUrl || `/images/region-${index + 1}.jpg`}
@@ -139,7 +142,7 @@ function Homescreen() {
                   <div
                     key={region._id}
                     className="relative overflow-hidden cursor-pointer group rounded-lg shadow-md hover:shadow-lg transition"
-                    onClick={() => navigate(`/room-results?destination=${region._id}`)}
+                    onClick={() => navigate(`/hotel-results?destination=${region._id}`)}
                   >
                     <img
                       src={region.imageUrl || `/images/region-${index + 3}.jpg`}
@@ -217,11 +220,11 @@ function Homescreen() {
                   />
                 </div>
                 <div class="text-left">
-                <h3 className="text-lg font-semibold text-center text-[#003580] mb-2">
-                  {item.title}
-                </h3>
-                <p className="text-sm text-gray-600 text-center">{item.desc}</p>
-              </div>
+                  <h3 className="text-lg font-semibold text-center text-[#003580] mb-2">
+                    {item.title}
+                  </h3>
+                  <p className="text-sm text-gray-600 text-center">{item.desc}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -242,7 +245,7 @@ function Homescreen() {
               </p>
             </div>
             <button
-              onClick={() => navigate("/room-results")}
+              onClick={() => navigate("/hotel-results")}
               className="bg-white text-[#0071c2] font-semibold px-6 py-2.5 rounded-full hover:bg-blue-50 transition"
             >
               Khám phá ngay
@@ -256,7 +259,7 @@ function Homescreen() {
 
 
 
-      
+
     </div>
   );
 }

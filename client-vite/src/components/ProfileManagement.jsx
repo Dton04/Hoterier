@@ -5,6 +5,14 @@ import { useNavigate, Link } from "react-router-dom";
 import Banner from "../components/Banner";
 import defaultAvatar from "../assets/images/default-avatar.jpg";
 
+import {
+  CreditCard, Wallet, Receipt, User, Lock, Briefcase,
+  Settings, Mail, Compass, Heart, MessageSquare,
+  Phone, Shield, Scale, FileText, BookOpen
+} from "lucide-react";
+
+
+
 export default function ProfileManagement() {
   const [user, setUser] = useState(null);
   const [reward, setReward] = useState(null);
@@ -179,56 +187,75 @@ export default function ProfileManagement() {
         {[
           {
             title: "Thông tin thanh toán",
-            items: ["💳 Tặng thưởng & Ví", "🏦 Phương thức thanh toán", "📜 Giao dịch"],
+            items: [
+              { icon: <Wallet className="w-4 h-4 text-[#003580]" />, text: "Tặng thưởng & Ví" },
+              { icon: <CreditCard className="w-4 h-4 text-[#003580]" />, text: "Phương thức thanh toán" },
+              { icon: <Receipt className="w-4 h-4 text-[#003580]" />, text: "Giao dịch" },
+            ],
           },
           {
             title: "Quản lý tài khoản",
-            items: ["👤 Thông tin cá nhân", "🔒 Cài đặt bảo mật", "🧳 Người đi cùng"],
+            items: [
+              { icon: <User className="w-4 h-4 text-[#003580]" />, text: "Thông tin cá nhân", link: "/profile/details" },
+              { icon: <Lock className="w-4 h-4 text-[#003580]" />, text: "Cài đặt bảo mật" },
+              { icon: <Briefcase className="w-4 h-4 text-[#003580]" />, text: "Người đi cùng" },
+            ],
           },
           {
             title: "Cài đặt",
-            items: ["⚙️ Cài đặt chung", "📧 Cài đặt email"],
+            items: [
+              { icon: <Settings className="w-4 h-4 text-[#003580]" />, text: "Cài đặt chung" },
+              { icon: <Mail className="w-4 h-4 text-[#003580]" />, text: "Cài đặt email" },
+            ],
           },
           {
             title: "Hoạt động du lịch",
-            items: ["🧭 Chuyến đi & đơn đặt", "❤️ Danh sách đã lưu", "💬 Đánh giá của tôi"],
+            items: [
+              { icon: <Compass className="w-4 h-4 text-[#003580]" />, text: "Chuyến đi & đơn đặt", link: "/bookings" },
+              { icon: <Heart className="w-4 h-4 text-[#003580]" />, text: "Danh sách đã lưu", link: "/favorites" },
+              { icon: <MessageSquare className="w-4 h-4 text-[#003580]" />, text: "Đánh giá của tôi" },
+            ],
           },
           {
             title: "Trợ giúp",
-            items: ["📞 Liên hệ dịch vụ khách hàng", "🛡️ Trung tâm bảo mật", "⚖️ Khiếu nại"],
+            items: [
+              { icon: <Phone className="w-4 h-4 text-[#003580]" />, text: "Liên hệ dịch vụ khách hàng" },
+              { icon: <Shield className="w-4 h-4 text-[#003580]" />, text: "Trung tâm bảo mật" },
+              { icon: <Scale className="w-4 h-4 text-[#003580]" />, text: "Giải quyết khiếu nại" },
+            ],
           },
           {
             title: "Pháp lý & Quyền riêng tư",
-            items: ["🧾 Quản lý quyền riêng tư", "📘 Hướng dẫn nội dung"],
+            items: [
+              { icon: <FileText className="w-4 h-4 text-[#003580]" />, text: "Quản lý quyền riêng tư" },
+              { icon: <BookOpen className="w-4 h-4 text-[#003580]" />, text: "Hướng dẫn nội dung" },
+            ],
           },
         ].map((section, idx) => (
           <div key={idx} className="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
             <h3 className="font-semibold text-[#003580] mb-3">{section.title}</h3>
             <ul className="text-gray-700 text-sm space-y-2">
               {section.items.map((item, i) => (
-                <li key={i} className="flex justify-between items-center">
-                  <span>
-                    {item.includes('Thông tin cá nhân') || item.startsWith('👤') ? (
-                      // Link to detailed profile page
-                      <Link to="/profile/details" className="text-gray-800 hover:text-blue-600">{item}</Link>
-                       ) : item.includes('Chuyến đi') || item.includes('đơn đặt') || item.includes('Đặt chỗ') ? (
-                      // Link to booking history
-                      <Link to="/bookings" className="text-gray-800 hover:text-blue-600">{item}</Link>
-                       ) : item.includes('Danh sách đã lưu') || item.includes('Đặt chỗ') ? (
-                      // Link to booking history
-                      <Link to="/favorites" className="text-gray-800 hover:text-blue-600">{item}</Link>
-                    ) : (
-                      <span>{item}</span>
-                    )}
-                  </span>
-                  
-                  <span className="text-blue-600">›</span>
+                <li key={i} className="flex justify-between items-center hover:bg-gray-50 px-2 py-1 rounded-md transition">
+                  {item.link ? (
+                    <Link to={item.link} className="flex items-center gap-2 text-gray-800 hover:text-blue-600">
+                      {item.icon}
+                      <span>{item.text}</span>
+                    </Link>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      {item.icon}
+                      <span>{item.text}</span>
+                    </div>
+                  )}
+                  <span className="text-blue-600 text-lg leading-none">›</span>
                 </li>
               ))}
             </ul>
           </div>
         ))}
       </div>
+
 
       {/* 🔐 Đổi mật khẩu */}
       <div className="max-w-6xl mx-auto mt-10 px-4 pb-20 text-center">

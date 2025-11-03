@@ -6,6 +6,7 @@ const Discount = require("../models/discount");
 const Transaction = require('../models/transaction');
 const User = require("../models/user");
 const discount = require("../models/discount");
+const nodemailer = require("nodemailer");
 
 // Giả lập hàm xử lý thanh toán qua tài khoản ngân hàng
 const processBankPayment = async (booking, session) => {
@@ -1085,5 +1086,158 @@ exports.updatePaymentMethod = async (req, res) => {
    } catch (error) {
       console.error("Lỗi khi cập nhật phương thức thanh toán:", error.message, error.stack);
       res.status(500).json({ message: "Lỗi khi cập nhật phương thức thanh toán", error: error.message });
+   }
+};
+
+
+
+// Gửi email xác nhận đặt phòng (dùng ảnh khách sạn từ DB)
+exports.sendBookingConfirmationEmail = async (req, res) => {
+   try {
+      const { bookingId, email, name, roomName, checkin, checkout, totalAmount, paymentMethod } = req.body;
+
+      // 🔍 Tìm thông tin đặt phòng kèm phòng & khách sạn
+      const booking = await Booking.findById(bookingId)
+         .populate({
+            path: "roomid",
+            populate: { path: "hotelId", select: "name address imageurls" },
+         })
+         .lean();
+
+      if (!booking) {
+         return res.status(404).json({ message: "Không tìm thấy đơn đặt phòng" });
+      }
+
+      const hotel = booking.roomid?.hotelId || {};
+      const hotelName = hotel.name || "Khách sạn của bạn";
+      const hotelAddress = hotel.address || "Đang cập nhật";
+
+
+      // Lấy ảnh khách sạn: Ưu tiên Cloudinary → Fallback placeholder public
+      let hotelImage = 'https://via.placeholder.com/600x250/0a84ff/ffffff?text=Khach+San'; // Default public
+
+      if (hotel.imageurls && hotel.imageurls.length > 0) {
+         const firstImage = hotel.imageurls[0];
+
+         // Ưu tiên Cloudinary (HTTPS + public)
+         if (firstImage.includes('res.cloudinary.com')) {
+            hotelImage = firstImage;
+         }
+         // Nếu là ảnh cũ local → vẫn dùng (nhưng cảnh báo)
+         else if (firstImage.startsWith('http')) {
+            hotelImage = firstImage;
+         }
+         // Nếu là relative path → convert thành full URL (nếu cần)
+         else {
+            hotelImage = `${req.protocol}://${req.get("host")}${firstImage.startsWith('/') ? '' : '/'}${firstImage}`;
+         }
+      }
+
+      // Đảm bảo luôn HTTPS (Gmail ưu tiên)
+      if (hotelImage.startsWith('http://')) {
+         hotelImage = hotelImage.replace('http://', 'https://');
+      }
+
+      // 💳 Text phương thức thanh toán
+      const paymentText =
+         paymentMethod === "cash"
+            ? "Thanh toán tại quầy lễ tân khi nhận phòng"
+            : paymentMethod === "bank_transfer"
+               ? "Chuyển khoản ngân hàng theo hướng dẫn"
+               : paymentMethod === "vnpay"
+                  ? "Thanh toán qua VNPay"
+                  : paymentMethod === "mobile_payment"
+                     ? "Thanh toán qua MoMo"
+                     : "Phương thức thanh toán khác";
+
+      // 🕓 Format ngày
+      const formattedCheckin = new Date(checkin).toLocaleDateString("vi-VN", {
+         weekday: "long",
+         day: "2-digit",
+         month: "long",
+         year: "numeric",
+      });
+      const formattedCheckout = new Date(checkout).toLocaleDateString("vi-VN", {
+         weekday: "long",
+         day: "2-digit",
+         month: "long",
+         year: "numeric",
+      });
+
+      // 📧 Cấu hình email
+      const nodemailer = require("nodemailer");
+      const transporter = nodemailer.createTransport({
+         service: "gmail",
+         auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+         },
+      });
+
+      const mailOptions = {
+         from: `"Hotel Booking" <${process.env.EMAIL_USER}>`,
+         to: email,
+         subject: `Xác nhận đặt phòng - ${hotelName}`,
+         html: `
+        <div style="font-family:Arial,sans-serif;background:#f8f9fa;padding:20px;">
+          <div style="max-width:600px;margin:auto;background:white;border-radius:10px;overflow:hidden;box-shadow:0 0 10px rgba(0,0,0,0.1);">
+            <div style="text-align:center;padding:20px 0;background:#0a84ff;color:white;">
+              <h2 style="margin:0;">XÁC NHẬN ĐẶT PHÒNG</h2>
+            </div>
+
+            <div style="padding:25px;">
+              <p>Thân gửi <b>${name}</b>,</p>
+              <p>Cảm ơn bạn đã tin tưởng đặt phòng tại <b>${hotelName}</b> qua hệ thống của chúng tôi!</p>
+
+              <img src="${hotelImage}" alt="Hotel" 
+                   style="width:100%;max-height:250px;object-fit:cover;border-radius:8px;margin-top:10px;margin-bottom:15px;"/>
+
+              <p><b>Địa chỉ:</b> ${hotelAddress}</p>
+              <p><b>Phòng:</b> ${roomName}</p>
+
+              <table style="width:100%;border-collapse:collapse;margin-top:15px;">
+                <tr>
+                  <td style="padding:10px;border:1px solid #ddd;text-align:center;">
+                    <b>Nhận phòng</b><br/>
+                    ${formattedCheckin}<br/><small>sau 14:00</small>
+                  </td>
+                  <td style="padding:10px;border:1px solid #ddd;text-align:center;">
+                    <b>Trả phòng</b><br/>
+                    ${formattedCheckout}<br/><small>trước 12:00</small>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin-top:20px;font-size:15px;line-height:1.5;">
+                <b>Tổng tiền:</b> ${Number(totalAmount).toLocaleString()} VND<br/>
+                <b>Phương thức thanh toán:</b> ${paymentText}
+              </p>
+
+              <div style="text-align:center;margin-top:25px;">
+                <a href="http://localhost:3000/my-bookings"
+                   style="background:#0a84ff;color:white;padding:12px 25px;border-radius:6px;text-decoration:none;font-weight:bold;">
+                  Quản lý đặt chỗ của tôi
+                </a>
+              </div>
+
+              <p style="margin-top:25px;color:#555;font-size:14px;">
+                Chúng tôi rất mong được đón tiếp bạn. Nếu cần hỗ trợ, vui lòng phản hồi email này.
+              </p>
+            </div>
+
+            <div style="background:#f1f3f5;padding:15px;text-align:center;color:#777;font-size:13px;">
+              &copy; ${new Date().getFullYear()} Hotel Booking Team
+            </div>
+          </div>
+        </div>
+      `,
+      };
+
+      await transporter.sendMail(mailOptions);
+      console.log(`📧 Email xác nhận đã gửi tới ${email}`);
+      res.status(200).json({ message: "Gửi email xác nhận thành công" });
+   } catch (err) {
+      console.error("❌ Lỗi gửi email xác nhận:", err);
+      res.status(500).json({ message: "Không thể gửi email xác nhận", error: err.message });
    }
 };

@@ -83,7 +83,7 @@ export default function PopularDestinations() {
                 <button
                   key={region._id}
                   onClick={() =>
-                    navigate(`/room-results?destination=${region._id}`)
+                    navigate(`/hotel-results?destination=${region._id}`)
                   }
                   className="text-left text-gray-700 hover:text-[#0071c2] transition"
                 >
@@ -132,7 +132,7 @@ export default function PopularDestinations() {
               <button
                 key={region._id}
                 onClick={() =>
-                  navigate(`/room-results?region=${region._id}`)
+                  navigate(`/hotel-results?region=${region._id}`)
                 }
                 className="flex items-center gap-2 text-left text-gray-700 hover:text-[#0071c2] transition"
               >

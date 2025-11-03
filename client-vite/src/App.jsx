@@ -74,14 +74,27 @@ const UserRoute = ({ children }) => {
 
 // --- CÁC COMPONENT WRAPPER CHO LAYOUT ---
 
+
+// Layout riêng cho trang đặt phòng (không Navbar, Footer, ChatBot)
+const BookingLayout = () => (
+<>
+    <Navbar />
+  <main className="bg-gray-50 min-h-screen">
+    <Outlet />
+  </main>
+  </>
+);
+
+
 // Layout cho người dùng (có Navbar và Footer)
 const UserLayout = () => (
   <>
     <Navbar />
     {/* Outlet là nơi các trang con của người dùng sẽ hiển thị */}
-    <main className="pt-[68px]"> {/* Padding top để nội dung không bị Navbar che */}
+    <main className="pt-[70px] bg-gray-50 min-h-screen">
 
-          <ChatBot />
+
+      <ChatBot />
       <Outlet />
     </main>
     <Footer />
@@ -90,11 +103,11 @@ const UserLayout = () => (
 
 // Layout cho Admin (chỉ có AdminLayout)
 const AdminLayoutWrapper = () => (
-    <AdminRoute>
-        <AdminLayout>
-            <Outlet /> {/* Các trang con của admin sẽ hiển thị ở đây */}
-        </AdminLayout>
-    </AdminRoute>
+  <AdminRoute>
+    <AdminLayout>
+      <Outlet /> {/* Các trang con của admin sẽ hiển thị ở đây */}
+    </AdminLayout>
+  </AdminRoute>
 );
 
 
@@ -109,8 +122,10 @@ function App() {
             <Route path="/" element={<Homescreen />} />
             <Route path="/home" element={<Homescreen />} />
 
-            <Route path="/room-results" element={<RoomResults />} />
-            <Route path="/book/:roomid" element={<Bookingscreen />} />
+            <Route path="/hotel-results" element={<RoomResults />} />
+
+            {/* <Route path="/book/:roomid" element={<Bookingscreen />} /> */}
+
             <Route path="/ourteam" element={<OurTeam />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<LoginScreen />} />
@@ -121,8 +136,8 @@ function App() {
             <Route path="/hotel/:id" element={<HotelDetail />} />
             <Route path="/festival/:id" element={<FestivalHotels />} />
             <Route path="/discounts" element={<DiscountsPage />} />
-             
-            <Route path="/verify-otp" element={<VerifyOTP />} />  
+
+            <Route path="/verify-otp" element={<VerifyOTP />} />
 
             {/* Các route cần đăng nhập của người dùng */}
             <Route path="/bookings" element={<UserRoute><HistoryBookings /></UserRoute>} />
@@ -139,22 +154,29 @@ function App() {
           {/* === CÁC ROUTE CỦA ADMIN === */}
           {/* Các route này sẽ tự động có AdminLayout */}
           <Route path="/admin" element={<AdminLayoutWrapper />}>
-              <Route index element={<AdminDashboard />} /> {/* Trang mặc định khi vào /admin */}
-              <Route path="dashboard" element={<AdminDashboard />} />
-              <Route path="users" element={<UserStaffManagement />} />
-    
-              <Route path="bookings" element={<AdminBookings />} />
-              <Route path="hotels" element={<HotelManagement />} />
-              <Route path="hotel/:hotelId/rooms" element={<HotelRoomManagement />} />
-              <Route path="services" element={<ServiceManagement />} />
-              <Route path="discounts" element={<AdminDiscounts />} />
-              <Route path="rewards" element={<AdminRewards />} />
-              <Route path="reviews" element={<ReviewManagement />} />
-              <Route path="regions" element={<AdminRegions />} />
-              <Route path="amenities" element={<AdminAmenities />} />
-              <Route path="createroom" element={<CreateRoomForm />} />
-              <Route path="editroom/:id" element={<EditRoomForm />} />
+            <Route index element={<AdminDashboard />} /> {/* Trang mặc định khi vào /admin */}
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="users" element={<UserStaffManagement />} />
+
+            <Route path="bookings" element={<AdminBookings />} />
+            <Route path="hotels" element={<HotelManagement />} />
+            <Route path="hotel/:hotelId/rooms" element={<HotelRoomManagement />} />
+            <Route path="services" element={<ServiceManagement />} />
+            <Route path="discounts" element={<AdminDiscounts />} />
+            <Route path="rewards" element={<AdminRewards />} />
+            <Route path="reviews" element={<ReviewManagement />} />
+            <Route path="regions" element={<AdminRegions />} />
+            <Route path="amenities" element={<AdminAmenities />} />
+            <Route path="createroom" element={<CreateRoomForm />} />
+            <Route path="editroom/:id" element={<EditRoomForm />} />
           </Route>
+
+
+          {/* === ROUTE RIÊNG CHO TRANG THANH TOÁN === */}
+          <Route element={<BookingLayout />}>
+            <Route path="/book/:roomid" element={<Bookingscreen />} />
+          </Route>
+
         </Routes>
       </Router>
     </Provider>

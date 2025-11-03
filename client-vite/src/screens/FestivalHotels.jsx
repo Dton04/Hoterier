@@ -107,7 +107,7 @@ export default function FestivalHotels() {
                 key={region.name}
                 onClick={() =>
                   navigate(
-                    `/room-results?destination=${region.regionId}&festival=${id}`
+                    `/hotel-results?destination=${region.regionId}&festival=${id}`
                   )
                 }
                 className="cursor-pointer bg-white rounded-2xl shadow-md hover:shadow-lg transform hover:-translate-y-1 transition overflow-hidden"

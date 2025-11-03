@@ -12,12 +12,19 @@ const bookingSchema = yup.object().shape({
   name: yup.string().required("Vui lòng nhập họ và tên").min(2, "Tên phải có ít nhất 2 ký tự"),
   email: yup.string().email("Email không hợp lệ").required("Vui lòng nhập email"),
   phone: yup.string().required("Vui lòng nhập số điện thoại"),
-  checkin: yup.date().required("Vui lòng chọn ngày nhận phòng"),
-  checkout: yup
-    .date()
-    .required("Vui lòng chọn ngày trả phòng")
-    .min(yup.ref("checkin"), "Ngày trả phòng phải sau ngày nhận phòng"),
-  adults: yup.number().required("Vui lòng chọn số người lớn").min(1, "Phải có ít nhất 1 người lớn"),
+  checkin: yup
+  .date()
+  .transform((value, originalValue) => (originalValue === "" ? null : value))
+  .typeError("Ngày nhận phòng không hợp lệ")
+  .required("Vui lòng chọn ngày nhận phòng"),
+
+checkout: yup
+  .date()
+  .transform((value, originalValue) => (originalValue === "" ? null : value))
+  .typeError("Ngày trả phòng không hợp lệ")
+  .required("Vui lòng chọn ngày trả phòng")
+  .min(yup.ref("checkin"), "Ngày trả phòng phải sau ngày nhận phòng"),
+
   children: yup.number().default(0),
   roomType: yup.string().required("Vui lòng chọn loại phòng"),
   specialRequest: yup.string().nullable(),
@@ -140,7 +147,21 @@ export default function useBookingLogic({ roomid, navigate, location }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
     try {
       setLoading(true);
+      
       const { data } = await axios.post("/api/rooms/getroombyid", { roomid });
+
+// 👇 BỔ SUNG ĐOẠN NÀY ĐỂ FE NHẬN ĐÚNG hotel.imageurls
+if (data.hotel && data.hotel.imageurls) {
+  data.hotel.imageurls = data.hotel.imageurls.map((url) =>
+    url.startsWith("http")
+      ? url
+      : `${window.location.origin}/${url.replace(/^\/+/, "")}`
+  );
+}
+
+setRoom(data);
+setValue("roomType", data.type || "");
+
 
       // Áp dụng giảm giá festival (nếu có) — GIỮ LOGIC
       let adjustedRoom = { ...data };
@@ -192,7 +213,7 @@ export default function useBookingLogic({ roomid, navigate, location }) {
       const bookingCheck = await axios.get(`/api/bookings/${bookingIdArg}`, config);
       if (bookingCheck.data.status !== "confirmed" || bookingCheck.data.paymentStatus !== "paid") {
         return { success: false, message: "Đặt phòng chưa đủ điều kiện để tích điểm" };
-        }
+      }
 
       const response = await axios.post("/api/bookings/checkout", { bookingId: bookingIdArg }, config);
       return {
@@ -335,6 +356,27 @@ export default function useBookingLogic({ roomid, navigate, location }) {
       localStorage.setItem("bookingId", bookingResponse.data.booking._id);
       localStorage.setItem("bookedRoomId", roomid);
 
+      // 📨 Gửi email xác nhận đặt phòng cho tất cả phương thức
+      try {
+        await axios.post("/api/bookings/mail/booking-confirmation", {
+  bookingId: bookingResponse.data.booking._id,
+  email: data.email,
+  name: data.name,
+  roomName: room.name,
+  checkin: data.checkin,
+  checkout: data.checkout,
+  totalAmount: finalAmount,
+  paymentMethod: data.paymentMethod,
+});
+
+
+
+
+      } catch (mailErr) {
+        console.warn("Không gửi được email xác nhận:", mailErr);
+      }
+
+
       // Xử lý theo phương thức thanh toán
       if (data.paymentMethod === "mobile_payment") {
         setBookingStatus({ type: "info", message: "Đang tạo hóa đơn thanh toán MoMo..." });
@@ -346,8 +388,8 @@ export default function useBookingLogic({ roomid, navigate, location }) {
           Math.max(
             0,
             (discountResult?.totalAmount || room.rentperday * days * roomsNeeded) +
-              servicesCost -
-              voucherDiscount
+            servicesCost -
+            voucherDiscount
           );
 
         const momoResponse = await axios.post("/api/momo/create-payment", {
@@ -377,8 +419,8 @@ export default function useBookingLogic({ roomid, navigate, location }) {
           Math.max(
             0,
             (discountResult?.totalAmount || room.rentperday * days * roomsNeeded) +
-              servicesCost -
-              voucherDiscount
+            servicesCost -
+            voucherDiscount
           );
 
         const vnpayResponse = await axios.post("/api/vnpay/create-payment", {
@@ -399,41 +441,62 @@ export default function useBookingLogic({ roomid, navigate, location }) {
           throw new Error(vnpayResponse.data.message || "Lỗi khi tạo hóa đơn VNPay");
         }
       } else {
+        // ✅ Nếu là thanh toán tiền mặt
+        if (data.paymentMethod === "cash") {
+          setBookingStatus({
+            type: "success",
+            message: "🎉 Đặt phòng thành công! Vui lòng thanh toán tại quầy lễ tân khi nhận phòng.",
+          });
+          setPaymentStatus("pending");
+          // ❌ Không cần gửi mail lần nữa vì đã gửi ở trên
+          return;
+        }
+
+
+        // ✅ Nếu là các phương thức khác
         setBookingStatus({
           type: "success",
           message: "Đặt phòng thành công! Vui lòng kiểm tra thông tin thanh toán.",
         });
         setPaymentStatus(bookingResponse.data.booking.paymentStatus);
 
-        // Bank transfer: hiện thông tin ngân hàng
         if (data.paymentMethod === "bank_transfer" && bookingResponse.data.paymentResult?.bankInfo) {
           setBankInfo({
             ...bookingResponse.data.paymentResult.bankInfo,
             amount: (discountResult?.totalAmount || room.rentperday || 50000) + servicesCost,
           });
         }
+      }
 
-        // Tự động tích điểm khi đã paid (không phải bank)
-        if (data.paymentMethod !== "bank_transfer") {
-          const bookingCheck = await axios.get(`/api/bookings/${bookingResponse.data.booking._id}`);
-          if (bookingCheck.data.status === "confirmed" && bookingCheck.data.paymentStatus === "paid") {
-            const pointsResult = await accumulatePoints(bookingResponse.data.booking._id);
-            if (pointsResult.success) {
-              setPointsEarned(pointsResult.pointsEarned);
-              setBookingStatus({
-                type: "success",
-                message: `Thanh toán thành công! Bạn đã nhận được ${pointsResult.pointsEarned} điểm. Đang chuyển hướng đến trang đánh giá...`,
-              });
-              setTimeout(() => navigate(`/reviews`), 5000);
-            } else {
-              setTimeout(() => navigate(`/reviews`), 5000);
-            }
-          } else {
+
+      // Bank transfer: hiện thông tin ngân hàng
+      if (data.paymentMethod === "bank_transfer" && bookingResponse.data.paymentResult?.bankInfo) {
+        setBankInfo({
+          ...bookingResponse.data.paymentResult.bankInfo,
+          amount: (discountResult?.totalAmount || room.rentperday || 50000) + servicesCost,
+        });
+      }
+
+      // Tự động tích điểm khi đã paid (không phải bank)
+      if (data.paymentMethod !== "bank_transfer") {
+        const bookingCheck = await axios.get(`/api/bookings/${bookingResponse.data.booking._id}`);
+        if (bookingCheck.data.status === "confirmed" && bookingCheck.data.paymentStatus === "paid") {
+          const pointsResult = await accumulatePoints(bookingResponse.data.booking._id);
+          if (pointsResult.success) {
+            setPointsEarned(pointsResult.pointsEarned);
             setBookingStatus({
-              type: "warning",
-              message: "Đặt phòng đang chờ xác nhận. Bạn sẽ có thể gửi đánh giá sau khi thanh toán hoàn tất.",
+              type: "success",
+              message: `Thanh toán thành công! Bạn đã nhận được ${pointsResult.pointsEarned} điểm. Đang chuyển hướng đến trang đánh giá...`,
             });
+            setTimeout(() => navigate(`/reviews`), 5000);
+          } else {
+            setTimeout(() => navigate(`/reviews`), 5000);
           }
+        } else {
+          setBookingStatus({
+            type: "warning",
+            message: "Đặt phòng đang chờ xác nhận. Bạn sẽ có thể gửi đánh giá sau khi thanh toán hoàn tất.",
+          });
         }
       }
     } catch (err) {

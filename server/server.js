@@ -102,6 +102,8 @@
   app.use('/api/amenities', require('./routes/amenityRoutes'));
   app.use('/api/momo', momoRoutes);
   app.use('/api/vnpay', vnpayRoutes);
+  
+
 
   app.use('/api/chatbot',chatbotRoutes);
 
