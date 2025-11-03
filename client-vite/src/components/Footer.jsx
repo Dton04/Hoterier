@@ -88,7 +88,6 @@ const Footer = () => {
             <img src="https://help.opentable.com/resource/1590622564000/OTCommunity_Assets/logos/OpenTable_logo_fullcolor.png" alt="OpenTable" className="h-6" />
           </div>
         </div>
-      </div>
     </footer>
   );
 };
