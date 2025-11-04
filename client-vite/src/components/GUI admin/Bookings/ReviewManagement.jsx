@@ -3,7 +3,7 @@ import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Link, useNavigate } from 'react-router-dom';
-import { FiSearch } from 'react-icons/fi';
+import { Search, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { Input, Select, Modal } from 'antd';
 
 const { Option } = Select;
@@ -172,7 +172,7 @@ const ReviewManagement = () => {
             value={filters.hotelId}
             onChange={handleFilterInputChange}
             placeholder="Tìm theo ID khách sạn..."
-            prefix={<FiSearch className="text-gray-400" />}
+            prefix={<Search className="text-gray-400" size={16} />}
             className="w-full md:w-1/3 mb-2 md:mb-0"
           />
           <Input
@@ -180,7 +180,7 @@ const ReviewManagement = () => {
             value={filters.email}
             onChange={handleFilterInputChange}
             placeholder="Tìm theo email..."
-            prefix={<FiSearch className="text-gray-400" />}
+            prefix={<Search className="text-gray-400" size={16} />}
             className="w-full md:w-1/3 mb-2 md:mb-0"
           />
           <Select
@@ -226,21 +226,29 @@ const ReviewManagement = () => {
                     {getStatusBadge(review)}
                   </td>
                   <td className="border-b border-gray-200 py-5 px-4">
-                    <div className="flex items-center space-x-3.5">
-                      {/* ✅ ĐÃ SỬA LỖI MÀU CHỮ */}
+                    <div className="flex items-center justify-center gap-2">
+                      {/* Icon button: Ẩn/Hiện */}
                       <button
                         onClick={() => showToggleConfirm(review._id, review.isVisible)}
                         disabled={review.isDeleted}
-                        className="text-sm font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className={`p-2 rounded-lg transition-colors ${
+                          review.isVisible
+                            ? 'text-orange-600 hover:bg-orange-50'
+                            : 'text-green-600 hover:bg-green-50'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        title={review.isVisible ? 'Ẩn đánh giá' : 'Hiển thị đánh giá'}
                       >
-                        {review.isVisible ? 'Ẩn' : 'Hiện'}
+                        {review.isVisible ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
+                      
+                      {/* Icon button: Xóa */}
                       <button
                         onClick={() => showDeleteConfirm(review._id)}
                         disabled={review.isDeleted}
-                        className="text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Xóa đánh giá"
                       >
-                        Xóa
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </td>

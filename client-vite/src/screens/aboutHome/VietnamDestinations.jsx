@@ -9,7 +9,7 @@ export default function VietnamDestinations() {
   const [regions, setRegions] = useState([]);
   const [hovered, setHovered] = useState(false);
 
-  const API_BASE_URL = "http://localhost:5000/api/regions";
+  const API_BASE_URL = "/api/regions";
 
   const preferredRegions = [
     "Hà Nội",
@@ -28,11 +28,24 @@ export default function VietnamDestinations() {
     const fetchRegions = async () => {
       try {
         const res = await axios.get(API_BASE_URL);
-        const filtered = res.data.filter((r) =>
+        
+        // ✅ Xử lý data từ API (có thể là object hoặc array)
+        let regionsList = [];
+        if (res.data.regions && Array.isArray(res.data.regions)) {
+          // Nếu có pagination: {regions: [...], totalPages: ..., totalRegions: ...}
+          regionsList = res.data.regions;
+        } else if (Array.isArray(res.data)) {
+          // Nếu trả về array trực tiếp
+          regionsList = res.data;
+        }
+
+        // Filter và sort theo preferredRegions
+        const filtered = regionsList.filter((r) =>
           preferredRegions.some(
             (name) => r.name.toLowerCase().trim() === name.toLowerCase().trim()
           )
         );
+        
         const sorted = preferredRegions
           .map((name) =>
             filtered.find(
@@ -40,9 +53,11 @@ export default function VietnamDestinations() {
             )
           )
           .filter(Boolean);
+        
         setRegions(sorted);
       } catch (err) {
         console.error("Lỗi khi lấy danh sách khu vực:", err);
+        setRegions([]);
       }
     };
     fetchRegions();
@@ -96,36 +111,42 @@ export default function VietnamDestinations() {
             ref={scrollRef}
             className="flex overflow-x-auto scroll-smooth no-scrollbar gap-5"
           >
-            {regions.map((region, index) => (
-              <div
-                key={region._id}
-                className="min-w-[180px] sm:min-w-[200px] flex-shrink-0 cursor-pointer group relative"
-                onClick={() =>
-                  navigate(
-                    `/hotel-results?region=${encodeURIComponent(region.name)}`
-                  )
-                }
-              >
-                <div className="relative rounded-[12px] overflow-hidden">
-                  <img
-                    src={region.imageUrl || `/images/region-${index + 1}.jpg`}
-                    alt={region.name}
-                    className="w-full h-[120px] sm:h-[130px] object-cover rounded-[12px]
-                               group-hover:scale-105 transition-transform duration-500"
-                  />
+            {regions.length > 0 ? (
+              regions.map((region, index) => (
+                <div
+                  key={region._id}
+                  className="min-w-[180px] sm:min-w-[200px] flex-shrink-0 cursor-pointer group relative"
+                  onClick={() =>
+                    navigate(
+                      `/hotel-results?region=${encodeURIComponent(region.name)}`
+                    )
+                  }
+                >
+                  <div className="relative rounded-[12px] overflow-hidden">
+                    <img
+                      src={region.imageUrl || `/images/region-${index + 1}.jpg`}
+                      alt={region.name}
+                      className="w-full h-[120px] sm:h-[130px] object-cover rounded-[12px]
+                                 group-hover:scale-105 transition-transform duration-500"
+                    />
+                  </div>
+                  <div className="mt-2">
+                    <h3 className="text-[15px] font-semibold text-[#262626] group-hover:text-[#0071c2] transition">
+                      {region.name}
+                    </h3>
+                    <p className="text-[13px] text-gray-500">
+                      {region.hotels?.length
+                        ? `${region.hotels.length.toLocaleString()} chỗ nghỉ`
+                        : "Đang cập nhật"}
+                    </p>
+                  </div>
                 </div>
-                <div className="mt-2">
-                  <h3 className="text-[15px] font-semibold text-[#262626] group-hover:text-[#0071c2] transition">
-                    {region.name}
-                  </h3>
-                  <p className="text-[13px] text-gray-500">
-                    {region.hotels?.length
-                      ? `${region.hotels.length.toLocaleString()} chỗ nghỉ`
-                      : "Đang cập nhật"}
-                  </p>
-                </div>
+              ))
+            ) : (
+              <div className="w-full text-center py-8 text-gray-500">
+                Đang tải danh sách khu vực...
               </div>
-            ))}
+            )}
           </div>
 
           {/* Nút phải kiểu Booking */}

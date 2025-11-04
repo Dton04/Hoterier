@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { Link } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
@@ -10,29 +9,48 @@ import {
   Input,
   Spin,
   Tooltip,
-  Empty,
   Tag,
-  Divider,
+  Select,
 } from "antd";
 import {
-  FiPlus,
-  FiEdit,
-  FiTrash2,
-  FiSearch,
-  FiImage,
-  FiMapPin,
-} from "react-icons/fi";
+  Plus,
+  Edit,
+  Trash2,
+  Search,
+  MapPin,
+  PackagePlus,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
-const MIEN_BAC = ["Hà Nội", "Hải Phòng", "Quảng Ninh", "Bắc Ninh", "Nam Định", "Ninh Bình"];
-const MIEN_TRUNG = ["Đà Nẵng", "Huế", "Quảng Nam", "Khánh Hòa", "Bình Định","Đắk Lắk"];
-const MIEN_NAM = ["TP.HCM", "Hồ Chí Minh", "Cần Thơ", "An Giang", "Bình Dương", "Đồng Nai", "Cà Mau","Đồng Tháp"];
+const { Option } = Select;
+
+// Định nghĩa các miền để chọn
+const DOMAIN_OPTIONS = [
+  { value: 'all', label: 'Tất cả miền' },
+  { value: 'north', label: 'Miền Bắc' },
+  { value: 'central', label: 'Miền Trung' },
+  { value: 'south', label: 'Miền Nam' },
+  { value: 'other', label: 'Khác' },
+];
 
 export default function AdminRegions() {
   const [regions, setRegions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [error, setError] = useState(null);
 
-  // Modal khu vực
+  // Bộ lọc và phân trang
+  const [filters, setFilters] = useState({
+    name: '',
+    city: '',
+    domain: 'all',
+    page: 1,
+    limit: 10,
+  });
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRegions, setTotalRegions] = useState(0);
+
+  // Modal khu vực (Thêm/Sửa)
   const [form] = Form.useForm();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -43,17 +61,43 @@ export default function AdminRegions() {
   const [cityModal, setCityModal] = useState({ open: false, region: null });
   const [newCity, setNewCity] = useState("");
 
+  // Modal Xóa
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [regionToDelete, setRegionToDelete] = useState(null);
+
   const userInfo = JSON.parse(localStorage.getItem("userInfo"));
   const config = { headers: { Authorization: `Bearer ${userInfo?.token}` } };
 
-  /** 📦 Fetch Regions */
+  /** 📦 Fetch Regions (Hỗ trợ filter và pagination) */
   const fetchRegions = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const { data } = await axios.get("/api/regions", config);
-      setRegions(data || []);
-    } catch {
-      toast.error("Không thể tải danh sách khu vực!");
+      const params = {
+        page: filters.page,
+        limit: filters.limit,
+      };
+
+      // Chỉ thêm filter nếu có giá trị
+      if (filters.name) params.name = filters.name;
+      if (filters.city) params.city = filters.city;
+      if (filters.domain !== 'all') params.domain = filters.domain;
+
+      const { data } = await axios.get("/api/regions", { params });
+      
+      console.log("📊 Data nhận từ API:", {
+        totalRegions: data.totalRegions,
+        currentPage: data.currentPage,
+        sampleRegion: data.regions?.[0] // Log region đầu tiên để xem structure
+      });
+      
+      setRegions(data.regions || []);
+      setTotalPages(data.totalPages || 1);
+      setTotalRegions(data.totalRegions || 0);
+    } catch (err) {
+      console.error("Lỗi fetch regions:", err);
+      setError(err.response?.data?.message || "Không thể tải danh sách khu vực!");
+      toast.error("Lỗi khi tải dữ liệu!");
     } finally {
       setLoading(false);
     }
@@ -61,266 +105,326 @@ export default function AdminRegions() {
 
   useEffect(() => {
     fetchRegions();
-  }, []);
+  }, [filters]);
 
-  /** 🔍 Nhóm theo miền */
-  const groupedRegions = useMemo(() => {
-    const filtered = regions.filter((r) =>
-      r.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    const groups = { north: [], central: [], south: [], other: [] };
-    filtered.forEach((r) => {
-      if (MIEN_BAC.some((x) => r.name.includes(x))) groups.north.push(r);
-      else if (MIEN_TRUNG.some((x) => r.name.includes(x))) groups.central.push(r);
-      else if (MIEN_NAM.some((x) => r.name.includes(x))) groups.south.push(r);
-      else groups.other.push(r);
-    });
-    return groups;
-  }, [regions, searchTerm]);
+  // --- Xử lý Filters và Pagination ---
+  const handleFilterInputChange = (e) => {
+    const { name, value } = e.target;
+    setFilters((prev) => ({ ...prev, [name]: value, page: 1 }));
+  };
 
-  /** ✏️ Thêm/Sửa khu vực */
+  const handleDomainFilterChange = (value) => {
+    setFilters((prev) => ({ ...prev, domain: value, page: 1 }));
+  };
+
+  const handlePageChange = (newPage) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setFilters((prev) => ({ ...prev, page: newPage }));
+  };
+
+  // --- Xử lý Modal Khu Vực (Thêm/Sửa) ---
   const openRegionModal = (region = null) => {
     if (region) {
+      console.log("🔧 Mở modal sửa region:", {
+        id: region._id,
+        name: region.name,
+        domain: region.domain,
+        cities: region.cities?.length || 0
+      });
+      
       setIsEditing(true);
       setEditId(region._id);
-      form.setFieldsValue({ name: region.name });
+      form.setFieldsValue({
+        name: region.name,
+        domain: region.domain || 'other',
+      });
     } else {
       setIsEditing(false);
       setEditId(null);
       form.resetFields();
+      form.setFieldsValue({ domain: 'other' });
     }
     setNewImage(null);
     setIsModalOpen(true);
   };
 
   const handleRegionSubmit = async (values) => {
-    const formData = new FormData();
-    formData.append("name", values.name);
-    if (newImage) formData.append("image", newImage);
-
-    const reqConfig = {
-      headers: { ...config.headers, "Content-Type": "multipart/form-data" },
-    };
-
     try {
+      const formData = new FormData();
+      formData.append("name", values.name.trim());
+      formData.append("domain", values.domain);
+      if (newImage) formData.append("image", newImage);
+
+      let response;
       if (isEditing) {
-        await axios.put(`/api/regions/${editId}`, formData, reqConfig);
-        toast.success("✅ Cập nhật khu vực thành công!");
-      } else {
-        await axios.post("/api/regions", formData, reqConfig);
-        toast.success("🎉 Đã thêm khu vực mới!");
-      }
-      setIsModalOpen(false);
-      fetchRegions();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "❌ Lỗi khi lưu khu vực!");
-    }
-  };
-
-  /** 🗑 Xóa khu vực */
-  const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc muốn xóa khu vực này?")) return;
-    try {
-      await axios.delete(`/api/regions/${id}`, config);
-      toast.success("🗑️ Đã xóa khu vực!");
-      fetchRegions();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "❌ Lỗi khi xóa khu vực!");
-    }
-  };
-
-  /** 🖼 Upload ảnh khu vực */
-  const handleUploadImage = async (id) => {
-    const file = document.createElement("input");
-    file.type = "file";
-    file.accept = "image/*";
-    file.onchange = async (e) => {
-      const fileData = e.target.files[0];
-      if (!fileData) return;
-      const fd = new FormData();
-      fd.append("image", fileData);
-      try {
-        await axios.post(`/api/regions/${id}/image`, fd, {
-          headers: { ...config.headers, "Content-Type": "multipart/form-data" },
+        response = await axios.put(`/api/regions/${editId}`, formData, {
+          headers: {
+            Authorization: `Bearer ${userInfo?.token}`,
+            'Content-Type': 'multipart/form-data'
+          }
         });
-        toast.success("📸 Đã cập nhật ảnh khu vực!");
-        fetchRegions();
-      } catch {
-        toast.error("Lỗi khi tải ảnh!");
+        console.log("✅ Response từ server:", response.data);
+        toast.success("Cập nhật khu vực thành công!");
+      } else {
+        response = await axios.post("/api/regions", formData, {
+          headers: {
+            Authorization: `Bearer ${userInfo?.token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        toast.success("Đã thêm khu vực mới!");
       }
-    };
-    file.click();
-  };
 
-  /** ❌ Xóa ảnh */
-  const handleDeleteImage = async (id) => {
-    if (!window.confirm("Xóa ảnh này?")) return;
-    try {
-      await axios.delete(`/api/regions/${id}/image`, config);
-      toast.success("🧹 Đã xóa ảnh khu vực!");
-      fetchRegions();
-    } catch {
-      toast.error("❌ Lỗi khi xóa ảnh!");
+      setIsModalOpen(false);
+      setNewImage(null);
+      form.resetFields();
+      
+      // Đợi một chút rồi mới fetch lại để đảm bảo DB đã lưu xong
+      setTimeout(() => {
+        fetchRegions();
+      }, 300);
+    } catch (err) {
+      console.error("❌ Lỗi khi lưu khu vực:", err);
+      toast.error(err.response?.data?.message || "Lỗi khi lưu khu vực!");
     }
   };
-
-  /** 🏙 Thêm thành phố */
+  
+  // --- Xử lý Modal Thành Phố ---
   const handleAddCity = async () => {
-    if (!newCity.trim()) return toast.error("Vui lòng nhập tên thành phố!");
+    const city = newCity.trim();
+    if (!city) return toast.error("Vui lòng nhập tên thành phố!");
+    
     try {
-      await axios.post(
-        `/api/regions/${cityModal.region._id}/cities`,
-        { name: newCity },
-        config
-      );
-      toast.success("✅ Thêm thành phố thành công!");
+      await axios.post(`/api/regions/${cityModal.region._id}/cities`, { name: city }, config);
+      toast.success("Thêm thành phố thành công!");
       setCityModal({ open: false, region: null });
       setNewCity("");
       fetchRegions();
     } catch (err) {
-      toast.error(err.response?.data?.message || "❌ Lỗi khi thêm thành phố!");
+      toast.error(err.response?.data?.message || "Lỗi khi thêm thành phố!");
     }
   };
 
-  if (loading)
+  // --- Xử lý Modal Xóa ---
+  const showDeleteConfirm = (regionId) => {
+    setRegionToDelete(regionId);
+    setDeleteModalVisible(true);
+  };
+
+  const handleDeleteOk = async () => {
+    if (regionToDelete) {
+      try {
+        await axios.delete(`/api/regions/${regionToDelete}`, config);
+        toast.success("Đã xóa khu vực!");
+        fetchRegions();
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Lỗi khi xóa khu vực!");
+      }
+    }
+    setDeleteModalVisible(false);
+    setRegionToDelete(null);
+  };
+  
+  const handleDeleteCancel = () => {
+    setDeleteModalVisible(false);
+    setRegionToDelete(null);
+  };
+
+  if (loading && regions.length === 0) {
     return (
-      <div className="flex justify-center items-center h-72">
-        <Spin size="large" />
+      <div className="flex justify-center items-center h-96">
+        <Spin size="large" tip="Đang tải dữ liệu..." />
       </div>
     );
-
-  const renderRegionColumn = (title, list) => (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-      <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2 mb-3">
-        <FiMapPin /> {title}
-      </h3>
-      <Divider className="my-2" />
-      {list.length === 0 ? (
-        <Empty description="Không có khu vực" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-      ) : (
-        list.map((region) => (
-          <div
-            key={region._id}
-            className="flex items-start gap-4 border-b last:border-0 py-3 hover:bg-gray-50 rounded-md transition"
-          >
-            <img
-              src={region.imageUrl || "/images/placeholder.jpg"}
-              alt={region.name}
-              className="w-20 h-16 rounded-md object-cover border"
-            />
-            <div className="flex-1">
-              <div className="flex justify-between items-center">
-                <h4 className="font-medium text-slate-800">{region.name}</h4>
-                <div className="flex gap-2">
-                  <Tooltip title="Sửa">
-                    <Button
-                      size="small"
-                      icon={<FiEdit />}
-                      onClick={() => openRegionModal(region)}
-                    />
-                  </Tooltip>
-                  <Tooltip title="Ảnh">
-                    <Button
-                      size="small"
-                      icon={<FiImage />}
-                      onClick={() => handleUploadImage(region._id)}
-                    />
-                  </Tooltip>
-                  <Tooltip title="Xóa ảnh">
-                    <Button
-                      size="small"
-                      danger
-                      icon={<span>✕</span>}
-                      onClick={() => handleDeleteImage(region._id)}
-                    />
-                  </Tooltip>
-                  <Tooltip title="Xóa khu vực">
-                    <Button
-                      size="small"
-                      danger
-                      icon={<FiTrash2 />}
-                      onClick={() => handleDelete(region._id)}
-                    />
-                  </Tooltip>
-                </div>
-              </div>
-
-              {/* Thành phố */}
-              {region.cities?.length ? (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {region.cities.map((c, i) => (
-                    <Tag key={i} color="blue">
-                      {c.name}
-                    </Tag>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-gray-400 italic mt-1">
-                  Chưa có thành phố
-                </p>
-              )}
-              <Button
-                type="link"
-                size="small"
-                className="text-blue-600 p-0 mt-1"
-                onClick={() => setCityModal({ open: true, region })}
-              >
-                + Thêm thành phố
-              </Button>
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-  );
+  }
 
   return (
-    <div className="p-5">
+    <div className="p-4 md:p-6 2xl:p-10">
       <ToastContainer position="top-right" autoClose={2500} />
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6">
-        <h2 className="text-2xl font-semibold text-slate-800">
-          Quản lý Khu vực & Thành phố
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-2xl font-semibold text-slate-800 flex items-center gap-2">
+          <MapPin className="w-6 h-6" /> 
+          Quản lý Khu vực
         </h2>
-        <div className="flex items-center gap-3">
-          <Link to="/admin/dashboard" className="text-blue-600 hover:underline">
-            ← Quay lại Dashboard
-          </Link>
-          <Button
-            type="primary"
-            icon={<FiPlus />}
-            onClick={() => openRegionModal()}
+        <Button
+          type="primary"
+          icon={<Plus className="w-4 h-4" />}
+          onClick={() => openRegionModal()}
+          className="bg-[#0071c2] hover:bg-[#005f9c] border-0 font-semibold"
+        >
+          Thêm Khu vực Mới
+        </Button>
+      </div>
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <strong className="font-bold">Lỗi! </strong>
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Filter Bar */}
+      <div className="rounded-lg border border-gray-200 bg-white px-5 pt-6 pb-4 shadow-sm mb-6">
+        <div className="flex flex-col md:flex-row md:items-center md:gap-4">
+          <Input
+            name="name"
+            value={filters.name}
+            onChange={handleFilterInputChange}
+            placeholder="Tìm theo tên khu vực..."
+            prefix={<Search className="text-gray-400" size={16} />}
+            className="w-full md:w-1/3 mb-2 md:mb-0"
+            allowClear
+          />
+          <Input
+            name="city"
+            value={filters.city}
+            onChange={handleFilterInputChange}
+            placeholder="Tìm theo tên thành phố..."
+            prefix={<Search className="text-gray-400" size={16} />}
+            className="w-full md:w-1/3 mb-2 md:mb-0"
+            allowClear
+          />
+          <Select
+            value={filters.domain}
+            onChange={handleDomainFilterChange}
+            style={{ width: '100%' }}
+            className="md:w-1/3"
           >
-            Thêm Khu vực
-          </Button>
+            {DOMAIN_OPTIONS.map(opt => (
+              <Option key={opt.value} value={opt.value}>{opt.label}</Option>
+            ))}
+          </Select>
+        </div>
+        <div className="mt-3 text-sm text-gray-600">
+          Tổng số: <strong>{totalRegions}</strong> khu vực
         </div>
       </div>
 
-      {/* Search */}
-      <div className="mb-8 relative w-full md:w-1/3">
-        <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Tìm kiếm khu vực..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full bg-white pl-10 pr-4 py-2 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 text-sm"
-        />
+      {/* Bảng dữ liệu */}
+      <div className="rounded-lg border border-gray-200 bg-white px-5 pt-6 pb-4 shadow-sm">
+        <div className="max-w-full overflow-x-auto">
+          <table className="w-full table-auto">
+            <thead>
+              <tr className="bg-gray-100 text-left">
+                <th className="py-4 px-4 font-medium text-slate-800">Khu vực</th>
+                <th className="py-4 px-4 font-medium text-slate-800">Miền</th>
+                <th className="py-4 px-4 font-medium text-slate-800">Thành phố</th>
+                <th className="py-4 px-4 font-medium text-slate-800 text-center">Hành động</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan="4" className="py-10 text-center">
+                    <Spin />
+                  </td>
+                </tr>
+              ) : regions.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="py-10 text-center text-gray-500">
+                    Không tìm thấy khu vực nào phù hợp.
+                  </td>
+                </tr>
+              ) : (
+                regions.map((region) => (
+                  <tr key={region._id} className="hover:bg-gray-50">
+                    <td className="border-b border-gray-200 py-5 px-4">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={region.imageUrl || "/images/placeholder.jpg"}
+                          alt={region.name}
+                          className="w-16 h-12 rounded-md object-cover flex-shrink-0"
+                        />
+                        <p className="font-medium text-slate-800">{region.name}</p>
+                      </div>
+                    </td>
+                    <td className="border-b border-gray-200 py-5 px-4">
+                      <Tag color={
+                        region.domain === 'north' ? 'blue' : 
+                        region.domain === 'central' ? 'green' : 
+                        region.domain === 'south' ? 'gold' : 
+                        'default'
+                      }>
+                        {DOMAIN_OPTIONS.find(o => o.value === region.domain)?.label || 'Khác'}
+                      </Tag>
+                    </td>
+                    <td className="border-b border-gray-200 py-5 px-4">
+                      <div className="flex flex-wrap gap-1 max-w-xs">
+                        {region.cities?.length > 0 ? (
+                          region.cities.map((c, i) => (
+                            <Tag key={i} color="blue">{c.name}</Tag>
+                          ))
+                        ) : (
+                          <p className="text-xs text-gray-400 italic">Chưa có</p>
+                        )}
+                      </div>
+                    </td>
+                    <td className="border-b border-gray-200 py-5 px-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <Tooltip title="Sửa khu vực">
+                          <button 
+                            onClick={() => openRegionModal(region)} 
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                          >
+                            <Edit size={16} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip title="Thêm thành phố">
+                          <button 
+                            onClick={() => setCityModal({ open: true, region })} 
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
+                          >
+                            <PackagePlus size={16} />
+                          </button>
+                        </Tooltip>
+                        <Tooltip title="Xóa khu vực">
+                          <button 
+                            onClick={() => showDeleteConfirm(region._id)} 
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </Tooltip>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="mt-6 flex justify-between items-center">
+            <p className="text-sm text-gray-600">
+              Trang <strong>{filters.page}</strong> / <strong>{totalPages}</strong>
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePageChange(filters.page - 1)}
+                disabled={filters.page === 1}
+                className="px-4 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition flex items-center gap-1"
+              >
+                <ChevronLeft size={16} />
+                Trước
+              </button>
+              <button
+                onClick={() => handlePageChange(filters.page + 1)}
+                disabled={filters.page === totalPages}
+                className="px-4 py-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition flex items-center gap-1"
+              >
+                Sau
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Layout vùng */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {renderRegionColumn("Miền Bắc", groupedRegions.north)}
-        {renderRegionColumn("Miền Trung", groupedRegions.central)}
-        {renderRegionColumn("Miền Nam", groupedRegions.south)}
-      </div>
-
-      {groupedRegions.other.length > 0 && (
-        <div className="mt-8">{renderRegionColumn("Khác", groupedRegions.other)}</div>
-      )}
-
-      {/* Modal Khu vực */}
+      {/* Modal Khu vực (Thêm/Sửa) */}
       <Modal
         title={isEditing ? "Chỉnh sửa khu vực" : "Thêm khu vực mới"}
         open={isModalOpen}
@@ -328,28 +432,37 @@ export default function AdminRegions() {
         footer={null}
         centered
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleRegionSubmit}
-          className="p-2"
-        >
-          <Form.Item
-            label="Tên khu vực"
-            name="name"
+        <Form form={form} layout="vertical" onFinish={handleRegionSubmit} className="p-4">
+          <Form.Item 
+            label="Tên khu vực" 
+            name="name" 
             rules={[{ required: true, message: "Vui lòng nhập tên khu vực!" }]}
           >
-            <Input placeholder="VD: Khánh Hòa, TP.HCM..." />
+            <Input placeholder="VD: Khánh Hòa..." className="py-2" />
           </Form.Item>
-          <Form.Item label="Ảnh đại diện (tuỳ chọn)">
-            <input
-              type="file"
-              accept="image/*"
+          <Form.Item 
+            label="Miền" 
+            name="domain" 
+            rules={[{ required: true, message: "Vui lòng chọn miền!" }]}
+          >
+            <Select placeholder="Chọn miền cho khu vực">
+              {DOMAIN_OPTIONS.filter(o => o.value !== 'all').map(opt => (
+                <Option key={opt.value} value={opt.value}>{opt.label}</Option>
+              ))}
+            </Select>
+          </Form.Item>
+          <Form.Item label="Ảnh đại diện (tùy chọn)">
+            <input 
+              type="file" 
+              accept="image/*" 
               onChange={(e) => setNewImage(e.target.files[0])}
-              className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              className="w-full"
             />
+            {newImage && (
+              <p className="mt-2 text-sm text-green-600">Đã chọn: {newImage.name}</p>
+            )}
           </Form.Item>
-          <div className="text-right">
+          <div className="text-right pt-2">
             <Button onClick={() => setIsModalOpen(false)} style={{ marginRight: 8 }}>
               Hủy
             </Button>
@@ -364,7 +477,10 @@ export default function AdminRegions() {
       <Modal
         title={`Thêm thành phố cho ${cityModal.region?.name || ""}`}
         open={cityModal.open}
-        onCancel={() => setCityModal({ open: false, region: null })}
+        onCancel={() => {
+          setCityModal({ open: false, region: null });
+          setNewCity("");
+        }}
         onOk={handleAddCity}
         okText="Thêm"
         cancelText="Hủy"
@@ -374,7 +490,22 @@ export default function AdminRegions() {
           placeholder="Nhập tên thành phố (VD: Quận 1, Nha Trang...)"
           value={newCity}
           onChange={(e) => setNewCity(e.target.value)}
+          className="py-2"
+          onPressEnter={handleAddCity}
         />
+      </Modal>
+      
+      {/* Modal Xóa Khu Vực */}
+      <Modal
+        title="Xác nhận xóa"
+        open={deleteModalVisible}
+        onOk={handleDeleteOk}
+        onCancel={handleDeleteCancel}
+        okText="Xóa"
+        cancelText="Hủy"
+        okButtonProps={{ danger: true }}
+      >
+        <p>Bạn có chắc muốn xóa khu vực này? Thao tác này không thể hoàn tác.</p>
       </Modal>
     </div>
   );

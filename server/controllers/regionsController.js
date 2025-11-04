@@ -5,8 +5,9 @@ const User = require('../models/user');
 // ✅ Tạo region mới (hỗ trợ upload ảnh)
 exports.createRegion = async (req, res) => {
   try {
-    const { name, cities } = req.body;
+    const { name, domain } = req.body;
     if (!name) return res.status(400).json({ message: "Thiếu tên khu vực" });
+    if (!domain) return res.status(400).json({ message: "Thiếu thông tin miền" });
 
     const regionExists = await Region.findOne({ name });
     if (regionExists)
@@ -20,7 +21,8 @@ exports.createRegion = async (req, res) => {
 
     const region = new Region({
       name,
-      cities: cities ? JSON.parse(cities) : [],
+      domain,
+      cities: [],
       imageUrl,
     });
 
@@ -29,6 +31,49 @@ exports.createRegion = async (req, res) => {
   } catch (err) {
     console.error("Lỗi tạo khu vực:", err);
     res.status(500).json({ message: "Lỗi tạo khu vực", error: err.message });
+  }
+};
+
+// ✅ Cập nhật region
+exports.updateRegion = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const region = await Region.findById(id);
+    if (!region) return res.status(404).json({ message: "Không tìm thấy khu vực" });
+
+    // Lấy dữ liệu từ body (FormData sẽ gửi dưới dạng string)
+    const { name, domain } = req.body;
+    
+    // Cập nhật các trường nếu có giá trị mới
+    if (name && name.trim()) {
+      region.name = name.trim();
+    }
+    
+    if (domain && domain.trim()) {
+      region.domain = domain.trim();
+    }
+
+    // Xử lý ảnh nếu có
+    if (req.file) {
+      region.imageUrl = `${req.protocol}://${req.get("host")}/Uploads/${req.file.filename}`;
+    }
+
+    const updatedRegion = await region.save();
+    
+    console.log("✅ Đã cập nhật region:", {
+      id: updatedRegion._id,
+      name: updatedRegion.name,
+      domain: updatedRegion.domain,
+      imageUrl: updatedRegion.imageUrl
+    });
+    
+    res.status(200).json({ 
+      message: "Cập nhật khu vực thành công", 
+      region: updatedRegion 
+    });
+  } catch (err) {
+    console.error("❌ Lỗi cập nhật khu vực:", err);
+    res.status(500).json({ message: "Lỗi cập nhật khu vực", error: err.message });
   }
 };
 
@@ -51,11 +96,53 @@ exports.addCityToRegion = async (req, res) => {
   }
 };
 
-// ✅ Lấy danh sách regions
+// ✅ Lấy danh sách regions (Hỗ trợ filter & pagination)
 exports.getRegions = async (req, res) => {
   try {
-    const regions = await Region.find();
-    res.status(200).json(regions);
+    const { name, city, domain, page, limit } = req.query;
+    
+    // Xây dựng query filter
+    let query = {};
+    
+    if (name) {
+      query.name = { $regex: name, $options: 'i' }; // Tìm kiếm không phân biệt hoa thường
+    }
+    
+    if (city) {
+      query['cities.name'] = { $regex: city, $options: 'i' };
+    }
+    
+    if (domain && domain !== 'all') {
+      query.domain = domain;
+    }
+
+    // ✅ Nếu không có page/limit params, trả về tất cả (cho Frontend homepage)
+    if (!page && !limit) {
+      const regions = await Region.find(query).sort({ createdAt: -1 });
+      return res.status(200).json(regions); // Trả về array trực tiếp
+    }
+
+    // Tính toán pagination (cho Admin dashboard)
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 10;
+    const skip = (pageNum - 1) * limitNum;
+
+    // Lấy tổng số documents
+    const total = await Region.countDocuments(query);
+    
+    // Lấy regions với pagination
+    const regions = await Region.find(query)
+      .sort({ createdAt: -1 }) // Sắp xếp mới nhất trước
+      .skip(skip)
+      .limit(limitNum);
+
+    // Trả về object có pagination info
+    res.status(200).json({
+      regions,
+      currentPage: pageNum,
+      totalPages: Math.ceil(total / limitNum),
+      totalRegions: total,
+    });
   } catch (error) {
     console.error('Lỗi khi lấy danh sách khu vực:', error.message);
     res.status(500).json({ message: 'Lỗi khi lấy danh sách khu vực', error: error.message });
