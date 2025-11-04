@@ -86,7 +86,8 @@ export default function HotelRoomManagement() {
     }
   };
 
-  const fetchAmenities = async () => {
+  useEffect(() => {
+  const fetchData = async () => {
     try {
       setError("");
       const { data } = await axiosInstance.get("/amenities");
@@ -201,7 +202,6 @@ export default function HotelRoomManagement() {
       hotelId,
       amenities: selectedAmenities, // luôn là mảng tên
     };
-
     try {
       let roomId = null;
 
@@ -402,6 +402,8 @@ export default function HotelRoomManagement() {
                 )}
               </div>
             </div>
+          )}
+        </div>
 
             {/* Mô tả */}
             <div className="md:col-span-2">
