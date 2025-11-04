@@ -15,7 +15,35 @@ const HotelRoomManagement = () => {
   const [newImages, setNewImages] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [amenities, setAmenities] = useState([]);
+  const [selectedAmenities, setSelectedAmenities] = useState([]);
+  const [amenityQuery, setAmenityQuery] = useState("");
+  const [showAmenityDropdown, setShowAmenityDropdown] = useState(false);
 
+  // Helper: chuẩn hóa đối tượng tiện ích thành tên (string)
+  const toAmenityName = (a) => (typeof a === "string" ? a : a?.name || "");
+
+  // Tìm kiếm tiện ích theo tên
+  const filteredAmenities = amenities.filter((a) =>
+    toAmenityName(a).toLowerCase().includes(amenityQuery.toLowerCase())
+  );
+
+  // Thêm tiện ích theo tên, tránh trùng (không phân biệt hoa thường)
+  const addAmenity = (name) => {
+    const normalized = (name || "").trim();
+    if (!normalized) return;
+    setSelectedAmenities((prev) => {
+      const has = prev.some((a) => toAmenityName(a).toLowerCase() === normalized.toLowerCase());
+      return has ? prev : [...prev, normalized];
+    });
+    setAmenityQuery("");
+    setShowAmenityDropdown(false);
+  };
+
+  // Xóa tiện ích theo tên (kể cả khi phần tử trong mảng là object)
+  const removeAmenity = (name) => {
+    setSelectedAmenities((prev) => prev.filter((a) => toAmenityName(a) !== name));
+  };
   // Lấy token để xác thực
   const userInfo = JSON.parse(localStorage.getItem("userInfo"));
   const config = { headers: { Authorization: `Bearer ${userInfo?.token}` } };
@@ -33,6 +61,17 @@ const HotelRoomManagement = () => {
 
   useEffect(() => {
     fetchHotelAndRooms();
+
+    // Lấy danh sách tiện ích từ DB
+    const fetchAmenities = async () => {
+      try {
+        const { data } = await axios.get("/api/amenities", config);
+        setAmenities(Array.isArray(data) ? data : []);
+      } catch (err) {
+        toast.error("Lỗi khi lấy danh sách tiện ích");
+      }
+    };
+    fetchAmenities();
   }, [hotelId]);
 
   const handleInputChange = (e) => {
@@ -49,6 +88,10 @@ const HotelRoomManagement = () => {
     setNewImages([]);
     setIsEditing(false);
     setEditId(null);
+    // Xóa lựa chọn tiện ích và dropdown
+    setSelectedAmenities([]);
+    setAmenityQuery("");
+    setShowAmenityDropdown(false);
     if (document.getElementById('image-upload-room')) {
       document.getElementById('image-upload-room').value = null;
     }
@@ -67,32 +110,56 @@ const HotelRoomManagement = () => {
       description: room.description,
       availabilityStatus: room.availabilityStatus,
     });
+
+    // Chuyển tiện ích về mảng tên (string) để tránh render object trong JSX
+    const amenityNames = Array.isArray(room.amenities)
+      ? room.amenities
+          .map((a) => (typeof a === "string" ? a : a?.name))
+          .filter(Boolean)
+      : [];
+    setSelectedAmenities(amenityNames);
+
     setIsEditing(true);
     setEditId(room._id);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = new FormData();
-    Object.keys(formData).forEach(key => payload.append(key, formData[key]));
-    newImages.forEach(image => payload.append('images', image));
-    payload.append('hotelId', hotelId);
 
-    const requestConfig = {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-        Authorization: `Bearer ${userInfo.token}`,
-      },
+    // Gửi JSON cho tạo/cập nhật phòng
+    const payload = {
+      ...formData,
+      hotelId,
+      amenities: selectedAmenities, // mảng chuỗi tên tiện ích
     };
 
     try {
+      let roomId;
+
       if (isEditing) {
-        await axios.put(`/api/rooms/${editId}`, payload, requestConfig);
+        const { data } = await axios.patch(`/api/rooms/${editId}`, payload, config);
+        roomId = editId;
         toast.success('Cập nhật phòng thành công!');
       } else {
-        await axios.post('/api/rooms', payload, requestConfig);
+        const { data } = await axios.post('/api/rooms', payload, config);
+        roomId = data.room?._id;
         toast.success('Thêm phòng thành công!');
       }
+
+      // Upload ảnh nếu có, tách riêng qua route /api/rooms/:id/images
+      if (newImages.length > 0 && roomId) {
+        const imageForm = new FormData();
+        newImages.forEach((img) => imageForm.append('images', img));
+
+        await axios.post(`/api/rooms/${roomId}/images`, imageForm, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${userInfo.token}`,
+          },
+        });
+        toast.success('Tải ảnh phòng lên thành công!');
+      }
+
       resetForm();
       fetchHotelAndRooms();
     } catch (err) {
@@ -141,7 +208,7 @@ const HotelRoomManagement = () => {
       </div>
 
       {/* Form thêm/sửa phòng */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm mb-10">
+      <div className="rounded-lg border border-gray-200 bg_white p-6 shadow-sm mb-10">
         <h3 className="text-xl font-semibold text-slate-800 mb-6 border-b border-gray-200 pb-4">
           {isEditing ? 'Chỉnh sửa thông tin phòng' : 'Thêm phòng mới'}
         </h3>
@@ -163,6 +230,70 @@ const HotelRoomManagement = () => {
                 <option value="maintenance">Bảo trì</option>
                 <option value="busy">Đang sử dụng</option>
               </select>
+            </div>
+
+            {/* Combobox chọn tiện ích */}
+            <div className="mb-4 md:col-span-2">
+              <label className="block mb-2 text-sm font-medium text-slate-700">Tiện ích phòng</label>
+
+              {/* Chips tiện ích đã chọn */}
+              <div className="flex flex-wrap gap-2 mb-3">
+                {selectedAmenities.map((a) => {
+                  const label = toAmenityName(a);
+                  if (!label) return null;
+                  return (
+                    <span
+                      key={label}
+                      className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm"
+                    >
+                      {label}
+                      <button
+                        type="button"
+                        onClick={() => removeAmenity(label)}
+                        className="text-blue-700 hover:text-blue-900"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                })}
+                {selectedAmenities.length === 0 && (
+                  <span className="text-sm text-gray-500">Chưa chọn tiện ích nào</span>
+                )}
+              </div>
+
+              {/* Ô tìm kiếm + dropdown */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Tìm hoặc chọn tiện ích…"
+                  value={amenityQuery}
+                  onChange={(e) => {
+                    setAmenityQuery(e.target.value);
+                    setShowAmenityDropdown(true);
+                  }}
+                  onFocus={() => setShowAmenityDropdown(true)}
+                  className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+                {showAmenityDropdown && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-auto">
+                    {filteredAmenities.length > 0 ? (
+                      filteredAmenities.map((item) => (
+                        <button
+                          type="button"
+                          key={item._id}
+                          onClick={() => addAmenity(item.name)}
+                          className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
+                        >
+                          {item.name}
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3 py-2 text-sm text-gray-500">Không tìm thấy tiện ích phù hợp</div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="mb-4 md:col-span-2">

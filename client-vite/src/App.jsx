@@ -41,13 +41,13 @@ import UserStaffManagement from "./components/GUI admin/Users/UserStaffManagemen
 
 import AdminBookings from "./components/GUI admin/Bookings/AdminBookings";
 import HotelManagement from "./components/GUI admin/Hotels/HotelManagement";
-import HotelRoomManagement from "./components/HotelRoomManagement";
+import HotelRoomManagement from "./components/GUI admin/Hotels/HotelRoomManagement";
 import ServiceManagement from "./components/GUI admin/Hotels/ServiceManagement";
 import AdminDiscounts from "./components/GUI admin/Discounts/AdminDiscounts";
 import AdminRewards from "./components/GUI admin/Discounts/AdminRewards";
 import ReviewManagement from "./components/GUI admin/Bookings/ReviewManagement";
 import AdminRegions from "./components/GUI admin/Regions/AdminRegions";
-import AdminAmenities from "./components/AdminAmenities";
+import AmenityManagement from "./components/GUI admin/Hotels/AmenityManagement";
 import CreateRoomForm from "./components/CreateRoomForm";
 import EditRoomForm from "./components/EditRoomForm";
 
@@ -166,9 +166,10 @@ function App() {
             <Route path="rewards" element={<AdminRewards />} />
             <Route path="reviews" element={<ReviewManagement />} />
             <Route path="regions" element={<AdminRegions />} />
-            <Route path="amenities" element={<AdminAmenities />} />
-            <Route path="createroom" element={<CreateRoomForm />} />
-            <Route path="editroom/:id" element={<EditRoomForm />} />
+            <Route path="amenities" element={<AmenityManagement />} />
+            {/* Đã gỡ 2 route cũ ngoài Admin */}
+            {/* <Route path="createroom" element={<CreateRoomForm />} /> */}
+            {/* <Route path="editroom/:id" element={<EditRoomForm />} /> */}
           </Route>
 
 

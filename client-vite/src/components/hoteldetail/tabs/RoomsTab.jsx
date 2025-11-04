@@ -89,9 +89,10 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
                            ) : (
                               <>
                                  <ul className="list-disc ml-4 text-gray-700 text-[13px] leading-snug space-y-0">
-                                    {room.amenities?.slice(0, 3).map((a, i) => (
-                                       <li key={i}>{a}</li>
-                                    ))}
+                                    {room.amenities?.slice(0, 3).map((a, i) => {
+                                       const name = typeof a === "string" ? a : a?.name;
+                                       return <li key={i}>{name}</li>;
+                                    })}
                                  </ul>
                                  <p className="text-gray-500 text-[12px] mt-0.5">
                                     Diện tích: {room.size || "—"} m²
@@ -310,9 +311,10 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
                            <div>
                               <h3 className="font-semibold text-lg mb-2">🛏 Tiện nghi</h3>
                               <ul className="grid grid-cols-2 gap-x-4 list-disc ml-4">
-                                 {selectedRoom.amenities?.map((a, i) => (
-                                    <li key={i}>{a}</li>
-                                 ))}
+                                 {selectedRoom.amenities?.map((a, i) => {
+                                    const name = typeof a === "string" ? a : a?.name;
+                                    return <li key={i}>{name}</li>;
+                                 })}
                               </ul>
                            </div>
 

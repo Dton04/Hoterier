@@ -5,6 +5,7 @@ const Booking = require("../models/booking");
 const Hotel = require("../models/hotel");
 const fs = require('fs');
 const path = require('path');
+const Amenity = require("../models/amenity");
 
 // GET /api/rooms/getallrooms - Lấy tất cả phòng
 exports.getAllRooms = async (req, res) => {
@@ -83,6 +84,17 @@ exports.createRoom = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy khách sạn" });
     }
 
+    // Validate tiện ích theo DB (nếu có truyền)
+    let amenityNames = Array.isArray(amenities) ? amenities.filter(a => typeof a === 'string') : [];
+    if (amenityNames.length) {
+      const found = await Amenity.find({ name: { $in: amenityNames }, isActive: true }).select('name');
+      const foundNames = found.map(a => a.name);
+      const invalid = amenityNames.filter(a => !foundNames.includes(a));
+      if (invalid.length) {
+        return res.status(400).json({ message: "Một số tiện ích không hợp lệ hoặc không hoạt động", invalid });
+      }
+    }
+
     const room = new Room({
       hotelId,
       name,
@@ -94,7 +106,7 @@ exports.createRoom = async (req, res) => {
       rentperday,
       phonenumber,
       quantity: quantity || 1,
-      amenities: amenities || [],
+      amenities: amenityNames,
     });
 
     const savedRoom = await room.save();
@@ -150,6 +162,18 @@ exports.updateRoom = async (req, res) => {
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ message: "Không có dữ liệu hợp lệ để cập nhật" });
+    }
+
+    // Nếu cập nhật amenities: validate theo DB
+    if (updates.amenities !== undefined) {
+      const amenityNames = Array.isArray(updates.amenities) ? updates.amenities.filter(a => typeof a === 'string') : [];
+      const found = await Amenity.find({ name: { $in: amenityNames }, isActive: true }).select('name');
+      const foundNames = found.map(a => a.name);
+      const invalid = amenityNames.filter(a => !foundNames.includes(a));
+      if (invalid.length) {
+        return res.status(400).json({ message: "Một số tiện ích không hợp lệ hoặc không hoạt động", invalid });
+      }
+      updates.amenities = amenityNames;
     }
 
     const updatedRoom = await Room.findByIdAndUpdate(id, updateData, { new: true });
@@ -285,5 +309,81 @@ exports.deleteRoom = async (req, res) => {
   } catch (error) {
     console.error("Lỗi khi xóa phòng:", error.message);
     res.status(500).json({ message: "Lỗi khi xóa phòng", error: error.message });
+  }
+};
+
+// roomController.js
+exports.addAmenityToRoom = async (req, res) => {
+  const { id } = req.params;
+  let { amenity, amenities } = req.body;
+
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ message: "Kết nối cơ sở dữ liệu chưa sẵn sàng" });
+    }
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "ID phòng không hợp lệ" });
+    }
+
+    if (!amenities && amenity) amenities = [amenity];
+    if (!amenities || !Array.isArray(amenities) || amenities.length === 0) {
+      return res.status(400).json({ message: "Vui lòng cung cấp ít nhất một tiện ích" });
+    }
+
+    // Validate theo DB
+    const found = await Amenity.find({ name: { $in: amenities }, isActive: true }).select('name');
+    const foundNames = found.map(a => a.name);
+    const invalid = amenities.filter(a => !foundNames.includes(a));
+    if (invalid.length) {
+      return res.status(400).json({ message: "Tiện ích không hợp lệ hoặc không hoạt động", invalid });
+    }
+
+    const updatedRoom = await Room.findByIdAndUpdate(
+      id,
+      { $addToSet: { amenities: { $each: foundNames } } },
+      { new: true }
+    );
+    if (!updatedRoom) return res.status(404).json({ message: "Không tìm thấy phòng" });
+
+    res.status(200).json({ message: "Đã thêm tiện ích cho phòng", room: updatedRoom });
+  } catch (error) {
+    console.error("Lỗi khi thêm tiện ích:", error.message, error.stack);
+    res.status(500).json({ message: "Lỗi khi thêm tiện ích", error: error.message });
+  }
+};
+
+// roomController.js
+exports.removeAmenityFromRoom = async (req, res) => {
+  const { id } = req.params;
+  let { amenity, amenities } = req.body;
+
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ message: "Kết nối cơ sở dữ liệu chưa sẵn sàng" });
+    }
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "ID phòng không hợp lệ" });
+    }
+
+    if (!amenities && amenity) amenities = [amenity];
+    if (!amenities || !Array.isArray(amenities) || amenities.length === 0) {
+      return res.status(400).json({ message: "Vui lòng cung cấp ít nhất một tiện ích để xóa" });
+    }
+
+    // Chỉ cho phép xóa các tiện ích tồn tại trong DB (nếu cần chặt chẽ)
+    const found = await Amenity.find({ name: { $in: amenities } }).select('name');
+    const foundNames = found.map(a => a.name);
+
+    const updatedRoom = await Room.findByIdAndUpdate(
+      id,
+      { $pull: { amenities: { $in: foundNames.length ? foundNames : amenities } } },
+      { new: true }
+    );
+    if (!updatedRoom) return res.status(404).json({ message: "Không tìm thấy phòng" });
+
+    res.status(200).json({ message: "Đã xóa tiện ích khỏi phòng", room: updatedRoom });
+  } catch (error) {
+    console.error("Lỗi khi xóa tiện ích:", error.message, error.stack);
+    res.status(500).json({ message: "Lỗi khi xóa tiện ích", error: error.message });
   }
 };

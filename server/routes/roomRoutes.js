@@ -57,4 +57,10 @@ router.get("/images/:id", roomController.getRoomImages);
 // DELETE /api/rooms/:id  - Xóa phòng
 router.delete("/:id", roomController.deleteRoom);
 
+//  PATCH /api/rooms/:id/amenities/add - Thêm tiện ích
+router.patch("/:id/amenities/add", protect, restrictRoomManagement, roomController.addAmenityToRoom);
+
+//  PATCH /api/rooms/:id/amenities/remove - Xóa tiện ích
+router.patch("/:id/amenities/remove", protect, restrictRoomManagement, roomController.removeAmenityFromRoom);
+
 module.exports = router;

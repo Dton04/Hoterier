@@ -136,7 +136,10 @@ const RoomResults = () => {
   const fetchAmenities = async () => {
     try {
       const { data } = await axios.get("/api/amenities");
-      setAmenities(data);
+      const names = Array.isArray(data)
+        ? data.map((x) => (typeof x === "string" ? x : x?.name)).filter(Boolean)
+        : [];
+      setAmenities(names);
     } catch (err) {
       console.error("Lỗi khi lấy danh sách tiện nghi:", err);
     }
@@ -302,7 +305,10 @@ const RoomResults = () => {
           filters.amenities.length === 0 ||
           filters.amenities.some((a) =>
             hotel.rooms?.some((r) =>
-              r.amenities?.some((am) => am.toLowerCase().includes(a.toLowerCase()))
+              r.amenities?.some((am) => {
+                const amName = typeof am === "string" ? am : am?.name;
+                return amName?.toLowerCase().includes(a.toLowerCase());
+              })
             )
           );
 
@@ -644,22 +650,22 @@ const RoomResults = () => {
             <div className="border-b pb-4 mb-4">
               <h4 className="text-gray-700 font-medium mb-2">Tiện nghi phòng</h4>
               <div className="max-h-40 overflow-y-auto">
-                {amenities.map((a) => (
-                  <label key={a} className="flex items-center space-x-2 text-sm cursor-pointer mb-1">
+                {amenities.map((name) => (
+                  <label key={name} className="flex items-center space-x-2 text-sm cursor-pointer mb-1">
                     <input
                       type="checkbox"
-                      checked={filters.amenities.includes(a)}
+                      checked={filters.amenities.includes(name)}
                       onChange={() =>
                         setFilters((prev) => ({
                           ...prev,
-                          amenities: prev.amenities.includes(a)
-                            ? prev.amenities.filter((v) => v !== a)
-                            : [...prev.amenities, a],
+                          amenities: prev.amenities.includes(name)
+                            ? prev.amenities.filter((v) => v !== name)
+                            : [...prev.amenities, name],
                         }))
                       }
                       className="accent-blue-600"
                     />
-                    <span>{a}</span>
+                    <span>{name}</span>
                   </label>
                 ))}
               </div>

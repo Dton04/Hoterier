@@ -14,7 +14,7 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { label: "Người dùng & NV", icon: <FiUsers />, path: "/admin/users" },
     { label: "Khách sạn", icon: <FiHome />, path: "/admin/hotels" },
     { label: "Dịch vụ khách sạn", icon: <FiServer />, path: "/admin/services" },
-    { label: "Dịch vụ phòng", icon: <FiRotateCcw />, path: "/admin/amenities" },
+    { label: "Tiện nghi phòng", icon: <FiRotateCcw />, path: "/admin/amenities" },
     { label: "Giảm giá", icon: <FiTag />, path: "/admin/discounts" },
     { label: "Đánh giá", icon: <FiStar />, path: "/admin/reviews" },
     { label: "Khu vực", icon: <FiMapPin />, path: "/admin/regions" }, // Thay thế "Tables"
