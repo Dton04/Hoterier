@@ -5,18 +5,16 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Modal } from 'antd';
 import {
-  FiMail,
-  FiPhone,
-  FiEdit,
-  FiTrash2,
-  FiSettings,
-  FiSearch,
-  FiUpload,
-  FiAlertCircle,
-  FiChevronDown,
-  FiChevronUp,
-  FiPlus
-} from "react-icons/fi";
+  Mail,
+  Phone,
+  Edit2,
+  Trash2,
+  Settings,
+  Search,
+  Upload,
+  AlertCircle,
+  Plus
+} from "lucide-react";
 
 const HotelManagement = () => {
   const [hotels, setHotels] = useState([]);
@@ -39,9 +37,13 @@ const HotelManagement = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imagePreview, setImagePreview] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const hotelsPerPage = 10;
 
   const hasFetched = useRef(false);
-
 
   const userInfo = JSON.parse(localStorage.getItem("userInfo"));
   const config = {
@@ -50,25 +52,36 @@ const HotelManagement = () => {
 
   /** 🔹 Lấy danh sách khách sạn và khu vực */
   const fetchHotels = async () => {
-    const loadingToast = toast.loading('Đang tải danh sách khách sạn...');
+    setLoading(true);
     try {
       const { data } = await axios.get("/api/hotels", config);
-      setHotels(data);
-      toast.dismiss(loadingToast);
-      toast.success(`Đã tải ${data.length} khách sạn thành công`);
+      // Ensure data is an array
+      const hotelsArray = Array.isArray(data) ? data : [];
+      
+      // Calculate room count for each hotel
+      const hotelsWithRoomCount = hotelsArray.map(hotel => ({
+        ...hotel,
+        roomCount: hotel.rooms?.length || 0
+      }));
+      
+      setHotels(hotelsWithRoomCount);
+      toast.success(`Đã tải ${hotelsWithRoomCount.length} khách sạn thành công`);
     } catch (err) {
-      toast.dismiss(loadingToast);
       toast.error('Lỗi khi tải danh sách khách sạn. Vui lòng thử lại');
       console.error('Fetch hotels error:', err);
+      setHotels([]);
+    } finally {
+      setLoading(false);
     }
   };
 
   const fetchRegions = async () => {
     try {
       const { data } = await axios.get("/api/regions", config);
-      setRegions(data);
-    } catch {
+      setRegions(Array.isArray(data) ? data : []);
+    } catch (err) {
       toast.error("Lỗi khi lấy danh sách khu vực");
+      console.error('Fetch regions error:', err);
     }
   };
 
@@ -145,13 +158,11 @@ const HotelManagement = () => {
       if (isEditing) {
         await axios.put(`/api/hotels/${editId}`, payload, config);
         savedHotelId = editId;
-        toast.success("Cập nhật thông tin khách sạn thành công!");
         toast.dismiss(loadingToast);
         toast.success(`Cập nhật "${formData.name}" thành công`);
       } else {
         const { data } = await axios.post("/api/hotels", payload, config);
         savedHotelId = data.hotel._id;
-        toast.success("Thêm khách sạn thành công!");
         toast.dismiss(loadingToast);
         toast.success(`Thêm khách sạn "${formData.name}" thành công`);
       }
@@ -169,7 +180,6 @@ const HotelManagement = () => {
             Authorization: `Bearer ${userInfo.token}`,
           },
         });
-        toast.success("Tải ảnh lên thành công!");
         toast.dismiss(uploadToast);
         toast.success(`Đã tải lên ${newImages.length} ảnh thành công`);
       }
@@ -178,7 +188,6 @@ const HotelManagement = () => {
       setModalVisible(false);
       fetchHotels();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Có lỗi xảy ra!");
       toast.dismiss(loadingToast);
       toast.error(err.response?.data?.message || 'Có lỗi xảy ra. Vui lòng thử lại');
       console.error('Submit error:', err);
@@ -200,7 +209,7 @@ const HotelManagement = () => {
       city: hotel.district || "",
       contactNumber: hotel.contactNumber,
       email: hotel.email,
-      description: hotel.description,
+      description: hotel.description || "",
     });
     setIsEditing(true);
     setEditId(hotel._id);
@@ -225,10 +234,21 @@ const HotelManagement = () => {
 
   /** 🔹 Tìm kiếm khách sạn */
   const filteredHotels = hotels.filter(hotel =>
-    hotel.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    hotel.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    hotel.city?.toLowerCase().includes(searchTerm.toLowerCase())
+    hotel.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    hotel.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    hotel.district?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Pagination logic
+  const indexOfLastHotel = currentPage * hotelsPerPage;
+  const indexOfFirstHotel = indexOfLastHotel - hotelsPerPage;
+  const currentHotels = filteredHotels.slice(indexOfFirstHotel, indexOfLastHotel);
+  const totalPages = Math.ceil(filteredHotels.length / hotelsPerPage);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   const handleCancelEdit = () => {
     resetForm();
@@ -273,20 +293,13 @@ const HotelManagement = () => {
         </nav>
       </div>
 
-      {/* Form thêm/sửa */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm mb-10">
-        <h3 className="text-xl font-semibold text-slate-800 mb-6 border-b border-gray-200 pb-4">
-          {isEditing
-            ? "Chỉnh sửa thông tin khách sạn"
-            : "Thêm khách sạn mới"}
-        </h3>
       {/* Add Hotel Button */}
       <div className="mb-6">
         <button
           onClick={handleOpenModal}
           className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
         >
-          <FiPlus size={18} />
+          <Plus size={18} />
           Thêm khách sạn mới
         </button>
       </div>
@@ -299,7 +312,7 @@ const HotelManagement = () => {
         footer={null}
         width={1000}
         centered
-        destroyOnHidden
+        destroyOnClose
       >
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -379,7 +392,8 @@ const HotelManagement = () => {
                   value={formData.description}
                   onChange={handleInputChange}
                   rows="4"
-                  className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-blue-500"
+                  placeholder="Nhập mô tả về khách sạn..."
+                  className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 resize-none"
                 ></textarea>
               </div>
             </div>
@@ -391,7 +405,7 @@ const HotelManagement = () => {
                 </label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                    <FiMail className="text-gray-400" />
+                    <Mail className="text-gray-400" size={18} />
                   </span>
                   <input 
                     type="email" 
@@ -411,7 +425,7 @@ const HotelManagement = () => {
                 </label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                    <FiPhone className="text-gray-400" />
+                    <Phone className="text-gray-400" size={18} />
                   </span>
                   <input 
                     type="text" 
@@ -437,6 +451,13 @@ const HotelManagement = () => {
                   id="image-upload"
                   className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
+                {imagePreview.length > 0 && (
+                  <div className="mt-2 flex gap-2 flex-wrap">
+                    {imagePreview.map((url, idx) => (
+                      <img key={idx} src={url} alt={`Preview ${idx}`} className="h-20 w-20 object-cover rounded border" />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -466,7 +487,6 @@ const HotelManagement = () => {
           </div>
         </form>
       </Modal>
-      </div>
 
       {/* Danh sách khách sạn */}
       <div className="rounded-lg border border-gray-200 bg-white px-5 pt-6 pb-4 shadow-sm">
@@ -475,7 +495,7 @@ const HotelManagement = () => {
             Danh sách khách sạn ({filteredHotels.length})
           </h3>
           <div className="relative w-full md:w-1/3">
-            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
               type="text"
               placeholder="Tìm theo tên, địa chỉ hoặc thành phố..."
@@ -493,84 +513,119 @@ const HotelManagement = () => {
                 <th className="py-4 px-4 font-medium text-slate-800">Khách sạn</th>
                 <th className="py-4 px-4 font-medium text-slate-800">Liên hệ</th>
                 <th className="py-4 px-4 font-medium text-slate-800">Khu vực</th>
-                <th className="py-4 px-4 font-medium text-slate-800">Phòng</th>
+                <th className="py-4 px-4 font-medium text-slate-800 text-center">Phòng</th>
                 <th className="py-4 px-4 font-medium text-slate-800 text-center">Hành động</th>
               </tr>
             </thead>
             <tbody>
-              {filteredHotels.map((hotel) => (
-                <tr key={hotel._id}>
-                  <td className="border-b border-gray-200 py-4 px-4">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={hotel.imageurls?.[0]}
-                        alt={hotel.name}
-                        className="h-12 w-16 rounded object-cover"
-                      />
-                      <div>
-                        <p className="font-medium text-slate-800">{hotel.name}</p>
-                        <p className="text-sm text-gray-500">{hotel.address}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="border-b border-gray-200 py-4 px-4">
-                    <p className="text-sm text-slate-800">{hotel.email}</p>
-                    <p className="text-sm text-gray-500">{hotel.contactNumber}</p>
-                  </td>
-                  <td className="border-b border-gray-200 py-4 px-4">
-                    <p className="text-slate-800">
-                      {hotel.region?.name || "N/A"}{" "}
-                      {hotel.district ? `- ${hotel.district}` : ""}
-                    </p>
-                  </td>
-                  <td className="border-b border-gray-200 py-4 px-4 text-center">
-                    <span className="text-slate-800">{hotel.roomCount || 0}</span>
-                  </td>
-                  <td className="border-b border-gray-200 py-4 px-4">
-                    <div className="flex items-center justify-center space-x-3">
-                      <button 
-                        onClick={() => handleEdit(hotel)} 
-                        className="text-blue-600 hover:text-blue-800 transition-colors p-2 hover:bg-blue-50 rounded" 
-                        title="Chỉnh sửa"
-                      >
-                        <FiEdit size={18} />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(hotel._id, hotel.name)} 
-                        className="text-red-600 hover:text-red-800 transition-colors p-2 hover:bg-red-50 rounded" 
-                        title="Xóa"
-                      >
-                        <FiTrash2 size={18} />
-                      </button>
-                      <Link 
-                        to={`/admin/hotel/${hotel._id}/rooms`} 
-                        className="text-green-600 hover:text-green-800 transition-colors p-2 hover:bg-green-50 rounded" 
-                        title="Quản lý phòng"
-                      >
-                        <FiSettings size={18} />
-                      </Link>
+              {loading ? (
+                <tr>
+                  <td colSpan="5" className="py-12 text-center text-gray-500">
+                    <div className="flex justify-center items-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <span className="ml-3">Đang tải...</span>
                     </div>
                   </td>
                 </tr>
-              ))}
-              {filteredHotels.length === 0 && (
+              ) : currentHotels.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="text-center py-8 text-gray-500">
-                    <FiAlertCircle className="inline mr-2" size={20} />
+                    <AlertCircle className="inline mr-2" size={20} />
                     Không tìm thấy khách sạn nào
                   </td>
                 </tr>
+              ) : (
+                currentHotels.map((hotel) => (
+                  <tr key={hotel._id} className="hover:bg-gray-50 transition-colors">
+                    <td className="border-b border-gray-200 py-4 px-4">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={hotel.imageurls?.[0] || '/placeholder-hotel.jpg'}
+                          alt={hotel.name}
+                          className="h-12 w-16 rounded object-cover"
+                          onError={(e) => { e.target.src = '/placeholder-hotel.jpg'; }}
+                        />
+                        <div>
+                          <p className="font-medium text-slate-800">{hotel.name}</p>
+                          <p className="text-sm text-gray-500">{hotel.address}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="border-b border-gray-200 py-4 px-4">
+                      <p className="text-sm text-slate-800">{hotel.email}</p>
+                      <p className="text-sm text-gray-500">{hotel.contactNumber}</p>
+                    </td>
+                    <td className="border-b border-gray-200 py-4 px-4">
+                      <p className="text-slate-800">
+                        {hotel.region?.name || "N/A"}
+                        {hotel.district ? ` - ${hotel.district}` : ""}
+                      </p>
+                    </td>
+                    <td className="border-b border-gray-200 py-4 px-4 text-center">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                        {hotel.roomCount || 0}
+                      </span>
+                    </td>
+                    <td className="border-b border-gray-200 py-4 px-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <button 
+                          onClick={() => handleEdit(hotel)} 
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
+                          title="Chỉnh sửa"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(hotel._id, hotel.name)} 
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" 
+                          title="Xóa"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                        <Link 
+                          to={`/admin/hotel/${hotel._id}/rooms`} 
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" 
+                          title="Quản lý phòng"
+                        >
+                          <Settings size={16} />
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
-      </div>
 
-      <style>
-      {`
-        /* CSS nội tuyến hoặc chuyển sang file .css */
-      `}
-      </style>
+        {/* Pagination */}
+        {!loading && filteredHotels.length > 0 && (
+          <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200">
+            <p className="text-sm text-gray-600">
+              Hiển thị {indexOfFirstHotel + 1}-{Math.min(indexOfLastHotel, filteredHotels.length)} trên {filteredHotels.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Trước
+              </button>
+              <span className="text-sm text-gray-600">
+                Trang {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Sau
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

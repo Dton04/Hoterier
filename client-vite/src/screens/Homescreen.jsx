@@ -47,9 +47,20 @@ function Homescreen() {
       try {
         const res = await fetch("/api/regions");
         const data = await res.json();
-        setRegions(data);
+        
+        // ✅ Kiểm tra nếu data có thuộc tính regions (pagination response)
+        if (data.regions && Array.isArray(data.regions)) {
+          setRegions(data.regions);
+        } else if (Array.isArray(data)) {
+          // Nếu trả về array trực tiếp (không có pagination)
+          setRegions(data);
+        } else {
+          console.error("Invalid regions data format:", data);
+          setRegions([]);
+        }
       } catch (err) {
         console.error("Error loading regions:", err);
+        setRegions([]);
       }
     };
     fetchRegions();
@@ -186,7 +197,7 @@ function Homescreen() {
               {
                 image: "./src/assets/icons/book.png",
                 title: "Đặt ngay, thanh toán sau",
-                desc: "Miễn phí hủy với hầu hết các phòng — linh hoạt như ý bạn.",
+                desc: "Miễn phí hủy với hầu hết các phòng – linh hoạt như ý bạn.",
                 color: "bg-blue-50",
               },
               {
@@ -219,7 +230,7 @@ function Homescreen() {
                     className="w-12 h-12 object-contain transition-transform duration-300 hover:scale-110"
                   />
                 </div>
-                <div class="text-left">
+                <div className="text-left">
                   <h3 className="text-lg font-semibold text-center text-[#003580] mb-2">
                     {item.title}
                   </h3>
