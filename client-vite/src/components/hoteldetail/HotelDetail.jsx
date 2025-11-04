@@ -74,7 +74,10 @@ export default function HotelDetail() {
 
         setHotel(hotelRes.data.hotel);
         setRooms(hotelRes.data.rooms);
-        setAmenities(amenityRes.data);
+        const amenityNames = Array.isArray(amenityRes.data)
+          ? amenityRes.data.map((a) => (typeof a === "string" ? a : a?.name)).filter(Boolean)
+          : [];
+        setAmenities(amenityNames);
         setServices(serviceRes.data);
         setReviews(reviewRes.data.reviews);
         setAverage(avgRes.data.average);

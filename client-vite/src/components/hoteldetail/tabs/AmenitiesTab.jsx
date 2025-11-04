@@ -39,14 +39,17 @@ export default function AmenitiesTab({ amenities = [] }) {
             {amenities.length === 0 ? (
               <p className="text-gray-600 text-sm">Chưa có dữ liệu tiện nghi.</p>
             ) : (
-              <div className="flex flex-wrap gap-3 items-center">
-                {visible.map((a, i) => (
-                  <div key={i} className="flex items-center gap-2 bg-green-50 border border-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
-                    <span className="w-4 h-4 flex items-center justify-center">{iconForAmenity(a)}</span>
-
-                    <span>{a}</span>
-                  </div>
-                ))}
+              <div className="flex flex-wrap gap-3 items_center">
+                {visible.map((a, i) => {
+                  const name = typeof a === "string" ? a : a?.name;
+                  if (!name) return null;
+                  return (
+                    <div key={i} className="flex items-center gap-2 bg-green-50 border border-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
+                      <span className="w-4 h-4 flex items-center justify-center">{iconForAmenity(name)}</span>
+                      <span>{name}</span>
+                    </div>
+                  );
+                })}
                 {amenities.length > visible.length && (
                   <button
                     onClick={() => setOpen(true)}
@@ -98,15 +101,18 @@ export default function AmenitiesTab({ amenities = [] }) {
 
             <div className="p-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {amenities.map((a, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <div className="mt-1 text-green-600">{iconForAmenity(a)}</div>
-
-                    <div>
-                      <div className="font-medium text-sm text-gray-800">{a}</div>
+                {amenities.map((a, i) => {
+                  const name = typeof a === "string" ? a : a?.name;
+                  if (!name) return null;
+                  return (
+                    <div key={i} className="flex items-start gap-3">
+                      <div className="mt-1 text-green-600">{iconForAmenity(name)}</div>
+                      <div>
+                        <div className="font-medium text-sm text-gray-800">{name}</div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

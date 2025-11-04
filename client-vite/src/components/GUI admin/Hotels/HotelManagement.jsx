@@ -299,7 +299,7 @@ const HotelManagement = () => {
         footer={null}
         width={1000}
         centered
-        destroyOnClose
+        destroyOnHidden
       >
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -566,21 +566,11 @@ const HotelManagement = () => {
         </div>
       </div>
 
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
-        }
-      `}</style>
+      <style>
+      {`
+        /* CSS nội tuyến hoặc chuyển sang file .css */
+      `}
+      </style>
     </div>
   );
 };
