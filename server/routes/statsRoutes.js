@@ -18,4 +18,9 @@ router.get("/booking-rate", protect, adminOrStaff, statsController.getBookingRat
 // @access  Private/Admin/Staff
 router.get("/review-stats", protect, adminOrStaff, statsController.getReviewStats);
 
+// @desc    Get revenue by cities of a region
+// @route   GET /api/stats/revenue/by-region-city
+// @access  Private/Admin/Staff
+router.get("/revenue/by-region-city", protect, adminOrStaff, statsController.getRevenueByRegionCity);
+
 module.exports = router;
