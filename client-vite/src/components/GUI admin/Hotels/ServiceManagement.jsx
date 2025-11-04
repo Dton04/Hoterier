@@ -3,7 +3,7 @@ import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Link } from 'react-router-dom';
-import { FiPlus } from 'react-icons/fi';
+import { Plus, Edit2, Power, Trash2 } from 'lucide-react';
 
 axios.interceptors.request.use(
   (config) => {
@@ -23,8 +23,12 @@ const ServiceManagement = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState(null);
   const [filters, setFilters] = useState({ hotelId: '', isAvailable: '' });
+  
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const servicesPerPage = 10;
 
-  // === NEW: modal state (Booking.com style overlay)
+  // Modal state
   const [showAddForm, setShowAddForm] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -37,7 +41,7 @@ const ServiceManagement = () => {
     requiresBooking: false,
   });
 
-  // lock scroll when modal open + ESC to close
+  // Lock scroll when modal open + ESC to close
   useEffect(() => {
     if (showAddForm) {
       document.body.classList.add('overflow-hidden');
@@ -65,6 +69,7 @@ const ServiceManagement = () => {
       if (filters.isAvailable !== '') params.append('isAvailable', filters.isAvailable);
       const { data } = await axios.get(`/api/services?${params}`);
       setServices(data);
+      setCurrentPage(1); // Reset to first page when filters change
     } catch (error) {
       toast.error('Lỗi khi lấy danh sách dịch vụ');
     } finally {
@@ -124,7 +129,7 @@ const ServiceManagement = () => {
         toast.success('Tạo dịch vụ thành công');
       }
       resetForm();
-      setShowAddForm(false); // close modal after submit
+      setShowAddForm(false);
       fetchServices();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Có lỗi xảy ra');
@@ -144,7 +149,7 @@ const ServiceManagement = () => {
       isFree: service.isFree,
       requiresBooking: service.requiresBooking,
     });
-    setShowAddForm(true); // open modal when edit
+    setShowAddForm(true);
   };
 
   const handleDelete = async (serviceId) => {
@@ -169,6 +174,12 @@ const ServiceManagement = () => {
     }
   };
 
+  // Pagination logic
+  const indexOfLastService = currentPage * servicesPerPage;
+  const indexOfFirstService = indexOfLastService - servicesPerPage;
+  const currentServices = services.slice(indexOfFirstService, indexOfLastService);
+  const totalPages = Math.ceil(services.length / servicesPerPage);
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <ToastContainer position="top-right" autoClose={3000} />
@@ -192,7 +203,7 @@ const ServiceManagement = () => {
               onClick={() => { resetForm(); setShowAddForm(true); }}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition"
             >
-              <FiPlus /> Thêm dịch vụ
+              <Plus size={18} /> Thêm dịch vụ
             </button>
 
             <div className="text-sm text-gray-500">
@@ -202,30 +213,25 @@ const ServiceManagement = () => {
         </div>
       </div>
 
-      {/* === Modal Overlay (Booking.com style) === */}
+      {/* Modal Overlay */}
       {showAddForm && (
         <div
           className="fixed inset-0 z-50"
           aria-modal="true"
           role="dialog"
         >
-          {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/50"
             onClick={() => { resetForm(); setShowAddForm(false); }}
           />
-          {/* Modal card */}
           <div className="relative z-50 mx-auto mt-20 w-[95%] max-w-[980px]">
             <div className="bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
-              {/* Modal Header */}
               <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-white">
                   {isEditing ? 'Chỉnh sửa dịch vụ' : 'Thêm dịch vụ mới'}
                 </h2>
-               
               </div>
 
-              {/* ORIGINAL FORM SECTION (được đặt vào trong modal) */}
               <form onSubmit={handleSubmit} className="p-6">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {/* Column 1: Basic Info */}
@@ -340,7 +346,7 @@ const ServiceManagement = () => {
         </div>
       )}
 
-      {/* Filter Section (giữ nguyên) */}
+      {/* Filter Section */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex-1 min-w-[200px]">
@@ -369,7 +375,7 @@ const ServiceManagement = () => {
         </div>
       </div>
 
-      {/* Table Section (giữ nguyên) */}
+      {/* Table Section */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -405,14 +411,14 @@ const ServiceManagement = () => {
                     </div>
                   </td>
                 </tr>
-              ) : services.length === 0 ? (
+              ) : currentServices.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="py-12 text-center text-gray-500">
                     Không có dịch vụ nào
                   </td>
                 </tr>
               ) : (
-                services.map((service) => (
+                currentServices.map((service) => (
                   <tr key={service._id} className="hover:bg-gray-50 transition-colors">
                     <td className="py-4 px-6">
                       <div className="flex items-start gap-3">
@@ -465,28 +471,28 @@ const ServiceManagement = () => {
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => handleEdit(service)}
-                          className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Chỉnh sửa"
                         >
-                          Sửa
+                          <Edit2 size={16} />
                         </button>
                         <button
                           onClick={() => handleToggleAvailability(service._id)}
-                          className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                          className={`p-2 rounded-lg transition-colors ${
                             service.isAvailable
-                              ? 'text-orange-700 bg-orange-50 hover:bg-orange-100'
-                              : 'text-green-700 bg-green-50 hover:bg-green-100'
+                              ? 'text-orange-600 hover:bg-orange-50'
+                              : 'text-green-600 hover:bg-green-50'
                           }`}
                           title={service.isAvailable ? 'Tạm ngưng' : 'Kích hoạt'}
                         >
-                          {service.isAvailable ? 'Tắt' : 'Bật'}
+                          <Power size={16} />
                         </button>
                         <button
                           onClick={() => handleDelete(service._id)}
-                          className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Xóa"
                         >
-                          Xóa
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </td>
@@ -496,6 +502,34 @@ const ServiceManagement = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {!loading && services.length > 0 && (
+          <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200">
+            <p className="text-sm text-gray-600">
+              Hiển thị {indexOfFirstService + 1}-{Math.min(indexOfLastService, services.length)} trên {services.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Trước
+              </button>
+              <span className="text-sm text-gray-600">
+                Trang {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Sau
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
