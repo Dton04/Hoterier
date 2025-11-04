@@ -41,7 +41,7 @@ import UserStaffManagement from "./components/GUI admin/Users/UserStaffManagemen
 
 import AdminBookings from "./components/GUI admin/Bookings/AdminBookings";
 import HotelManagement from "./components/GUI admin/Hotels/HotelManagement";
-import HotelRoomManagement from "./components/HotelRoomManagement";
+import HotelRoomManagement from "./components/GUI admin/Hotels/HotelRoomManagement";
 import ServiceManagement from "./components/GUI admin/Hotels/ServiceManagement";
 import AdminDiscounts from "./components/GUI admin/Discounts/AdminDiscounts";
 import AdminRewards from "./components/GUI admin/Discounts/AdminRewards";
