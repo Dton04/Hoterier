@@ -11,6 +11,13 @@ const regionSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
+    trim: true,
+  },
+  domain: {
+    type: String,
+    enum: ['north', 'central', 'south', 'other'],
+    default: 'other',
+    required: true,
   },
   cities: [citySchema], // 🏙️ Thêm danh sách thành phố trực thuộc
   adminId: {
@@ -28,5 +35,8 @@ const regionSchema = new mongoose.Schema({
     default: Date.now,
   },
 });
+
+// Index để tìm kiếm nhanh hơn
+regionSchema.index({ domain: 1 });
 
 module.exports = mongoose.model('Region', regionSchema);
