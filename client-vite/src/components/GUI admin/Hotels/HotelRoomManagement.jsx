@@ -256,7 +256,9 @@ function HotelRoomManagement() {
         <h3 className="text-xl font-semibold text-slate-800 mb-6 border-b border-gray-200 pb-4">
           {isEditing ? 'Chỉnh sửa thông tin phòng' : 'Thêm phòng mới'}
         </h3>
-        <form onSubmit={handleSubmit}>
+
+        {/* THAY form lồng nhau bằng div */}
+        <div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Các trường input */}
             <InputField label="Tên phòng" name="name" value={formData.name} onChange={handleInputChange} required />
@@ -266,7 +268,7 @@ function HotelRoomManagement() {
             <InputField label="Số lượng phòng" name="quantity" type="number" value={formData.quantity} onChange={handleInputChange} required />
             <InputField label="Giá mỗi ngày (VNĐ)" name="rentperday" type="number" value={formData.rentperday} onChange={handleInputChange} required />
             <InputField label="Loại phòng" name="type" value={formData.type} onChange={handleInputChange} required />
-            
+
             <div className="mb-4">
               <label className="block mb-2 text-sm font-medium text-slate-700">Trạng thái</label>
               <select name="availabilityStatus" value={formData.availabilityStatus} onChange={handleInputChange} className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-blue-500">
@@ -339,63 +341,57 @@ function HotelRoomManagement() {
                 )}
               </div>
             </div>
+          </div>
 
-            <div className="mb-4 md:col-span-2">
-              <label className="block mb-2 text-sm font-medium text-slate-700">Mô tả</label>
-              <textarea name="description" value={formData.description} onChange={handleInputChange} rows="3" className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
-            </div>
-            
-            <div className="mb-4">
-                <label className="block mb-2 text-sm font-medium text-slate-700">Ảnh phòng</label>
-                <input type="file" multiple accept="image/*" onChange={handleImageChange} id="image-upload-room"
-                  className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
-            </div>
-          </div>
-        )}
+          {/* XÓA dòng ')}' thừa tại đây */}
 
-        {success && (
-          <div className="mt-4 bg-green-100 border border-green-300 text-green-800 px-4 py-2 rounded animate-fade-in">
-            {success}
-          </div>
-        )}
-        {error && (
-          <div className="mt-4 bg-red-100 border border-red-300 text-red-800 px-4 py-2 rounded animate-fade-in">
-            {error}
-          </div>
-        )}
-        <div className="mt-6 flex items-center gap-3">
-          <button
-            type="submit"
-            className="bg-[#0071c2] text-white px-6 py-2 rounded-md hover:bg-[#005fa3]"
-          >
-            {isEditing ? "Cập nhật phòng" : "Thêm phòng"}
-          </button>
-          {isEditing && (
-            <button
-              type="button"
-              className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md"
-              onClick={() => {
-                setIsEditing(false);
-                setFormData({
-                  name: "",
-                  maxcount: "",
-                  beds: "",
-                  baths: "",
-                  quantity: "",
-                  rentperday: "",
-                  type: "",
-                  description: "",
-                  amenities: [],
-                  availabilityStatus: "available",
-                  imageurls: [],
-                });
-              }}
-            >
-              Hủy
-            </button>
+          {success && (
+            <div className="mt-4 bg-green-100 border border-green-300 text-green-800 px-4 py-2 rounded animate-fade-in">
+              {success}
+            </div>
           )}
+          {error && (
+            <div className="mt-4 bg-red-100 border border-red-300 text-red-800 px-4 py-2 rounded animate-fade-in">
+              {error}
+            </div>
+          )}
+          <div className="mt-6 flex items-center gap-3">
+            <button
+              type="submit"
+              className="bg-[#0071c2] text-white px-6 py-2 rounded-md hover:bg-[#005fa3]"
+            >
+              {isEditing ? "Cập nhật phòng" : "Thêm phòng"}
+            </button>
+            {isEditing && (
+              <button
+                type="button"
+                className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md"
+                onClick={() => {
+                  setIsEditing(false);
+                  setFormData({
+                    name: "",
+                    maxcount: "",
+                    beds: "",
+                    baths: "",
+                    quantity: "",
+                    rentperday: "",
+                    type: "",
+                    description: "",
+                    amenities: [],
+                    availabilityStatus: "available",
+                    imageurls: [],
+                  });
+                }}
+              >
+                Hủy
+              </button>
+            )}
+          </div>
         </div>
-      </form>
+      </div>
+
+      {/* ĐÓNG form chính */}
+    </form>
 
       {/* 📋 Rooms Table */}
       <div className="bg-white border border-gray-200 rounded-lg shadow overflow-x-auto">
