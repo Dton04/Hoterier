@@ -2,6 +2,7 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { Provider } from 'react-redux';
 import store from './redux/store';
+import ChatBubble from './components/chat/ChatBubble';
 
 // Import Layouts
 import AdminLayout from "./components/admin dashboard/AdminLayout";
@@ -98,6 +99,7 @@ const UserLayout = () => (
       <Outlet />
     </main>
     <Footer />
+    <ChatBubble />
   </>
 );
 
