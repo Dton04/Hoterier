@@ -11,6 +11,7 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
    const [currentImage, setCurrentImage] = useState(0);
    const navigate = useNavigate();
 
+
    if (rooms.length === 0)
       return <p className="text-gray-600">Hiện khách sạn chưa có phòng nào.</p>;
 
@@ -45,160 +46,163 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
 
 
          <div className="overflow-x-auto border rounded-lg shadow-sm max-w-6xl mx-auto">
-            <table className="w-auto border-collapse text-[13px] leading-tight">
+  <table className="w-auto border-collapse text-[13px] leading-tight">
+    <thead>
+      <tr className="bg-blue-50 text-sm font-semibold text-gray-700 border-b ">
+        <th className="px-3 py-2 text-left w-[25%] bg-sky-600  text-white border-r border-blue-300">Loại chỗ nghỉ</th>
+        <th className="px-2 py-2 text-center w-[10%] bg-sky-600 text-white border-r border-blue-300">Số lượng khách</th>
+        <th className="px-2 py-2 text-center w-[15%] bg-sky-800 text-white border-r border-blue-300">Giá hôm nay</th>
+        <th className="px-2 py-2 text-left w-[20%] bg-sky-600 text-white border-r border-blue-300" >Các lựa chọn</th>
+        <th className="px-2 py-2 text-center w-[10%] bg-sky-600 text-white border-r border-blue-300">Chọn phòng</th>
+        <th className="px-2 py-2 text-center w-[15%] bg-sky-600 text-white border-r border-blue-300">Đặt phòng</th>
+      </tr>
+    </thead>
 
-               <thead>
-                  <tr className="bg-blue-50 text-sm font-semibold text-gray-700 border-b">
-                     <th className="px-3 py-2 text-left w-[20%]">Loại chỗ nghỉ</th>
-                     <th className="px-2 py-2 text-center w-[1%]">Số lượng khách</th>
-                     <th className="px-2 py-2 text-center w-[15%]">Giá hôm nay</th>
-                     <th className="px-2 py-2 text-left w-[20%]">Các lựa chọn</th>
-                     <th className="px-2 py-2 text-center w-[10%]">Chọn phòng</th>
-                  </tr>
-               </thead>
-
-               <tbody>
-                  {rooms.map((room) => (
-                     <tr
-                        key={room._id}
-                        className={`border-b transition text-[13px] leading-tight ${room.availabilityStatus !== "available"
-                           ? "bg-gray-100 opacity-70"
-                           : "hover:bg-blue-50"
-                           }`}
-                     >
-                        {/* Loại chỗ nghỉ */}
-                        <td
-                           className="py-1.5 px-2 align-top cursor-pointer"
-                           onClick={() => {
-                              setSelectedRoom(room);
-                              setCurrentImage(0);
-                           }}
-                        >
-                           <h3 className="font-semibold text-blue-700 hover:underline text-[14px] mb-0.5">
-                              {room.name}
-                           </h3>
-
-                           <p className="text-gray-600 text-[13px] leading-snug mb-0.5">
-                              {room.type} • {room.beds} giường • {room.baths} phòng tắm
-                           </p>
-
-                           {room.availabilityStatus !== "available" ? (
-                              <p className="text-red-600 text-sm font-medium mt-1">
-                                 ⚠️ Phòng hiện không có sẵn để đặt
-                              </p>
-                           ) : (
-                              <>
-                                 <ul className="list-disc ml-4 text-gray-700 text-[13px] leading-snug space-y-0">
-                                    {room.amenities?.slice(0, 3).map((a, i) => {
-                                       const name = typeof a === "string" ? a : a?.name;
-                                       return <li key={i}>{name}</li>;
-                                    })}
-                                 </ul>
-                                 <p className="text-gray-500 text-[12px] mt-0.5">
-                                    Diện tích: {room.size || "—"} m²
-                                 </p>
-                              </>
-                           )}
-                        </td>
-
-                        {/* Số lượng khách */}
-                        <td className="py-1.5 px-2 text-center align-middle">
-                           <div className="flex justify-center gap-0.5">
-                              {Array.from({ length: room.maxcount || 2 }).map((_, i) => (
-                                 <User key={i} className="text-gray-700" size={15} />
-                              ))}
-                           </div>
-                        </td>
-
-                        {/* Giá hôm nay */}
-                        <td className="p-2 text-center align-middle">
-                           {room.rentperday ? (
-                              <>
-                                 {room.oldPrice && (
-                                    <p className="text-xs text-gray-400 line-through">
-                                       VND {room.oldPrice.toLocaleString()}
-                                    </p>
-                                 )}
-                                 <p className="text-lg font-bold text-blue-600">
-                                    VND {room.rentperday.toLocaleString()}
-                                 </p>
-                                 <p className="text-xs text-gray-500">Đã bao gồm thuế và phí</p>
-                              </>
-                           ) : (
-                              <p className="text-gray-500 text-sm">Chưa có giá</p>
-                           )}
-                        </td>
-
-                        {/* Các lựa chọn */}
-                        <td className="p-2 align-top text-sm leading-snug">
-                           {room.availabilityStatus === "available" ? (
-                              <ul className="space-y-1 text-gray-700">
-                                 <li className="flex items-center gap-1 text-green-600">
-                                    <CheckCircle2 size={14} /> Bao gồm nhận phòng sớm + trả phòng trễ
-                                 </li>
-                                 <li className="flex items-center gap-1 text-green-600">
-                                    <CheckCircle2 size={14} /> Thanh toán tại khách sạn
-                                 </li>
-                                 <li className="flex items-center gap-1 text-red-500">
-                                    <XCircle size={14} /> Không hoàn tiền
-                                 </li>
-                              </ul>
-                           ) : (
-                              <p className="text-red-600 text-sm italic">
-                                 Không thể chọn do phòng đang bận / bảo trì.
-                              </p>
-                           )}
-                        </td>
-
-                        {/* Chọn phòng */}
-                        <td className="p-2 text-center align-middle">
-                           <select
-                              value={quantities[room._id] || 0}
-                              onChange={(e) => handleQuantityChange(room._id, e.target.value)}
-                              className="border rounded-md px-2 py-1 text-sm"
-                              disabled={room.availabilityStatus !== "available"}
-                           >
-                              <option value="0">0</option>
-                              {[1, 2, 3, 4, 5].map((n) => (
-                                 <option key={n} value={n}>
-                                    {n}
-                                 </option>
-                              ))}
-                           </select>
-                        </td>
-                     </tr>
+    <tbody>
+      {rooms.map((room) => (
+        <tr
+          key={room._id}
+          className={`border-b transition text-[13px] ${
+            room.availabilityStatus !== "available"
+              ? "bg-gray-100 opacity-70"
+              : "hover:bg-blue-50"
+          }`}
+        >
+          {/* Loại chỗ nghỉ */}
+          <td className="py-3 px-3 align-top border-r border-blue-300 cursor-pointer" onClick={() => {
+            setSelectedRoom(room);
+            setCurrentImage(0);
+          }}>
+            <h3 className="font-semibold text-blue-700 hover:underline text-[14px] mb-1">
+              {room.name}
+            </h3>
+            <p className="text-gray-600 text-[13px] mb-1 line-clamp-2">
+              {room.description?.slice(0, 120) || ""}
+              {room.description?.length > 120 && "..."}
+            </p>
+            <p className="text-gray-700 text-[13px] mb-1">
+              {room.type} • {room.beds} giường • {room.baths} phòng tắm
+            </p>
+            {room.availabilityStatus !== "available" ? (
+              <p className="text-red-600 text-sm font-medium mt-1">
+                ⚠️ Phòng hiện không có sẵn để đặt
+              </p>
+            ) : (
+              <>
+                <ul className="list-disc ml-4 text-gray-700 text-[13px] leading-snug space-y-0.5">
+                  {room.amenities?.slice(0, 5).map((a, i) => (
+                    <li key={i}>{typeof a === "string" ? a : a?.name}</li>
                   ))}
-               </tbody>
+                </ul>
+                <div className="text-gray-500 text-[12px] mt-1 space-y-0.5">
+                  <p>📐 Diện tích: {room.size || "—"} m²</p>
+                  <p>🚭 Hút thuốc: Không</p>
+                  <p>🏢 Tầng: {room.floor || "Tùy theo tình trạng"}</p>
+                </div>
+              </>
+            )}
+          </td>
 
-            </table>
-         </div>
-
-         {/* Nút đặt duy nhất */}
-         {Object.values(quantities).some((q) => q > 0) && (
-            <div className="flex justify-end mt-4">
-               <button
-                  onClick={() => {
-                     const selected = rooms.filter((r) => (quantities[r._id] || 0) > 0);
-                     if (selected.length === 0) return;
-                     const selectedRoom = selected[0];
-
-                     // Điều hướng sang trang Bookingscreen
-                     navigate(`/book/${selectedRoom._id}`, {
-                        state: {
-                           room: selectedRoom,
-                           checkin: localStorage.getItem("checkin") || null,
-                           checkout: localStorage.getItem("checkout") || null,
-                           adults: localStorage.getItem("adults") || 2,
-                           children: localStorage.getItem("children") || 0,
-                        },
-                     });
-                  }}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition"
-               >
-                  Tôi sẽ đặt
-               </button>
+          {/* Số lượng khách */}
+          <td className="py-1.5 px-2 text-center align-middle border-r border-blue-300">
+            <div className="flex justify-center gap-0.5">
+              {Array.from({ length: room.maxcount || 2 }).map((_, i) => (
+                <User key={i} className="text-gray-700" size={15} />
+              ))}
             </div>
-         )}
+          </td>
+
+          {/* Giá hôm nay */}
+          <td className="p-2 text-center align-middle border-r border-blue-300">
+            {room.rentperday ? (
+              <>
+                {room.oldPrice && (
+                  <p className="text-xs text-gray-400 line-through">
+                    VND {room.oldPrice.toLocaleString()}
+                  </p>
+                )}
+                <p className="text-lg font-bold text-blue-700">
+                  VND {room.rentperday.toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-500">Đã bao gồm thuế và phí</p>
+              </>
+            ) : (
+              <p className="text-gray-500 text-sm">Chưa có giá</p>
+            )}
+          </td>
+
+          {/* Các lựa chọn */}
+          <td className="p-2 align-top text-sm leading-snug border-r border-blue-300">
+            {room.availabilityStatus === "available" ? (
+              <ul className="space-y-1 text-gray-700">
+                <li className="flex items-center gap-1 text-green-600">
+                  <CheckCircle2 size={14} /> Bao gồm nhận phòng sớm + trả phòng trễ
+                </li>
+                <li className="flex items-center gap-1 text-green-600">
+                  <CheckCircle2 size={14} /> Thanh toán tại khách sạn
+                </li>
+                <li className="flex items-center gap-1 text-red-500">
+                  <XCircle size={14} /> Không hoàn tiền
+                </li>
+              </ul>
+            ) : (
+              <p className="text-red-600 text-sm italic">
+                Không thể chọn do phòng đang bận / bảo trì.
+              </p>
+            )}
+          </td>
+
+          {/* Chọn phòng */}
+          <td className="p-2 text-center align-middle border-r border-blue-300">
+            <select
+              value={quantities[room._id] || 0}
+              onChange={(e) => handleQuantityChange(room._id, e.target.value)}
+              className="border rounded-md px-2 py-1 text-sm"
+              disabled={room.availabilityStatus !== "available"}
+            >
+              <option value="0">0</option>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </td>
+
+          {/* ✅ Nút “Tôi sẽ đặt” hiển thị bên phải cùng hàng */}
+          <td className="p-2 text-center align-middle">
+            {quantities[room._id] > 0 && (
+              <div className="flex flex-col items-center space-y-2">
+                <button
+                  onClick={() => {
+                    navigate(`/book/${room._id}`, {
+                      state: {
+                        room,
+                        checkin: localStorage.getItem("checkin"),
+                        checkout: localStorage.getItem("checkout"),
+                        adults: localStorage.getItem("adults"),
+                        children: localStorage.getItem("children"),
+                      },
+                    });
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-5 py-2 rounded-md shadow-md transition"
+                >
+                  Tôi sẽ đặt
+                </button>
+                <ul className="text-[12px] text-gray-700 space-y-1 text-left">
+                  <li>• Chỉ mất có 2 phút</li>
+                  <li>• Bạn sẽ không bị trừ tiền ngay</li>
+                </ul>
+              </div>
+            )}
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
+
+
 
 
 
@@ -261,8 +265,8 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
                                  onClick={() => setCurrentImage(i)}
                                  alt=""
                                  className={`w-20 h-16 object-cover rounded-md cursor-pointer border transition ${i === currentImage
-                                       ? "border-blue-600 shadow-sm"
-                                       : "border-gray-300 opacity-80 hover:opacity-100"
+                                    ? "border-blue-600 shadow-sm"
+                                    : "border-gray-300 opacity-80 hover:opacity-100"
                                     }`}
                               />
                            ))}
@@ -318,7 +322,7 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
                               </ul>
                            </div>
 
-                             <div>
+                           <div>
                               <ul>
                                  <strong>Hút thuốc:</strong> <span>Không được hút thuốc</span>
                               </ul>

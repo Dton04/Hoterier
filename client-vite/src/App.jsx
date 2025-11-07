@@ -48,6 +48,7 @@ import AdminRewards from "./components/GUI admin/Discounts/AdminRewards";
 import ReviewManagement from "./components/GUI admin/Bookings/ReviewManagement";
 import AdminRegions from "./components/GUI admin/Regions/AdminRegions";
 import AmenityManagement from "./components/GUI admin/Hotels/AmenityManagement";
+import HotelServiceManagement from "./components/GUI admin/Hotels/HotelServiceManagement";
 import CreateRoomForm from "./components/CreateRoomForm";
 import EditRoomForm from "./components/EditRoomForm";
 
@@ -161,6 +162,7 @@ function App() {
             <Route path="bookings" element={<AdminBookings />} />
             <Route path="hotels" element={<HotelManagement />} />
             <Route path="hotel/:hotelId/rooms" element={<HotelRoomManagement />} />
+            <Route path="hotel-services" element={<HotelServiceManagement />} />
             <Route path="services" element={<ServiceManagement />} />
             <Route path="discounts" element={<AdminDiscounts />} />
             <Route path="rewards" element={<AdminRewards />} />

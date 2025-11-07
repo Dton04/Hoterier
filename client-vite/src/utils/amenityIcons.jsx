@@ -30,16 +30,18 @@ import {
 
 export const AMENITY_ICONS = [
   // ====== Tiện nghi nổi bật ======
-  { keywords: ["wifi"], icon: Wifi, color: "text-green-600" },
-  { keywords: ["bữa sáng", "breakfast"], icon: Coffee, color: "text-yellow-600" },
-  { keywords: ["xe", "đưa đón", "sân bay"], icon: Bus, color: "text-blue-600" },
-  { keywords: ["không hút thuốc", "cấm hút thuốc"], icon: CigaretteOff, color: "text-gray-600" },
-  { keywords: ["spa", "chăm sóc sức khỏe"], icon: Activity, color: "text-pink-600" },
-  { keywords: ["thể dục", "gym", "fitness"], icon: Dumbbell, color: "text-blue-500" },
-  { keywords: ["dịch vụ phòng", "room service"], icon: Building2, color: "text-green-700" },
-  { keywords: ["nhà hàng", "restaurant"], icon: Utensils, color: "text-orange-600" },
-  { keywords: ["bar", "quầy bar"], icon: Coffee, color: "text-purple-600" },
-  { keywords: ["hồ bơi", "bể bơi", "pool"], icon: Waves, color: "text-cyan-500" },
+{ keywords: ["wifi"], icon: Wifi, color: "text-green-600" },
+{ keywords: ["bữa sáng", "breakfast"], icon: Coffee, color: "text-yellow-600" },
+{ keywords: ["đỗ xe", "bãi đỗ xe", "thuê xe", "xe đưa đón", "car", "parking"], icon: Car, color: "text-sky-600" },
+{ keywords: ["sân bay", "đưa đón sân bay"], icon: Bus, color: "text-blue-600" },
+{ keywords: ["không hút thuốc", "cấm hút thuốc"], icon: CigaretteOff, color: "text-gray-600" },
+{ keywords: ["spa", "chăm sóc sức khỏe"], icon: Activity, color: "text-pink-600" },
+{ keywords: ["thể dục", "gym", "fitness"], icon: Dumbbell, color: "text-blue-500" },
+{ keywords: ["dịch vụ phòng", "room service"], icon: Building2, color: "text-green-700" },
+{ keywords: ["Nhà hàng", "restaurant"], icon: Utensils, color: "text-orange-600" },
+{ keywords: ["bar", "quầy bar"], icon: Coffee, color: "text-purple-600" },
+{ keywords: ["hồ bơi", "bể bơi", "pool"], icon: Waves, color: "text-cyan-500" },
+
 
   // ====== Cực kỳ phù hợp cho kỳ lưu trú ======
   { keywords: ["phòng tắm riêng", "bồn tắm"], icon: Bath, color: "text-blue-400" },

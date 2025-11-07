@@ -13,6 +13,7 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { label: "Đặt phòng", icon: <FiFileText />, path: "/admin/bookings" },
     { label: "Người dùng & NV", icon: <FiUsers />, path: "/admin/users" },
     { label: "Khách sạn", icon: <FiHome />, path: "/admin/hotels" },
+     { label: "Dịch vụ khách sạn (chung)", icon: <FiServer />, path: "/admin/hotel-services" },
     { label: "Dịch vụ khách sạn", icon: <FiServer />, path: "/admin/services" },
     { label: "Tiện nghi phòng", icon: <FiRotateCcw />, path: "/admin/amenities" },
     { label: "Giảm giá", icon: <FiTag />, path: "/admin/discounts" },

@@ -30,7 +30,7 @@ export default function AmenitiesTab({ amenities = [] }) {
 
   return (
     <div className="bg-white rounded-xl border shadow-sm p-6">
-    
+
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
@@ -39,17 +39,23 @@ export default function AmenitiesTab({ amenities = [] }) {
             {amenities.length === 0 ? (
               <p className="text-gray-600 text-sm">Chưa có dữ liệu tiện nghi.</p>
             ) : (
-              <div className="flex flex-wrap gap-3 items_center">
+              <div className="flex flex-wrap gap-3 items-center">
                 {visible.map((a, i) => {
                   const name = typeof a === "string" ? a : a?.name;
                   if (!name) return null;
                   return (
-                    <div key={i} className="flex items-center gap-2 bg-green-50 border border-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
-                      <span className="w-4 h-4 flex items-center justify-center">{iconForAmenity(name)}</span>
+                    <div
+                      key={i}
+                      className="flex items-center gap-2 bg-[#f0fdf4] border border-green-100 text-gray-800 px-3 py-1.5 rounded-full text-sm shadow-sm"
+                    >
+                      <span className="w-4 h-4 flex items-center justify-center">
+                        {iconForAmenity(name)}
+                      </span>
                       <span>{name}</span>
                     </div>
                   );
                 })}
+
                 {amenities.length > visible.length && (
                   <button
                     onClick={() => setOpen(true)}
@@ -64,7 +70,7 @@ export default function AmenitiesTab({ amenities = [] }) {
             )}
           </section>
 
-       
+
         </div>
       </div>
 
@@ -121,4 +127,4 @@ export default function AmenitiesTab({ amenities = [] }) {
     </div>
   );
 }
- 
+

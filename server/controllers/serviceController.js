@@ -7,16 +7,25 @@ const mongoose = require('mongoose');
 // @access  Public
 exports.getServices = async (req, res) => {
   try {
-    const { hotelId, isAvailable } = req.query;
+    const { hotelId, isAvailable, global } = req.query;
     const filter = {};
 
+    // 🏨 Nếu global=true → lấy dịch vụ chung, không gắn hotel
+    if (global === 'true') filter.$or = [{ hotelId: null }, { hotelId: { $exists: false } }];
+
+
+    // 🏨 Nếu có hotelId → chỉ lấy dịch vụ của khách sạn đó
     if (hotelId) {
       if (!mongoose.Types.ObjectId.isValid(hotelId)) {
         return res.status(400).json({ message: 'ID khách sạn không hợp lệ' });
       }
       filter.hotelId = hotelId;
     }
-    if (isAvailable !== undefined) filter.isAvailable = isAvailable === 'true';
+
+    // ⚙️ Trạng thái hoạt động
+    if (isAvailable !== undefined && isAvailable !== '') {
+      filter.isAvailable = isAvailable === 'true';
+    }
 
     const services = await Service.find(filter)
       .populate('hotelId', 'name address')
@@ -25,9 +34,13 @@ exports.getServices = async (req, res) => {
     res.json(services);
   } catch (error) {
     console.error('Error fetching services:', error);
-    res.status(500).json({ message: 'Lỗi server khi lấy danh sách dịch vụ', error: error.message });
+    res.status(500).json({
+      message: 'Lỗi server khi lấy danh sách dịch vụ',
+      error: error.message,
+    });
   }
 };
+
 
 // @desc    Get service by ID
 // @route   GET /api/services/:id
@@ -51,7 +64,7 @@ exports.getServiceById = async (req, res) => {
   }
 };
 
-// @desc    Create new service
+// @desc    Create or assign existing service
 // @route   POST /api/services
 // @access  Private/Admin
 exports.createService = async (req, res) => {
@@ -72,34 +85,65 @@ exports.createService = async (req, res) => {
       isFree
     } = req.body;
 
-    // Validate input
-    if (!name || !hotelId) {
-      throw new Error('Tên và ID khách sạn là bắt buộc');
-    }
-    if (!mongoose.Types.ObjectId.isValid(hotelId)) {
-      throw new Error('ID khách sạn không hợp lệ');
+    if (!name) throw new Error('Tên dịch vụ là bắt buộc');
+
+    let existingService;
+
+    // ✅ 1. Nếu có hotelId → gán cho khách sạn
+    if (hotelId) {
+      if (!mongoose.Types.ObjectId.isValid(hotelId)) {
+        throw new Error('ID khách sạn không hợp lệ');
+      }
+
+      const hotel = await Hotel.findById(hotelId).session(session);
+      if (!hotel) throw new Error('Không tìm thấy khách sạn');
+
+      // 🔍 Kiểm tra nếu dịch vụ đã tồn tại cho khách sạn này
+      existingService = await Service.findOne({
+        hotelId,
+        name: { $regex: new RegExp(`^${name}$`, "i") }
+      }).session(session);
+
+      if (existingService) {
+        await session.commitTransaction();
+        return res.status(200).json({
+          message: `Dịch vụ "${name}" đã tồn tại cho khách sạn này.`,
+          service: existingService
+        });
+      }
     }
 
-    // Validate hotel exists
-    const hotel = await Hotel.findById(hotelId).session(session);
-    if (!hotel) {
-      throw new Error('Không tìm thấy khách sạn');
+    // ✅ 2. Nếu là dịch vụ chung (global)
+    if (!hotelId) {
+      existingService = await Service.findOne({
+        hotelId: { $in: [null, undefined] },
+        name: { $regex: new RegExp(`^${name}$`, "i") }
+      }).session(session);
+
+      if (existingService) {
+        await session.commitTransaction();
+        return res.status(200).json({
+          message: `Dịch vụ "${name}" đã tồn tại trong danh sách chung.`,
+          service: existingService
+        });
+      }
     }
 
-    const service = new Service({
+    // ✅ 3. Nếu không tồn tại → tạo mới
+    const newService = new Service({
       name,
       description,
       price: isFree ? 0 : (price || 0),
       icon,
-      hotelId,
+      hotelId: hotelId || null,
       imageUrl,
       operatingHours,
       capacity: capacity || 0,
       requiresBooking: requiresBooking || false,
-      isFree: isFree || false,
+      isFree: isFree || false
     });
 
-    const createdService = await service.save({ session });
+    const createdService = await newService.save({ session });
     const populatedService = await Service.findById(createdService._id)
       .populate('hotelId', 'name address')
       .session(session);
@@ -109,15 +153,12 @@ exports.createService = async (req, res) => {
   } catch (error) {
     await session.abortTransaction();
     console.error('Error creating service:', error);
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({ message: messages.join(', ') });
-    }
-    res.status(500).json({ message: 'Lỗi server khi tạo dịch vụ', error: error.message });
+    res.status(500).json({ message: 'Lỗi khi thêm/gán dịch vụ', error: error.message });
   } finally {
     session.endSession();
   }
 };
+
 
 // @desc    Update service
 // @route   PUT /api/services/:id
@@ -150,7 +191,7 @@ exports.updateService = async (req, res) => {
     }
 
     service.name = name || service.name;
-    service.description = description != undefined ? description: service.description;
+    service.description = description != undefined ? description : service.description;
     service.price = isFree ? 0 : (price || service.price);
     service.icon = icon || service.icon;
     service.imageUrl = imageUrl || service.imageUrl;
@@ -220,9 +261,9 @@ exports.getServicesByHotel = async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.hotelId)) {
       return res.status(400).json({ message: 'ID khách sạn không hợp lệ' });
     }
-    const services = await Service.find({ 
+    const services = await Service.find({
       hotelId: req.params.hotelId,
-      isAvailable: true 
+      isAvailable: true
     }).sort({ name: 1 });
 
     res.json(services);

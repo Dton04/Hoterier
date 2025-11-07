@@ -10,11 +10,12 @@ import DiscountTab from "./tabs/DiscountTab";
 import RulesTab from "./tabs/RulesTab";
 import Banner from "../Banner";
 import BookingForm from "../BookingForm";
-
+import ServicesTab from "./tabs/ServicesTab";
 import HeaderTab from "./tabs/HeaderTab"
 
 
 import Loader from "../Loader";
+import HotelHighlights from "./tabs/HotelHighlights";
 
 export default function HotelDetail() {
   const { id } = useParams();
@@ -110,7 +111,7 @@ export default function HotelDetail() {
           ></div>
 
           {/* Panel nửa màn hình bên phải */}
-          <div className="w-full sm:w-[55%] md:w-[50%] lg:w-[45%] bg-white shadow-2xl h-full overflow-y-auto animate-slide-left relative">
+          <div className="w-full sm:w-[55%] md:w-[50%] lg:w-[55%] bg-white shadow-2xl h-full overflow-y-auto animate-slide-left relative">
             <button
               onClick={() => setShowReviews(false)}
               className="absolute top-4 right-4 text-gray-500 hover:text-red-500 text-2xl"
@@ -203,7 +204,13 @@ export default function HotelDetail() {
         {/* ======= TỔNG QUAN ======= */}
         <section id="overview" className="grid lg:grid-cols-3 gap-6">
           {/* BÊN TRÁI: ảnh + mô tả */}
+
           <div className="lg:col-span-2 space-y-4 relative">
+            <h1 className="text-3xl font-bold mb-2">{hotel.name}</h1>
+            <p className="text-gray-600 flex items-center gap-2 mb-2">
+              <MapPin size={18} /> {hotel.address}
+            </p>
+
             {/* Ảnh khách sạn */}
             <div className="grid grid-cols-3 gap-3 relative">
               <img
@@ -233,16 +240,7 @@ export default function HotelDetail() {
 
             {/* Giới thiệu */}
             <div>
-              <h1 className="text-3xl font-bold mb-2">{hotel.name}</h1>
-              <p className="text-gray-600 flex items-center gap-2 mb-2">
-                <MapPin size={18} /> {hotel.address}
-              </p>
-              <div className="flex items-center gap-2 mb-4">
-                <Star className="text-yellow-500" />
-                <span className="font-medium">
-                  {average.toFixed(1)} / 5 ({reviews.length} đánh giá)
-                </span>
-              </div>
+
               {/* Description with show more */}
               <div className="text-gray-700 leading-relaxed max-w-full">
                 {hotel.description && hotel.description.length > 400 ? (
@@ -263,10 +261,15 @@ export default function HotelDetail() {
                   <p>{hotel.description}</p>
                 )}
               </div>
+              {/* ======= TIỆN NGHI ======= */}
+              <section id="amenities">
+                <ServicesTab services={services} amenities={amenities} />
+
+              </section>
             </div>
           </div>
 
-          {/* BÊN PHẢI: đánh giá + bản đồ */}
+          {/* BÊN PHẢI: Fánh giá + bản đồ */}
           <div className="lg:col-span-1">
             <OverviewTab
               hotel={hotel}
@@ -275,12 +278,17 @@ export default function HotelDetail() {
               onShowReviews={() => setShowReviews(true)}
             />
 
+            <div className="mt-6">
+              <HotelHighlights hotel={hotel} />
+            </div>
+
+
           </div>
+
+
+
         </section>
-        {/* ======= TIỆN NGHI ======= */}
-        <section id="amenities">
-          <AmenitiesTab amenities={amenities} services={services} />
-        </section>
+
 
         {/* ======= THÔNG TIN & GIÁ ======= */}
         <section id="rooms" ref={roomsRef}>

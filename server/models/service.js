@@ -24,10 +24,11 @@ const serviceSchema = new mongoose.Schema({
     default: true
   },
   hotelId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Hotel',
-    required: true
-  },
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'Hotel',
+  required: false, 
+},
+
   imageUrl: {
     type: String,
     default: ''
