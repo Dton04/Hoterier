@@ -22,7 +22,7 @@ import ProfileDetails from "./components/ProfileDetails";
 import GoogleCallBack from "./screens/Auth/GoogleCallBack";
 import FacebookCallBack from "./screens/Auth/FacebookCallBack";
 import Membership from "./components/Membership";
-import RoomResults from "./components/RoomResults";
+import HotelResults from "./components/HotelResult/HotelResults";
 import Rewards from "./components/Rewards";
 import VNPaySuccess from "./components/VNPaySuccess";
 import VerifyOTP from "./screens/Auth/VerifyOTP";
@@ -123,7 +123,7 @@ function App() {
             <Route path="/" element={<Homescreen />} />
             <Route path="/home" element={<Homescreen />} />
 
-            <Route path="/hotel-results" element={<RoomResults />} />
+            <Route path="/hotel-results" element={<HotelResults />} />
 
             {/* <Route path="/book/:roomid" element={<Bookingscreen />} /> */}
 

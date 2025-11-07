@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { MapPin, Star, Image } from "lucide-react";
 import OverviewTab from "./tabs/OverviewTab";
@@ -12,10 +12,10 @@ import Banner from "../Banner";
 import BookingForm from "../BookingForm";
 import ServicesTab from "./tabs/ServicesTab";
 import HeaderTab from "./tabs/HeaderTab"
-
+import HotelHighlights from "./tabs/HotelHighlights";
 
 import Loader from "../Loader";
-import HotelHighlights from "./tabs/HotelHighlights";
+
 
 export default function HotelDetail() {
   const { id } = useParams();
@@ -36,6 +36,9 @@ export default function HotelDetail() {
   const [loading, setLoading] = useState(true);
 
   const [activeTab, setActiveTab] = useState("overview");
+
+  const [searchParams] = useSearchParams();
+  const festivalId = searchParams.get("festivalId");
 
   useEffect(() => {
     const sections = ["overview", "rooms", "amenities", "rules", "reviews"];
@@ -65,7 +68,10 @@ export default function HotelDetail() {
           avgRes,
           discountRes,
         ] = await Promise.all([
-          axios.get(`/api/hotels/${id}/rooms`),
+          axios.get(`/api/hotels/${id}`, {
+          params: { festivalId }, 
+        }),
+          
           axios.get(`/api/amenities`),
           axios.get(`/api/services/hotel/${id}`),
           axios.get(`/api/reviews?hotelId=${id}`),
@@ -73,8 +79,8 @@ export default function HotelDetail() {
           axios.get(`/api/discounts`),
         ]);
 
-        setHotel(hotelRes.data.hotel);
-        setRooms(hotelRes.data.rooms);
+        setHotel(hotelRes.data.hotel || hotelRes.data);
+        setRooms(hotelRes.data.rooms || [] );
         const amenityNames = Array.isArray(amenityRes.data)
           ? amenityRes.data.map((a) => (typeof a === "string" ? a : a?.name)).filter(Boolean)
           : [];
@@ -294,6 +300,7 @@ export default function HotelDetail() {
         <section id="rooms" ref={roomsRef}>
           <RoomsTab
             rooms={rooms}
+            hotel={hotel}
             onRoomSelected={() => {
               setShowReviews(true);
               reviewsRef.current?.scrollIntoView({ behavior: "smooth" });
