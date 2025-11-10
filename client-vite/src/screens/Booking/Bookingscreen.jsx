@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-import { useNavigate } from "react-router-dom";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import Loader from "../../components/Loader";
 import CancelConfirmationModal from "../../components/CancelConfirmationModal";
 import SuggestionCard from "../../components/SuggestionCard";
@@ -21,6 +20,18 @@ import HotelInfoCard from "./components/HotelInfoCard";
 export default function Bookingscreen() {
    const navigate = useNavigate();
    const { roomid } = useParams();
+   const location = useLocation();
+
+   // *** Lấy query parameters từ URL (Dữ liệu từ Chatbot) ***
+   const queryParams = new URLSearchParams(location.search);
+   const initialData = {
+      checkin: queryParams.get('checkin'),
+      checkout: queryParams.get('checkout'),
+      people: queryParams.get('people'),
+      hotelId: queryParams.get('hotelId'),
+   };
+   // *********************************************************
+
    const {
       // from hook
       room,
@@ -58,7 +69,7 @@ export default function Bookingscreen() {
       calculateServiceCost,
       roomsNeeded,
       setValue,
-   } = useBookingLogic({ roomid, navigate });
+   } = useBookingLogic({ roomid, navigate, initialData });
 
    const [hotel, setHotel] = useState(null);
 

@@ -55,7 +55,7 @@ export default function FestivalHotels() {
   return (
     <div className="font-outfit bg-gray-50 text-gray-800">
       {/* 🟦 Banner dạng đặc biệt cho ưu đãi */}
-     <section className="relative w-full h-[60vh] flex flex-col items-center justify-center text-white overflow-hidden -mt-[68px]">
+     <section className="relative w-full h-[60vh] flex flex-col items-center justify-center text-white overflow-hidden -mt-[70px]">
   <img
     src={
       festival?.image ||

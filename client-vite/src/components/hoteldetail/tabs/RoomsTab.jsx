@@ -112,7 +112,6 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
                 </td>
 
                 {/* Giá hôm nay */}
-                {/* ✅ Giá hôm nay - giống Booking.com */}
                 <td className="p-2 text-center align-middle border-r border-blue-300">
                   {room.rentperday ? (
                     <>

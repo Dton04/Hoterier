@@ -1,3 +1,4 @@
+// RoomPreview.jsx
 import React from "react";
 
 export default function RoomPreview({ room, roomsNeeded, getValues }) {
@@ -10,7 +11,13 @@ export default function RoomPreview({ room, roomsNeeded, getValues }) {
       ? Math.ceil((checkout - checkin) / (1000 * 60 * 60 * 24))
       : 1;
 
-  const total = room.rentperday * days * roomsNeeded;
+  // Lấy giá gốc
+  const originalDailyRate = room.originalRentperday || room.rentperday;
+  const festivalDiscountPerDay = room.festivalDiscountPerDay || 0;
+  
+  // Tính giá sau giảm (cho mục đích hiển thị tổng tạm thời)
+  const priceAfterFestival = Math.max(0, originalDailyRate - festivalDiscountPerDay);
+  const total = priceAfterFestival * days * roomsNeeded; // Tổng tiền sau festival (chưa voucher)
 
   return (
     <div className="mt-6 p-2 bg-white border border-gray-100 rounded-2xl shadow-sm">
@@ -28,20 +35,28 @@ export default function RoomPreview({ room, roomsNeeded, getValues }) {
           <p className="text-gray-600 mb-1">
             Số phòng đặt: {roomsNeeded}
           </p>
+
           <p className="text-gray-600 mb-1">
             Giá mỗi ngày:{" "}
             <span className="font-semibold text-blue-600">
-              {room.rentperday.toLocaleString()} VND
+              {priceAfterFestival.toLocaleString()} VND
             </span>
+            {festivalDiscountPerDay > 0 && (
+                <span className="text-sm text-gray-500 line-through ml-2">
+                    {originalDailyRate.toLocaleString()} VND
+                </span>
+            )}
           </p>
-          {room.originalRentperday && (
+
+          {room.discountApplied && (
             <p className="text-sm text-green-600">
-              (Đã giảm {room.discountApplied})
+              (Ưu đãi Festival: Giảm {room.discountApplied})
             </p>
           )}
+
           <hr className="my-2" />
           <p className="font-semibold text-gray-800">
-            Tổng (chưa giảm giá):{" "}
+            Tổng (sau Festival, chưa Voucher/Dịch vụ):{" "}
             <span className="text-blue-700">
               {total.toLocaleString()} VND
             </span>

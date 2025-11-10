@@ -549,7 +549,8 @@ exports.bookRoom = async (req, res) => {
       res.status(201).json({
          message: "Đặt phòng thành công",
          booking,
-         paymentResult
+         paymentResult,
+         discountApplied,
       });
 
    } catch (error) {

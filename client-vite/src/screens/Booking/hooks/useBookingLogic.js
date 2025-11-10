@@ -13,17 +13,17 @@ const bookingSchema = yup.object().shape({
   email: yup.string().email("Email không hợp lệ").required("Vui lòng nhập email"),
   phone: yup.string().required("Vui lòng nhập số điện thoại"),
   checkin: yup
-  .date()
-  .transform((value, originalValue) => (originalValue === "" ? null : value))
-  .typeError("Ngày nhận phòng không hợp lệ")
-  .required("Vui lòng chọn ngày nhận phòng"),
+    .date()
+    .transform((value, originalValue) => (originalValue === "" ? null : value))
+    .typeError("Ngày nhận phòng không hợp lệ")
+    .required("Vui lòng chọn ngày nhận phòng"),
 
-checkout: yup
-  .date()
-  .transform((value, originalValue) => (originalValue === "" ? null : value))
-  .typeError("Ngày trả phòng không hợp lệ")
-  .required("Vui lòng chọn ngày trả phòng")
-  .min(yup.ref("checkin"), "Ngày trả phòng phải sau ngày nhận phòng"),
+  checkout: yup
+    .date()
+    .transform((value, originalValue) => (originalValue === "" ? null : value))
+    .typeError("Ngày trả phòng không hợp lệ")
+    .required("Vui lòng chọn ngày trả phòng")
+    .min(yup.ref("checkin"), "Ngày trả phòng phải sau ngày nhận phòng"),
 
   children: yup.number().default(0),
   roomType: yup.string().required("Vui lòng chọn loại phòng"),
@@ -41,7 +41,7 @@ checkout: yup
  * - GIỮ NGUYÊN: gọi API, tính tiền, discount, dịch vụ, momo/vnpay, bank transfer, tích điểm
  * - TÁCH KHỎI UI: không chứa Tailwind/Bootstrap; chỉ dữ liệu và handler
  */
-export default function useBookingLogic({ roomid, navigate, location }) {
+export default function useBookingLogic({ roomid, navigate, initialData }) {
   // react-hook-form
   const {
     register,
@@ -102,7 +102,10 @@ export default function useBookingLogic({ roomid, navigate, location }) {
 
   // Lấy festival từ location hoặc localStorage (giữ y nguyên)
   const festival =
-    location?.state?.festival || JSON.parse(localStorage.getItem("festival")) || null;
+    location?.state?.festival ||
+    JSON.parse(localStorage.getItem("festival")) ||
+    null;
+
 
   // ---------- Helpers ----------
   const handleServiceChange = (serviceId) => {
@@ -147,36 +150,37 @@ export default function useBookingLogic({ roomid, navigate, location }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
     try {
       setLoading(true);
-      
+
       const { data } = await axios.post("/api/rooms/getroombyid", { roomid });
 
-// 👇 BỔ SUNG ĐOẠN NÀY ĐỂ FE NHẬN ĐÚNG hotel.imageurls
-if (data.hotel && data.hotel.imageurls) {
-  data.hotel.imageurls = data.hotel.imageurls.map((url) =>
-    url.startsWith("http")
-      ? url
-      : `${window.location.origin}/${url.replace(/^\/+/, "")}`
-  );
-}
+      // 👇 BỔ SUNG ĐOẠN NÀY ĐỂ FE NHẬN ĐÚNG hotel.imageurls
+      if (data.hotel && data.hotel.imageurls) {
+        data.hotel.imageurls = data.hotel.imageurls.map((url) =>
+          url.startsWith("http")
+            ? url
+            : `${window.location.origin}/${url.replace(/^\/+/, "")}`
+        );
+      }
 
-setRoom(data);
-setValue("roomType", data.type || "");
-
-
-      // Áp dụng giảm giá festival (nếu có) — GIỮ LOGIC
+      // Áp dụng giảm giá festival (nếu có) — LOGIC MỚI ĐÃ SỬA
       let adjustedRoom = { ...data };
+      adjustedRoom.originalRentperday = data.rentperday; // 👈 LƯU GIÁ GỐC
+      adjustedRoom.festivalDiscountPerDay = 0; // 👈 KHỞI TẠO MỨC GIẢM
+
       if (festival && festival.discountType && festival.discountValue) {
-        adjustedRoom.originalRentperday = adjustedRoom.rentperday;
+        let dailyDiscount = 0;
 
         if (festival.discountType === "percentage") {
-          adjustedRoom.rentperday = Math.round(
-            adjustedRoom.rentperday * (1 - festival.discountValue / 100)
-          );
-          adjustedRoom.discountApplied = `${festival.discountValue}%`;
+          dailyDiscount = Math.round(data.rentperday * (festival.discountValue / 100));
         } else if (festival.discountType === "fixed") {
-          adjustedRoom.rentperday = Math.max(0, adjustedRoom.rentperday - festival.discountValue);
-          adjustedRoom.discountApplied = `${festival.discountValue.toLocaleString()} VND`;
+          dailyDiscount = festival.discountValue;
         }
+
+        adjustedRoom.festivalDiscountPerDay = dailyDiscount; // 👈 LƯU MỨC GIẢM
+        adjustedRoom.discountApplied = `${festival.discountValue}${festival.discountType === "percentage" ? "%" : " VND"
+          }`;
+
+        // adjustedRoom.rentperday KHÔNG bị thay đổi, nó giữ nguyên giá gốc
       }
 
       setRoom(adjustedRoom);
@@ -186,17 +190,21 @@ setValue("roomType", data.type || "");
         await fetchSuggestions(adjustedRoom._id, adjustedRoom.type);
       }
 
-      // tổng tiền ban đầu (chưa dịch vụ)
+      // tính tổng tiền ban đầu (dùng giá đã giảm sau festival)
       const checkin = new Date(adjustedRoom.checkin || new Date());
       const checkout = new Date(adjustedRoom.checkout || new Date());
       const days = Math.ceil((checkout - checkin) / (1000 * 60 * 60 * 24));
-      setTotalAmount(adjustedRoom.rentperday * days);
+
+      const discountedDailyRate = Math.max(0, adjustedRoom.originalRentperday - adjustedRoom.festivalDiscountPerDay);
+
+      // TotalAmount ban đầu là giá đã giảm * số ngày * số phòng
+      setTotalAmount(discountedDailyRate * days * (adjustedRoom.roomsBooked || 1));
     } catch (err) {
       setError(true);
     } finally {
       setLoading(false);
     }
-  }, [roomid, setValue, festival, fetchSuggestions]);
+  }, [roomid, setValue]);
 
   // ---------- Accumulate points ----------
   const accumulatePoints = useCallback(async (bookingIdArg) => {
@@ -244,18 +252,28 @@ setValue("roomType", data.type || "");
       };
       const identifiers = [discountCode];
 
+      // Để tính toán chính xác, cần gửi giá trị đặt phòng (base price sau festival)
+      const days = Math.ceil((new Date(document.getElementById("checkout").value) - new Date(document.getElementById("checkin").value)) / (1000 * 60 * 60 * 24)) || 1;
+      const roomsBooked = Number(getValues("roomsBooked")) || 1;
+      const originalDailyRate = room.originalRentperday || room.rentperday;
+      const festivalDiscountTotal = (room.festivalDiscountPerDay || 0) * days * roomsBooked;
+      const priceAfterFestival = Math.max(0, (originalDailyRate * days * roomsBooked) - festivalDiscountTotal);
+
       const response = await axios.post("/api/discounts/apply", {
         bookingData,
         identifiers,
+        bookingValue: priceAfterFestival, // Truyền giá trị đã giảm sau festival để tính voucher
+        hotelId: room.hotelId // Thêm hotelId để check applicableHotels
       });
 
       setDiscountResult(response.data);
-      setTotalAmount(response.data.totalAmount + calculateServiceCost());
+      // Cập nhật TotalAmount: Giá sau Festival - Voucher + Dịch vụ
+      const finalAmount = Math.max(0, priceAfterFestival - response.data.totalDiscountAmount) + calculateServiceCost();
+      setTotalAmount(finalAmount);
+
       setBookingStatus({
         type: "success",
-        message: `Áp dụng mã giảm giá thành công! Tổng giảm: ${response.data.appliedDiscounts
-          .reduce((sum, d) => sum + d.discount, 0)
-          .toLocaleString()} VND`,
+        message: `Áp dụng mã giảm giá thành công! Tổng giảm: ${response.data.totalDiscountAmount.toLocaleString()} VND`,
       });
     } catch (err) {
       setDiscountResult(null);
@@ -303,9 +321,15 @@ setValue("roomType", data.type || "");
         return;
       }
 
-      // Giá cơ bản
-      const dailyRate = room.rentperday;
-      const baseAmount = dailyRate * days * roomsNeeded;
+      // Giá cơ bản (Dùng giá gốc)
+      const originalDailyRate = room.originalRentperday || room.rentperday;
+      const basePriceTotal = originalDailyRate * days * roomsNeeded;
+
+      // Giảm giá Festival
+      const festivalDiscountTotal = (room.festivalDiscountPerDay || 0) * days * roomsNeeded;
+
+      // Giá sau khi áp dụng Festival Discount (để tính tổng)
+      const priceAfterFestival = Math.max(0, basePriceTotal - festivalDiscountTotal);
 
       // Dịch vụ
       const servicesCost = calculateServiceCost();
@@ -315,7 +339,7 @@ setValue("roomType", data.type || "");
         discountResult?.appliedDiscounts?.reduce((sum, d) => sum + d.discount, 0) || 0;
 
       // Tổng cuối
-      const finalAmount = Math.max(0, baseAmount + servicesCost - voucherDiscount);
+      const finalAmount = Math.max(0, priceAfterFestival + servicesCost - voucherDiscount);
 
       // Reset payment ui
       setPaymentStatus(null);
@@ -359,15 +383,15 @@ setValue("roomType", data.type || "");
       // 📨 Gửi email xác nhận đặt phòng cho tất cả phương thức
       try {
         await axios.post("/api/bookings/mail/booking-confirmation", {
-  bookingId: bookingResponse.data.booking._id,
-  email: data.email,
-  name: data.name,
-  roomName: room.name,
-  checkin: data.checkin,
-  checkout: data.checkout,
-  totalAmount: finalAmount,
-  paymentMethod: data.paymentMethod,
-});
+          bookingId: bookingResponse.data.booking._id,
+          email: data.email,
+          name: data.name,
+          roomName: room.name,
+          checkin: data.checkin,
+          checkout: data.checkout,
+          totalAmount: finalAmount,
+          paymentMethod: data.paymentMethod,
+        });
 
 
 
