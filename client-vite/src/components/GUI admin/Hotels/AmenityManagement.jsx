@@ -20,38 +20,10 @@ import {
   Aperture, // Icon mặc định
 } from "lucide-react";
 
-// Ánh xạ tên tiện ích (không phân biệt hoa thường) với icon Lucide
-const amenityIconMap = {
-  "wifi": Wifi,
-  "internet": Wifi,
-  "đỗ xe": SquareParking,
-  "bãi đỗ xe": SquareParking,
-  "parking": SquareParking,
-  "gym": Dumbbell,
-  "phòng tập": Dumbbell,
-  "ăn sáng": Soup,
-  "bữa sáng": Soup,
-  "giường": BedDouble,
-  "hồ bơi": Waves,
-  "bể bơi": Waves,
-  "pool": Waves,
-  "máy lạnh": Sun, // Điều hòa
-  "điều hòa": Sun,
-  "phòng tắm": ShowerHead,
-  "shower": ShowerHead,
-  "tv": Tv,
-  "truyền hình": Tv,
-  "delete": Trash2,
-  "edit": Edit,
-  "add": PlusCircle
-};
+import { iconForAmenity } from "../../../utils/amenityIcons";
 
-// Hàm lấy icon từ map, nếu không có sẽ trả về Aperture
-const getLucideIcon = (name) => {
-  const normalizedName = name?.toLowerCase().replace(/\s/g, "") || "";
-  const IconComponent = amenityIconMap[normalizedName] || Aperture;
-  return IconComponent;
-};
+
+
 
 // Component Pagination
 const Pagination = ({ total, current, onChange, pageSize }) => {
@@ -264,45 +236,47 @@ function AdminAmenities() {
 
       <div className="overflow-x-auto">
         <ul className="divide-y divide-gray-200 border rounded-lg">
-          {paginatedAmenities.map((item, i) => {
-            const name = typeof item === "string" ? item : item.name;
-            const desc = typeof item === "string" ? "" : item.description || "";
-            const iconName = (typeof item === "string" ? "" : item.icon) || name;
-            const IconComponent = getLucideIcon(iconName);
-            
-            return (
-              <li key={item._id || i} className="flex justify-between items-center p-4 hover:bg-gray-50 transition duration-150">
-                <div className="flex items-center space-x-4">
-                  <IconComponent className="w-6 h-6 text-[#0071c2] flex-shrink-0" />
-                  <div>
-                    <div className="font-medium text-gray-800 text-base">{name}</div>
-                    {(desc) && (
-                      <div className="text-sm text-gray-500 truncate max-w-xs">{desc}</div>
-                    )}
-                  </div>
-                </div>
-                
-                {item._id && (
-                  <div className="flex space-x-2 flex-shrink-0">
-                    <button
-                      onClick={() => handleEdit(item)}
-                      className="text-gray-600 p-2 rounded-full hover:bg-yellow-100 hover:text-yellow-600 transition"
-                      title="Chỉnh sửa"
-                    >
-                      <Edit className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(item._id)}
-                      className="text-gray-600 p-2 rounded-full hover:bg-red-100 hover:text-red-600 transition"
-                      title="Xóa"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
-                )}
-              </li>
-            );
-          })}
+         {paginatedAmenities.map((item, i) => {
+  const name = typeof item === "string" ? item : item.name;
+  const desc = typeof item === "string" ? "" : item.description || "";
+
+  return (
+    <li
+      key={item._id || i}
+      className="flex justify-between items-center p-4 hover:bg-gray-50 transition duration-150"
+    >
+      <div className="flex items-center space-x-4">
+        <div className="text-green-600 w-6 h-6 flex items-center justify-center">
+          {iconForAmenity(name)}
+        </div>
+        <div>
+          <div className="font-medium text-gray-800 text-base">{name}</div>
+          {desc && <div className="text-sm text-gray-500 truncate max-w-xs">{desc}</div>}
+        </div>
+      </div>
+
+      {item._id && (
+        <div className="flex space-x-2 flex-shrink-0">
+          <button
+            onClick={() => handleEdit(item)}
+            className="text-gray-600 p-2 rounded-full hover:bg-yellow-100 hover:text-yellow-600 transition"
+            title="Chỉnh sửa"
+          >
+            <Edit className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => handleDelete(item._id)}
+            className="text-gray-600 p-2 rounded-full hover:bg-red-100 hover:text-red-600 transition"
+            title="Xóa"
+          >
+            <Trash2 className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+    </li>
+  );
+})}
+
           {paginatedAmenities.length === 0 && (
             <li className="py-8 text-center text-gray-500 text-lg">Không có tiện ích phù hợp</li>
           )}

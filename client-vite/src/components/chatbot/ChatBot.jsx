@@ -16,6 +16,22 @@ function ChatBot() {
   const navigate = useNavigate();
 
   const sendMessage = async () => {
+    // 🔍 Bắt thông tin người dùng từ câu nhập
+    if (/@/.test(input) || /(cash|momo|vnpay|bank)/i.test(input)) {
+      const nameMatch = input.match(/tôi là ([A-Za-zÀ-ỹ\s]+)/i);
+      const emailMatch = input.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
+      const phoneMatch = input.match(/\b\d{9,10}\b/);
+      const paymentMatch = input.match(/(cash|momo|vnpay|bank_transfer)/i);
+
+      setContext((prev) => ({
+        ...prev,
+        name: nameMatch ? nameMatch[1].trim() : prev.name,
+        email: emailMatch ? emailMatch[0] : prev.email,
+        phone: phoneMatch ? phoneMatch[0] : prev.phone,
+        paymentMethod: paymentMatch ? paymentMatch[1].toLowerCase() : prev.paymentMethod,
+      }));
+    }
+
     if (!input.trim()) return;
     const newMessages = [...messages, { sender: "user", text: input }];
     setMessages(newMessages);
@@ -25,8 +41,17 @@ function ChatBot() {
     try {
       const { data } = await axios.post("/api/chatbot/chat", {
         message: input,
-        context,
+        context: {
+          ...context,
+          ...{
+            name: context.name,
+            email: context.email,
+            phone: context.phone,
+            paymentMethod: context.paymentMethod,
+          },
+        },
       });
+
 
       const botReply = data.reply || "Xin lỗi, tôi chưa hiểu ý bạn.";
       setMessages((prev) => [...prev, { sender: "bot", text: botReply }]);
@@ -39,8 +64,14 @@ function ChatBot() {
 
 
       if (data.redirect) {
-        setTimeout(() => navigate(data.redirect), 1200);
+        setMessages((prev) => [
+          ...prev,
+          { sender: "bot", text: "Đang chuyển đến trang thanh toán..." },
+        ]);
+        setTimeout(() => navigate(data.redirect), 1500);
       }
+
+
     } catch (err) {
       console.error("Chatbot error:", err);
       setMessages((prev) => [
@@ -59,14 +90,30 @@ function ChatBot() {
     try {
       let newContext = { ...context };
 
+      // ✅ Nếu chưa có hotelId → chọn khách sạn
       if (!context.hotelId) {
-        newContext.hotelId = item.id; // Bước chọn khách sạn
-      } else if (!context.roomId) {
-        newContext.roomId = item.id; // Bước chọn phòng
+        newContext.hotelId = item.id;
+      }
+      // ✅ Nếu đã có hotelId mà chưa có roomId → chọn phòng và CHUYỂN TRANG
+      else if (!context.roomId) {
+        newContext.roomId = item.id;
+
+        // Nếu chatbot đã biết đủ thông tin (checkin, checkout, people)
+        if (context.checkin && context.checkout && context.people) {
+          const redirectUrl = `/book/${item.id}?hotelId=${context.hotelId}&checkin=${encodeURIComponent(context.checkin)}&checkout=${encodeURIComponent(context.checkout)}&people=${encodeURIComponent(context.people)}`;
+
+          setMessages((prev) => [
+            ...prev,
+            { sender: "bot", text: "💳 Đang chuyển đến trang thanh toán..." },
+          ]);
+
+          // 🔁 Điều hướng ngay FE, không cần chờ phản hồi từ BE
+          setTimeout(() => navigate(redirectUrl), 1000);
+          return;
+        }
       }
 
-
-
+      // Gửi request bình thường nếu chưa đủ thông tin
       const { data } = await axios.post("/api/chatbot/chat", {
         message: `Chọn ${item.name}`,
         context: newContext,
@@ -76,7 +123,14 @@ function ChatBot() {
       setSuggestions(data.suggest || []);
       setContext({ ...newContext, ...data.context });
 
-      if (data.redirect) setTimeout(() => navigate(data.redirect), 1000);
+      // fallback nếu BE vẫn gửi redirect
+      if (data.redirect) {
+        setMessages((prev) => [
+          ...prev,
+          { sender: "bot", text: "💳 Đang chuyển đến trang thanh toán..." },
+        ]);
+        setTimeout(() => navigate(data.redirect), 1500);
+      }
     } catch (err) {
       console.error(err);
       setMessages((prev) => [
@@ -89,12 +143,13 @@ function ChatBot() {
 
 
 
+
   return (
     <div className="fixed bottom-6 right-6 z-50">
 
       {open && (
         <div className="bg-white w-80 sm:w-96 h-[520px] shadow-2xl rounded-xl flex flex-col border border-gray-200">
-     
+
           <div className="bg-[#003580] text-white font-semibold p-3 rounded-t-xl flex justify-between items-center">
             <span>💬 Trợ lý Hotelier</span>
             <button onClick={() => setOpen(false)} className="text-black hover:text-red-300 text-lg">

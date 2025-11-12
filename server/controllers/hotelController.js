@@ -63,7 +63,7 @@ exports.getAllHotels = async (req, res) => {
     // Truy vấn và populate đầy đủ
     const hotels = await Hotel.find(filter)
       .populate('region', 'name')
-      .populate('rooms', '_id name maxcount beds baths rentperday type description imageurls availabilityStatus amenities')
+      .populate('rooms', '_id name maxcount beds baths rentperday quantity type description imageurls availabilityStatus amenities')
       .lean();
 
     // Return an empty array (200) when no hotels found so frontend can safely handle the result
@@ -79,31 +79,58 @@ exports.getAllHotels = async (req, res) => {
 };
 
 
-// GET /api/hotels/:id - Lấy chi tiết khách sạn
+// ✅ GET /api/hotels/:id - Lấy chi tiết khách sạn (hỗ trợ festival)
 exports.getHotelById = async (req, res) => {
   const { id } = req.params;
   const includeEmpty = req.query.includeEmpty === "true";
+  const { festivalId } = req.query;
 
   try {
+    // Kiểm tra kết nối DB
     if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({ message: 'Kết nối cơ sở dữ liệu chưa sẵn sàng' });
+      return res.status(503).json({ message: "Kết nối cơ sở dữ liệu chưa sẵn sàng" });
     }
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: 'ID khách sạn không hợp lệ' });
+      return res.status(400).json({ message: "ID khách sạn không hợp lệ" });
     }
 
+    // Lấy dữ liệu khách sạn + phòng
     const hotel = await Hotel.findById(id)
       .populate("region", "name")
       .populate({
         path: "rooms",
-        select: "_id name maxcount beds baths rentperday type description imageurls availabilityStatus currentbookings quantity",
-      });
+        select:
+          "_id name maxcount beds baths rentperday type description imageurls availabilityStatus currentbookings quantity",
+      })
+      .lean(); // ✅ trả object thường, dễ map
 
     if (!hotel) {
-      return res.status(404).json({ message: 'Không tìm thấy khách sạn' });
+      return res.status(404).json({ message: "Không tìm thấy khách sạn" });
     }
 
+    // ✅ Nếu có festival → áp dụng giảm giá cho tất cả phòng
+    if (festivalId && mongoose.Types.ObjectId.isValid(festivalId)) {
+      const discount = await Discount.findById(festivalId);
+      if (discount && discount.type === "festival") {
+        hotel.rooms = hotel.rooms.map((r) => ({
+          ...r,
+          discountedPrice:
+            discount.discountType === "percentage"
+              ? Math.round(r.rentperday * (1 - discount.discountValue / 100))
+              : Math.max(r.rentperday - discount.discountValue, 0),
+        }));
+
+        hotel.festival = {
+          _id: discount._id,
+          name: discount.name,
+          discountType: discount.discountType,
+          discountValue: discount.discountValue,
+        };
+      }
+    }
+
+    // ✅ Trả về dữ liệu hoàn chỉnh
     res.status(200).json({
       _id: hotel._id,
       name: hotel.name,
@@ -116,14 +143,19 @@ exports.getHotelById = async (req, res) => {
       imageurls: hotel.imageurls,
       rooms: hotel.rooms,
       amenities: hotel.amenities,
+      festival: hotel.festival || null,
       createdAt: hotel.createdAt,
-      updatedAt: hotel.updatedAt
+      updatedAt: hotel.updatedAt,
     });
   } catch (error) {
-    console.error('Lỗi khi lấy chi tiết khách sạn:', error.message, error.stack);
-    res.status(500).json({ message: 'Lỗi khi lấy chi tiết khách sạn', error: error.message });
+    console.error("❌ Lỗi khi lấy chi tiết khách sạn:", error.message);
+    res.status(500).json({
+      message: "Lỗi khi lấy chi tiết khách sạn",
+      error: error.message,
+    });
   }
 };
+
 
 // hotelController.js
 const cloudinary = require('cloudinary').v2;

@@ -4,10 +4,10 @@ import { FaHeart, FaRegHeart, FaStar } from "react-icons/fa";
 const HotelCard = ({
   hotel,
   isFavorite = false,
-  toggleFavorite = () => {},
+  toggleFavorite = () => { },
   ratingInfo = { average: 0, totalReviews: 0 },
   discountInfo = null,
-  onSelect = () => {},
+  onSelect = () => { },
 }) => {
   const { average, totalReviews } = ratingInfo;
   const ratingText =
@@ -69,10 +69,19 @@ const HotelCard = ({
         </button>
 
         {/* 🏷️ Tag giảm giá */}
-        {showDiscount && (
-          <span className="absolute bottom-3 left-3 bg-red-600 text-white text-xs font-semibold px-3 py-1 rounded-md shadow-md">
-            {discountBadge || "Giảm giá"}
-          </span>
+        {(discountInfo || showDiscount) && (
+          <div className="absolute top-3 left-3 flex flex-col gap-1">
+            {discountInfo?.name && (
+              <span className="bg-[#0071c2] text-white text-xs font-semibold px-3 py-1 rounded-md shadow-md">
+                {discountInfo.name}
+              </span>
+            )}
+            {showDiscount && (
+              <span className="bg-[#d4111e] text-white text-xs font-semibold px-3 py-1 rounded-md shadow-md">
+                {discountBadge || "Giảm giá"}
+              </span>
+            )}
+          </div>
         )}
       </div>
 
@@ -111,17 +120,29 @@ const HotelCard = ({
             {/* Phòng nổi bật */}
             {hotel.rooms?.length > 0 && (
               <div className="mt-2">
+                {discountInfo?.name && (
+                  <div className="mt-1 bg-green-700 border border-blue-200 text-white text-xs rounded-md px-2 py-1 w-fit">
+                    {discountInfo.name} –{" "}
+                    {discountInfo.discountType === "percentage"
+                      ? `Giảm ${discountInfo.discountValue}%`
+                      : `Giảm ${discountInfo.discountValue.toLocaleString()}₫`}
+                  </div>
+                )}
                 <p className="text-sm text-gray-800 font-medium">
                   {hotel.rooms[0].name}
                 </p>
+
+
                 <p className="text-xs text-gray-600">
                   {hotel.rooms[0].beds} giường • {hotel.rooms[0].baths} phòng tắm
                 </p>
                 <ul className="mt-1 text-xs sm:text-sm text-green-700 space-y-0.5">
-                  <li>✔ Bao gồm bữa sáng</li>
                   <li>✔ Miễn phí hủy</li>
                   <li>✔ Thanh toán tại chỗ nghỉ</li>
                 </ul>
+                <p className="text-xs sm:text-sm text-red-500 font-medium">
+                  Chỉ còn {hotel.rooms[0].quantity} phòng với giá này
+                </p>
               </div>
             )}
           </div>

@@ -5,7 +5,7 @@ import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 export default function PromoCarousel({ festivalDiscounts = [] }) {
   const navigate = useNavigate();
   const scrollRef = useRef(null);
-  const [hovered, setHovered] = useState(false);
+  
   const [showLeft, setShowLeft] = useState(false);
   const [showRight, setShowRight] = useState(true);
 
@@ -27,21 +27,7 @@ export default function PromoCarousel({ festivalDiscounts = [] }) {
     }
   }, []);
 
-  /** 🌀 Auto scroll nhẹ */
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const interval = setInterval(() => {
-      if (!hovered) {
-        if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 10) {
-          el.scrollTo({ left: 0, behavior: "smooth" });
-        } else {
-          el.scrollBy({ left: 400, behavior: "smooth" });
-        }
-      }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [hovered]);
+  
 
   return (
     <section className="py-14 bg-white relative overflow-hidden">
@@ -60,13 +46,7 @@ export default function PromoCarousel({ festivalDiscounts = [] }) {
         </div>
 
         {/* Carousel */}
-        <div
-          className="relative group"
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-        >
-         
-
+        <div className="relative group">         
           {/* Nút trái */}
           {showLeft && (
             <button
