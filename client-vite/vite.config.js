@@ -5,9 +5,14 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 3000, // 👈 đổi port FE tại đây (vd: 3000, 5173,...)
+    port: 3000, //  FE port
     proxy: {
-      '/api': 'http://localhost:5000', // 👈 BE Node.js chạy ở port 5000
+      '/api': 'http://localhost:5000', //  BE Node.js
+      '/socket.io': {                  //   WebSocket Socket.IO
+        target: 'http://localhost:5000', // BE Socket.IO URL
+        ws: true,
+        changeOrigin: true,
+      },
     },
   },
 })

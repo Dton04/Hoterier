@@ -1,13 +1,21 @@
 import axios from 'axios';
 import { io } from 'socket.io-client';
 //Api helper tối ưu gọi socket và api giữ code gọn dễ tái sử dụng
-const baseURL = ''; // để trống: axios dùng cùng origin (vite proxy) hoặc bạn điền http://localhost:5000
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || ''; // để trống: axios dùng cùng origin (vite proxy) hoặc bạn điền http://localhost:5000
 
 export function connectSocket(token) {
-  const socket = io(baseURL || '/', {
-    transports: ['websocket'],
-    auth: { token },
-    extraHeaders: { Authorization: `Bearer ${token}` },
+  const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || '';
+  const socket = io(SOCKET_URL || '/', {
+    path: '/socket.io',
+    transports: ['polling', 'websocket'],
+    auth: { token },                         // server đọc handshake.auth
+    query: { token },                        // dự phòng qua query
+    extraHeaders: { Authorization: `Bearer ${token}` }, // dự phòng qua header
+    reconnection: true,
+    reconnectionDelay: 800,
+    reconnectionAttempts: Infinity,
+    forceNew: true,                          // mỗi tab là 1 kết nối riêng
+    timeout: 10000,
   });
   return socket;
 }

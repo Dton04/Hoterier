@@ -167,7 +167,15 @@
       const authHeader = socket.handshake.headers?.authorization;
       const tokenFromHeader = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
       const token = socket.handshake.auth?.token || socket.handshake.query?.token || tokenFromHeader;
-      if (!token) return next(new Error('Không có token'));
+
+      if (!token) {
+        console.error('Socket auth missing token:', {
+          headersAuth: !!tokenFromHeader,
+          authToken: !!socket.handshake.auth?.token,
+          queryToken: !!socket.handshake.query?.token,
+        });
+        return next(new Error('Không có token'));
+      }
 
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const user = await User.findById(decoded.id).select('-password');

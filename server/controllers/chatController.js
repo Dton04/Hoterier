@@ -152,6 +152,19 @@ exports.sendMessage = async (req, res) => {
     conv.lastMessageAt = msg.createdAt;
     await conv.save();
 
+    // Phát realtime cho phòng hội thoại
+    try {
+      if (global.io) {
+        global.io.to(id).emit('message:new', {
+          _id: msg._id.toString(),
+          conversation: id,
+          sender: user._id.toString(),
+          content: msg.content,
+          createdAt: msg.createdAt,
+        });
+      }
+    } catch {}
+
     res.status(201).json(msg);
   } catch (error) {
     console.error('sendMessage error:', error);

@@ -63,6 +63,15 @@ export default function AdminChatModal({ token, userId, socket, onClose }) {
     }
   };
 
+  // Rejoin room khi có conversationId và khi socket reconnect (tránh mất realtime)
+  useEffect(() => {
+    if (!socket || !conversationId) return;
+    const rejoin = () => socket.emit('conversation:join', { conversationId });
+    socket.on('connect', rejoin);
+    rejoin();
+    return () => socket.off('connect', rejoin);
+  }, [socket, conversationId]);
+
   const handlePickUser = async (u) => {
     setSelectedUser(u);
     try {
@@ -70,8 +79,7 @@ export default function AdminChatModal({ token, userId, socket, onClose }) {
       const id = conv?._id || conv?.id;
       if (id) {
         setConversationId(id);
-        // join socket room để nhận tin nhắn realtime
-        socket?.emit?.('join', { conversationId: id });
+        socket?.emit?.('conversation:join', { conversationId: id });
         try { await joinConversation(id, token); } catch { /* optional */ }
       }
     } catch {

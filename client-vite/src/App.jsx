@@ -100,6 +100,7 @@ const UserLayout = () => (
       <Outlet />
     </main>
     <Footer />
+    {/* Mount ChatBubble dùng Portal */}
     <ChatBubble />
   </>
 );
