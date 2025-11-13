@@ -4,7 +4,7 @@ const Message = require('../models/message');
 const User = require('../models/user');
 
 function canCreateConversation(requesterRole, targetRole) {
-  if (requesterRole === 'user') return targetRole === 'staff';
+  if (requesterRole === 'user') return ['staff', 'admin'].includes(targetRole);
   return ['user', 'staff', 'admin'].includes(targetRole);
 }
 
@@ -137,8 +137,8 @@ exports.sendMessage = async (req, res) => {
       }
     } else {
       const isParticipant = conv.participants.some(p => p.user.equals(user._id));
-      const hasStaff = conv.participants.some(p => p.role === 'staff');
-      if (!isParticipant || !hasStaff) {
+      const hasAgent = conv.participants.some(p => p.role === 'staff' || p.role === 'admin');
+      if (!isParticipant || !hasAgent) {
         return res.status(403).json({ message: 'Không được phép gửi tin nhắn vào hội thoại này' });
       }
     }
@@ -277,8 +277,8 @@ exports.sendImageMessage = async (req, res) => {
       }
     } else {
       const isParticipant = conv.participants.some(p => p.user.equals(user._id));
-      const hasStaff = conv.participants.some(p => p.role === 'staff');
-      if (!isParticipant || !hasStaff) {
+      const hasAgent = conv.participants.some(p => p.role === 'staff' || p.role === 'admin');
+      if (!isParticipant || !hasAgent) {
         return res.status(403).json({ message: 'Không được phép gửi ảnh vào hội thoại này' });
       }
     }

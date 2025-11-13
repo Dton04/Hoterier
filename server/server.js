@@ -198,10 +198,14 @@
 
         const role = socket.user.role;
         const isParticipant = conv.participants.some(p => p.user.equals(socket.user._id));
+        const hasAgent = conv.participants.some(p => p.role === 'staff' || p.role === 'admin');
 
-        // User chỉ join nếu là participant; staff/admin auto-join khi cần
-        if (role === 'user' && !isParticipant) {
-          return;
+        if (role === 'admin') {
+          if (!isParticipant) conv.participants.push({ user: socket.user._id, role: 'admin' });
+        } else if (role === 'staff') {
+          if (!isParticipant) conv.participants.push({ user: socket.user._id, role: 'staff' });
+        } else {
+          if (!isParticipant || !hasAgent) return;
         }
         if ((role === 'staff' || role === 'admin') && !isParticipant) {
           conv.participants.push({ user: socket.user._id, role });
@@ -222,14 +226,14 @@
 
         const role = socket.user.role;
         const isParticipant = conv.participants.some(p => p.user.equals(socket.user._id));
-        const hasStaff = conv.participants.some(p => p.role === 'staff');
+        const hasAgent = conv.participants.some(p => p.role === 'staff' || p.role === 'admin');
 
         if (role === 'admin') {
           if (!isParticipant) conv.participants.push({ user: socket.user._id, role: 'admin' });
         } else if (role === 'staff') {
           if (!isParticipant) conv.participants.push({ user: socket.user._id, role: 'staff' });
         } else {
-          if (!isParticipant || !hasStaff) return;
+          if (!isParticipant || !hasAgent) return;
         }
 
         const msg = await Message.create({

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import ChatWindow from './ChatWindow';
-import { connectSocket, listConversations } from '../../utils/chatApi';
-import AdminChatModal from '../GUI admin/Chats/AdminChatModal.jsx';
+import { connectSocket, listConversations, createConversation, joinConversation } from '../../utils/chatApi';
+const LazyAdminChatModal = lazy(() => import('../GUI admin/Chats/AdminChatModal.jsx'));
 
 function decodeJwtId(token) {
   try {
@@ -32,9 +32,14 @@ function ChatBubble() {
   const [unread, setUnread] = useState(0);
   const [socket, setSocket] = useState(null);
   const [conversationId, setConversationId] = useState(null);
+  const [errorText, setErrorText] = useState('');
 
   // Lưu ý: giữ nguyên cách bạn lấy token/userId (ví dụ decodeUserInfo nếu đã có sẵn)
   const { token, userId, role } = decodeUserInfo?.() || {};
+  const defaultAdminId =
+    localStorage.getItem('defaultAdminId') ||
+    (import.meta.env && import.meta.env.VITE_DEFAULT_ADMIN_ID) ||
+    null;
 
   useEffect(() => {
     if (!token) return;
@@ -72,7 +77,48 @@ function ChatBubble() {
   }, [token]);
 
   const clearUnread = () => setUnread(0);
-  const openChat = () => { setOpen(true); clearUnread(); };
+  async function ensureConversationForUser() {
+    if (conversationId) return conversationId;
+    if (role !== 'user') return null;
+  
+    if (!defaultAdminId) {
+      setErrorText('Chưa cấu hình tài khoản admin hỗ trợ. Vui lòng thử lại sau.');
+      return null;
+    }
+  
+    try {
+      const conv = await createConversation(defaultAdminId, token);
+      const id = conv?._id || conv?.id;
+      if (!id) {
+        setErrorText('Không thể tạo hội thoại. Vui lòng thử lại sau.');
+        return null;
+      }
+      setConversationId(id);
+      setErrorText('');
+      socket?.emit?.('conversation:join', { conversationId: id });
+      try { await joinConversation(id, token); } catch { /* optional */ }
+      return id;
+    } catch (err) {
+      const status = err?.response?.status;
+      if (status === 403) {
+        setErrorText('Bạn không có quyền tạo hội thoại với admin này.');
+      } else if (status === 400) {
+        setErrorText('ID admin không hợp lệ hoặc chưa sẵn sàng.');
+      } else {
+        setErrorText('Lỗi tạo hội thoại. Vui lòng thử lại sau.');
+      }
+      return null;
+    }
+  }
+
+  const openChat = async () => {
+    clearUnread();
+    if (role === 'user') {
+      const id = await ensureConversationForUser();
+      if (!id) return;
+    }
+    setOpen(true);
+  };
   const closeChat = () => setOpen(false);
 
   return (
@@ -97,12 +143,14 @@ function ChatBubble() {
 
       {open && (
         (role === 'admin' || role === 'staff') ? (
-          <AdminChatModal
-            token={token}
-            userId={userId}
-            socket={socket}
-            onClose={closeChat}
-          />
+          <Suspense fallback={null}>
+            <LazyAdminChatModal
+              token={token}
+              userId={userId}
+              socket={socket}
+              onClose={closeChat}
+            />
+          </Suspense>
         ) : conversationId ? (
           <ChatWindow
             token={token}
@@ -113,17 +161,7 @@ function ChatBubble() {
             clearUnread={clearUnread}
             embedded={false}
           />
-        ) : (
-          <div className="bg-white w-80 sm:w-96 h-[520px] shadow-2xl rounded-xl flex flex-col border border-gray-200">
-            <div className="bg-[#003580] text-white font-semibold p-3 rounded-t-xl flex justify-between items-center">
-              <span>💬 Hỗ trợ khách hàng</span>
-              <button onClick={closeChat} className="text-black hover:text-red-300 text-lg">✕</button>
-            </div>
-            <div className="flex-1 flex items-center justify-center text-sm text-gray-600">
-              Đang khởi tạo cuộc trò chuyện…
-            </div>
-          </div>
-        )
+        ) : null
       )}
     </div>
   );

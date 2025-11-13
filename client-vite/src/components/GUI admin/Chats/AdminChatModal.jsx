@@ -4,19 +4,22 @@ import {
   searchUsers,
   createConversation,
   joinConversation,
+  listConversations
 } from '../../../utils/chatApi';
 import ChatWindow from '../../chat/ChatWindow';
 
 export default function AdminChatModal({ token, userId, socket, onClose }) {
   const [users, setUsers] = useState([]);
-  const [displayCount, setDisplayCount] = useState(50); // hiển thị theo khối để mượt
+  const [displayCount, setDisplayCount] = useState(50);
   const [search, setSearch] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
   const [conversationId, setConversationId] = useState(null);
   const listRef = useRef(null);
   const debounceRef = useRef(null);
-
+  const [conversations, setConversations] = useState([]);
+  const [usersWithChats, setUsersWithChats] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
   const canUse = useMemo(() => Boolean(token), [token]);
 
   useEffect(() => {
@@ -34,32 +37,32 @@ export default function AdminChatModal({ token, userId, socket, onClose }) {
     })();
   }, [token, canUse]);
 
-  // Debounce tìm kiếm server-side
+  // Debounce lọc theo ô tìm kiếm, chỉ trên danh sách users đã có hội thoại
   useEffect(() => {
     if (!canUse) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
-      try {
-        if (!search.trim()) {
-          const data = await fetchAllUsers(token);
-          setUsers((Array.isArray(data) ? data : []).filter((u) => u.role === 'user'));
-          setDisplayCount(50);
-        } else {
-          const data = await searchUsers(search.trim(), token);
-          setUsers((Array.isArray(data) ? data : []).filter((u) => u.role === 'user'));
-          setDisplayCount(50);
-        }
-      } catch {
-        // ignore
+    debounceRef.current = setTimeout(() => {
+      const q = (search || '').trim().toLowerCase();
+      const base = usersWithChats || [];
+      if (!q) {
+        setFilteredUsers(base);
+        setDisplayCount(50);
+      } else {
+        const filtered = base.filter(u =>
+          (u.name || '').toLowerCase().includes(q) ||
+          (u.email || '').toLowerCase().includes(q)
+        );
+        setFilteredUsers(filtered);
+        setDisplayCount(50);
       }
-    }, 300);
+    }, 250);
     return () => clearTimeout(debounceRef.current);
-  }, [search, token, canUse]);
+  }, [search, usersWithChats, canUse]);
 
   const handleScrollList = (e) => {
     const el = e.currentTarget;
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 32) {
-      setDisplayCount((c) => Math.min(c + 50, users.length));
+      setDisplayCount((c) => Math.min(c + 50, filteredUsers.length));
     }
   };
 
@@ -72,10 +75,48 @@ export default function AdminChatModal({ token, userId, socket, onClose }) {
     return () => socket.off('connect', rejoin);
   }, [socket, conversationId]);
 
+  useEffect(() => {
+    if (!canUse) return;
+    (async () => {
+      try {
+        setLoadingUsers(true);
+        const convs = await listConversations(token);
+        setConversations(Array.isArray(convs) ? convs : []);
+        const users = [];
+        const seen = new Set();
+        for (const conv of convs || []) {
+          for (const p of conv.participants || []) {
+            if (p?.user?.role === 'user') {
+              const id = p.user._id?.toString?.() || p.user;
+              if (!seen.has(id)) {
+                seen.add(id);
+                users.push({
+                  _id: id,
+                  name: p.user.name,
+                  email: p.user.email,
+                });
+              }
+            }
+          }
+        }
+        setUsersWithChats(users);
+        setFilteredUsers(users);
+      } catch {
+        setConversations([]);
+        setUsersWithChats([]);
+        setFilteredUsers([]);
+      } finally {
+        setLoadingUsers(false);
+      }
+    })();
+  }, [token, canUse]);
+
   const handlePickUser = async (u) => {
     setSelectedUser(u);
     try {
-      const conv = await createConversation(u._id, token);
+      const conv = (conversations || []).find(cv =>
+        (cv.participants || []).some(p => (p?.user?._id?.toString?.() || p.user) === u._id)
+      );
       const id = conv?._id || conv?.id;
       if (id) {
         setConversationId(id);
@@ -83,18 +124,13 @@ export default function AdminChatModal({ token, userId, socket, onClose }) {
         try { await joinConversation(id, token); } catch { /* optional */ }
       }
     } catch {
-      // có thể hiện toast
+      // ignore
     }
   };
 
   return (
     <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center">
-      <div
-        className="bg-white rounded-xl shadow-2xl w-[95vw] max-w-6xl h-[80vh]
-                   transition-transform duration-200 ease-out scale-100 overflow-hidden"
-        role="dialog"
-        aria-label="Chat hỗ trợ khách hàng - Staff/Admin"
-      >
+      <div className="bg-white rounded-xl shadow-2xl w-[95vw] max-w-6xl h-[80vh] transition-transform duration-200 ease-out scale-100 overflow-hidden" role="dialog" aria-label="Chat hỗ trợ khách hàng - Staff/Admin">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <div className="font-semibold text-slate-800">Trung tâm chat hỗ trợ</div>
@@ -120,18 +156,13 @@ export default function AdminChatModal({ token, userId, socket, onClose }) {
                 className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-
-            <div
-              ref={listRef}
-              onScroll={handleScrollList}
-              className="flex-1 overflow-y-auto"
-            >
+            <div ref={listRef} onScroll={handleScrollList} className="flex-1 overflow-y-auto">
               {loadingUsers ? (
                 <div className="p-3 text-sm text-slate-500">Đang tải danh sách…</div>
-              ) : users.length === 0 ? (
-                <div className="p-3 text-sm text-slate-500">Không có người dùng</div>
+              ) : filteredUsers.length === 0 ? (
+                <div className="p-3 text-sm text-slate-500">Không có người dùng đã tạo chat</div>
               ) : (
-                users.slice(0, displayCount).map((u) => (
+                filteredUsers.slice(0, displayCount).map((u) => (
                   <button
                     key={u._id}
                     onClick={() => handlePickUser(u)}
@@ -150,7 +181,6 @@ export default function AdminChatModal({ token, userId, socket, onClose }) {
               )}
             </div>
           </div>
-
           {/* Cột phải */}
           <div className="flex-1 min-h-0">
             {conversationId ? (
