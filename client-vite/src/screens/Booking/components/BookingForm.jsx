@@ -1,9 +1,5 @@
+// BookingForm.jsx
 import React, { useEffect, useState } from "react";
-
-
-
-
-
 
 export default function BookingForm({
   register,
@@ -19,103 +15,101 @@ export default function BookingForm({
   selectedServices,
   handleServiceChange,
   bookingStatus,
-  room,
   setRoomsNeeded,
   setValue,
+  isMultiRoom,
+  selectedRooms,
 }) {
   const [checkinDate, setCheckinDate] = useState("");
   const [checkoutDate, setCheckoutDate] = useState("");
 
-
   useEffect(() => {
-  try {
-    const bookingInfo = JSON.parse(localStorage.getItem("bookingInfo"));
-    if (bookingInfo?.checkin && bookingInfo?.checkout) {
-      const checkin = bookingInfo.checkin.split("T")[0];
-      const checkout = bookingInfo.checkout.split("T")[0];
+    try {
+      const bookingInfo = JSON.parse(localStorage.getItem("bookingInfo"));
+      if (!bookingInfo) return;
+
+      const checkin = bookingInfo.checkin?.split("T")[0] || "";
+      const checkout = bookingInfo.checkout?.split("T")[0] || "";
 
       setCheckinDate(checkin);
       setCheckoutDate(checkout);
-
-      // ✅ Đồng bộ với react-hook-form để Yup validation nhận được
-      if (typeof setValue === "function") {
-        setValue("checkin", checkin);
-        setValue("checkout", checkout);
-      }
+      setValue?.("checkin", checkin);
+      setValue?.("checkout", checkout);
+      setValue?.("adults", bookingInfo.adults || 2);
+      setValue?.("children", bookingInfo.children ?? 0);
+      bookingInfo.rooms && setRoomsNeeded?.(Number(bookingInfo.rooms));
+    } catch (error) {
+      console.error("Lỗi đọc bookingInfo:", error);
     }
-  } catch (error) {
-    console.error("Không thể đọc bookingInfo từ localStorage:", error);
-  }
-}, [setValue]);
-
-
-
-
+  }, [setValue, setRoomsNeeded]);
 
   return (
     <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="bg-white rounded-2xl shadow-lg p-6 space-y-5 border border-gray-100"
+      onSubmit={handleSubmit((data) => onSubmit(data, isMultiRoom, selectedRooms))}
+      className="bg-white rounded-2xl shadow-md border border-gray-200 p-6 space-y-6"
     >
-      {/* Thông tin cá nhân */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <input
-            type="text"
-            placeholder="Họ và tên"
-            {...register("name")}
-            className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${errors.name ? "border-red-500" : "border-gray-300"
-              }`}
-          />
-          {errors.name && (
-            <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
-          )}
-        </div>
-        <div>
-          <input
-            type="email"
-            placeholder="Email"
-            {...register("email")}
-            className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${errors.email ? "border-red-500" : "border-gray-300"
-              }`}
-          />
-          {errors.email && (
-            <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
-          )}
-        </div>
+      {/* Tiêu đề giống Booking.com */}
+      <h3 className="text-xl font-bold text-[#003580] mb-1">
+        Nhập thông tin chi tiết của bạn
+      </h3>
+      <p className="text-sm text-gray-600 mb-4">
+        Gần xong rồi! Chỉ cần điền thông tin của bạn
+      </p>
+
+      {/* Họ và tên */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Họ và tên <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          {...register("name")}
+          placeholder="Ví dụ: Nguyễn Văn A"
+          className={`w-full border ${errors.name ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-[#003580] focus:border-[#003580] transition`}
+        />
+        {errors.name && (
+          <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
+      {/* Email */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Địa chỉ email <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="email"
+          {...register("email")}
+          placeholder="email@domain.com"
+          className={`w-full border ${errors.email ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-[#003580] focus:border-[#003580] transition`}
+        />
+        {errors.email && (
+          <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>
+        )}
+      </div>
+
+      {/* Số điện thoại */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Số điện thoại <span className="text-red-500">*</span>
+        </label>
+        <div className="flex">
+          <span className="inline-flex items-center px-4 py-3 border border-r-0 border-gray-300 rounded-l-lg bg-gray-50 text-gray-600 text-sm">
+            VN +84
+          </span>
           <input
             type="tel"
-            placeholder="Số điện thoại"
             {...register("phone")}
-            className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${errors.phone ? "border-red-500" : "border-gray-300"
-              }`}
+            placeholder="912345678"
+            className={`flex-1 border ${errors.phone ? "border-red-500" : "border-gray-300"} rounded-r-lg px-4 py-3 text-base focus:ring-2 focus:ring-[#003580] focus:border-[#003580] transition`}
           />
-          {errors.phone && (
-            <p className="text-red-500 text-sm mt-1">{errors.phone.message}</p>
-          )}
         </div>
-        <div>
-          <select
-            {...register("roomType")}
-            className={`w-full border rounded-lg p-3 bg-white focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${errors.roomType ? "border-red-500" : "border-gray-300"
-              }`}
-          >
-            <option value="">Chọn loại phòng</option>
-            <option value={room?.type}>{room?.type}</option>
-          </select>
-          {errors.roomType && (
-            <p className="text-red-500 text-sm mt-1">
-              {errors.roomType.message}
-            </p>
-          )}
-        </div>
+        {errors.phone && (
+          <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>
+        )}
       </div>
 
-      {/* Ngày nhận & trả phòng */}
+      {/* Ngày nhận/trả phòng */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="text-sm text-gray-600 mb-1 block">
@@ -123,21 +117,16 @@ export default function BookingForm({
           </label>
           <input
             type="date"
-            id="checkin"
             value={checkinDate}
             onChange={(e) => {
               setCheckinDate(e.target.value);
-              setValue("checkin", e.target.value); //cập nhật cho react-hook-form
+              setValue("checkin", e.target.value);
             }}
-            {...register("checkin", { required: "Vui lòng chọn ngày nhận phòng" })}
-            className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${errors.checkin ? "border-red-500" : "border-gray-300"
-              }`}
+            {...register("checkin")}
+            className={`w-full border ${errors.checkin ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#003580] focus:border-[#003580]`}
           />
-
           {errors.checkin && (
-            <p className="text-red-500 text-sm mt-1">
-              {errors.checkin.message}
-            </p>
+            <p className="text-red-500 text-xs mt-1">{errors.checkin.message}</p>
           )}
         </div>
         <div>
@@ -146,64 +135,45 @@ export default function BookingForm({
           </label>
           <input
             type="date"
-            id="checkout"
             value={checkoutDate}
             onChange={(e) => {
               setCheckoutDate(e.target.value);
               setValue("checkout", e.target.value);
             }}
-            {...register("checkout", { required: "Vui lòng chọn ngày trả phòng" })}
-            required
-            className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${errors.checkout ? "border-red-500" : "border-gray-300"
-              }`}
+            {...register("checkout")}
+            className={`w-full border ${errors.checkout ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#003580] focus:border-[#003580]`}
           />
           {errors.checkout && (
-            <p className="text-red-500 text-sm mt-1">
-              {errors.checkout.message}
-            </p>
+            <p className="text-red-500 text-xs mt-1">{errors.checkout.message}</p>
           )}
         </div>
       </div>
 
-      {/* Số lượng người và phòng */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Số người & trẻ em */}
+      <div className="grid grid-cols-2 gap-4">
         <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Người lớn
+          </label>
           <select
             {...register("adults")}
-            className={`w-full border rounded-lg p-3 bg-white focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition ${errors.adults ? "border-red-500" : "border-gray-300"
-              }`}
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#003580]"
           >
-            <option value="">Người lớn</option>
-            {[...Array(10).keys()].map((n) => (
-              <option key={n + 1} value={n + 1}>
-                {n + 1} người
-              </option>
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+              <option key={n} value={n}>{n} người</option>
             ))}
           </select>
         </div>
         <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Trẻ em
+          </label>
           <select
             {...register("children")}
-            className="w-full border rounded-lg p-3 bg-white focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#003580]"
           >
-            {[...Array(10).keys()].map((n) => (
-              <option key={n} value={n}>
-                {n} trẻ em
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <select
-            {...register("roomsBooked")}
-            onChange={(e) => setRoomsNeeded(Number(e.target.value))}
-            className="w-full border rounded-lg p-3 bg-white focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
-          >
-            <option value="">Số phòng</option>
-            {[...Array(room?.quantity || 1).keys()].map((n) => (
-              <option key={n + 1} value={n + 1}>
-                {n + 1} phòng
-              </option>
+            {[0, 1, 2, 3, 4, 5].map((n) => (
+              <option key={n} value={n}>{n} trẻ</option>
             ))}
           </select>
         </div>
@@ -211,101 +181,107 @@ export default function BookingForm({
 
       {/* Phương thức thanh toán */}
       <div>
-        <label className="block text-sm text-gray-600 mb-1">
-          Phương thức thanh toán
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Phương thức thanh toán <span className="text-red-500">*</span>
         </label>
         <select
           {...register("paymentMethod")}
-          className="w-full border rounded-lg p-3 bg-white focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
+          className={`w-full border ${errors.paymentMethod ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 text-base focus:ring-2 focus:ring-[#003580] focus:border-[#003580] transition`}
         >
           <option value="cash">Tiền mặt</option>
           <option value="credit_card">Thẻ tín dụng</option>
-          <option value="bank_transfer">Chuyển khoản</option>
+          <option value="bank_transfer">Chuyển khoản ngân hàng</option>
           <option value="mobile_payment">MoMo</option>
           <option value="vnpay">VNPay</option>
         </select>
+        {errors.paymentMethod && (
+          <p className="text-red-500 text-xs mt-1">{errors.paymentMethod.message}</p>
+        )}
       </div>
 
       {/* Mã giảm giá */}
       <div>
-        <label className="block text-sm text-gray-600 mb-1">Mã giảm giá</label>
-        <div className="flex">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Mã giảm giá
+        </label>
+        <div className="flex gap-2">
           <input
             type="text"
             value={discountCode}
             onChange={(e) => setDiscountCode(e.target.value)}
             placeholder="Nhập mã"
-            className="flex-1 border rounded-l-lg p-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+            className="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#003580]"
           />
           <button
             type="button"
             onClick={applyDiscountCode}
             disabled={!discountCode || loading}
-            className="px-4 bg-blue-600 text-white font-semibold rounded-r-lg hover:bg-blue-700 transition disabled:opacity-50"
+            className="px-5 bg-[#003580] text-white font-semibold rounded-lg hover:bg-[#002752] transition disabled:opacity-50"
           >
             {loading ? "..." : "Áp dụng"}
           </button>
         </div>
         {discountResult && (
           <p className="text-green-600 text-sm mt-2">
-            Mã giảm giá hợp lệ: Giảm{" "}
-            {discountResult?.appliedDiscounts
-              ?.reduce((sum, d) => sum + d.discount, 0)
-              .toLocaleString()}{" "}
-            VND
+            Giảm {discountResult.appliedDiscounts?.reduce((s, d) => s + d.discount, 0).toLocaleString()} VND
           </p>
         )}
       </div>
 
       {/* Dịch vụ */}
-      <div>
-        <label className="block text-sm text-gray-600 mb-2">
-          Dịch vụ bổ sung
-        </label>
-        {availableServices.length > 0 ? (
-          <div className="grid grid-cols-1 gap-2">
+      {availableServices.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Dịch vụ bổ sung
+          </label>
+          <div className="space-y-2">
             {availableServices.map((service) => (
               <label
                 key={service._id}
-                className="flex items-center space-x-2 bg-gray-50 p-2 rounded-lg hover:bg-blue-50 transition"
+                className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-blue-50 cursor-pointer transition"
               >
-                <input
-                  type="checkbox"
-                  checked={selectedServices.includes(service._id)}
-                  onChange={() => handleServiceChange(service._id)}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                />
-                <span className="text-gray-700">
-                  {service.name} (
-                  {service.price?.toLocaleString() || 0} VND)
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedServices.includes(service._id)}
+                    onChange={() => handleServiceChange(service._id)}
+                    className="w-4 h-4 text-[#003580] rounded focus:ring-[#003580]"
+                  />
+                  <span className="text-gray-800">{service.name}</span>
+                </div>
+                <span className="font-medium text-gray-700">
+                  {service.price.toLocaleString()} VND
                 </span>
               </label>
             ))}
           </div>
-        ) : (
-          <p className="text-gray-500 text-sm">Không có dịch vụ khả dụng</p>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Ghi chú */}
-      <textarea
-        {...register("specialRequest")}
-        placeholder="Yêu cầu đặc biệt (nếu có)"
-        rows="3"
-        className="w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
-      ></textarea>
+      {/* Yêu cầu đặc biệt */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Yêu cầu đặc biệt (không bắt buộc)
+        </label>
+        <textarea
+          {...register("specialRequest")}
+          rows={3}
+          placeholder="Ví dụ: Phòng yên tĩnh, tầng cao..."
+          className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#003580]"
+        />
+      </div>
 
       {/* Nút đặt phòng */}
       <button
         type="submit"
         disabled={loading}
-        className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+        className="w-full bg-[#feba02] hover:bg-[#e5a800] text-[#003580] font-bold text-lg py-4 rounded-lg transition disabled:opacity-50"
       >
-        {loading ? "Đang xử lý..." : "ĐẶT PHÒNG NGAY"}
+        {loading ? "Đang xử lý..." : "HOÀN TẤT ĐẶT PHÒNG"}
       </button>
 
       {bookingStatus?.type === "success" && (
-        <p className="text-green-600 text-center text-sm mt-2">
+        <p className="text-center text-green-600 font-medium">
           {bookingStatus.message}
         </p>
       )}

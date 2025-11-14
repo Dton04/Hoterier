@@ -91,21 +91,35 @@ const HotelResults = () => {
     }
   }, [userInfo]);
 
-  // 🧭 Nhận region và district từ URL query (ví dụ: /hotel-results?region=Hồ%20Chí%20Minh&district=Quận%201)
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const regionFromQuery = params.get("region");
-    const districtFromQuery = params.get("district");
 
-    if (regionFromQuery) {
+  useEffect(() => {
+  const params = new URLSearchParams(location.search);
+  const regionFromQuery = params.get("region");
+  const destinationId = params.get("destination");
+  const districtFromQuery = params.get("district");
+
+  // Nếu URL có destination → tìm theo ID
+  if (destinationId && regions.length > 0) {
+    const foundRegion = regions.find((r) => r._id === destinationId);
+    if (foundRegion) {
       setFilters((prev) => ({
         ...prev,
-        region: decodeURIComponent(regionFromQuery),
-        city: decodeURIComponent(districtFromQuery || ""),
+        region: foundRegion.name,  // 👈 Lọc theo tên
+        city: "",
       }));
+      return; 
     }
+  }
 
-  }, [location.search]);
+  if (regionFromQuery) {
+    setFilters((prev) => ({
+      ...prev,
+      region: decodeURIComponent(regionFromQuery),
+      city: decodeURIComponent(districtFromQuery || ""),
+    }));
+  }
+}, [location.search, regions]);
+
 
   // Khu vực
   const fetchRegions = async () => {

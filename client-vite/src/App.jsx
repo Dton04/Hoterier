@@ -181,6 +181,7 @@ function App() {
           {/* === ROUTE RIÊNG CHO TRANG THANH TOÁN === */}
           <Route element={<BookingLayout />}>
             <Route path="/book/:roomid" element={<Bookingscreen />} />
+            <Route path="/book/multi-room" element={<Bookingscreen />} />
           </Route>
 
         </Routes>

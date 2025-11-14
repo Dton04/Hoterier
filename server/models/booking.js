@@ -7,11 +7,29 @@ const bookingSchema = new mongoose.Schema({
     required: true
   },
 
+  // For single-room bookings
   roomid: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Room",
     required: true,
   },
+
+  // For multi-room bookings (Booking.com style)
+  rooms: [
+    {
+      roomid: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Room"
+      },
+      roomType: String,
+      roomsBooked: Number,
+      checkin: Date,
+      checkout: Date,
+      finalAmount: Number,
+      rentperday: Number
+    }
+  ],
+
   name: {
     type: String,
     required: true,
@@ -52,7 +70,6 @@ const bookingSchema = new mongoose.Schema({
   },
   roomType: {
     type: String,
-    required: true,
   },
   specialRequest: {
     type: String,
@@ -136,11 +153,12 @@ const bookingSchema = new mongoose.Schema({
 
   roomsBooked: { type: Number, default: 1 },
 
-});
+}, { timestamps: true });
 
 // Thêm index
 bookingSchema.index({ roomid: 1, paymentStatus: 1 });
 bookingSchema.index({ email: 1, paymentStatus: 1 });
 bookingSchema.index({ roomid: 1, email: 1, paymentStatus: 1 });
+bookingSchema.index({ hotelId: 1, paymentStatus: 1 });
 
 module.exports = mongoose.model("Booking", bookingSchema);

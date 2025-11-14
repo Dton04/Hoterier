@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import CompactBookingBar from "../components/CompactBookingBar"
 
-export default function RoomsTab({ rooms = [], onRoomSelected }) {
+export default function RoomsTab({ rooms = [], onRoomSelected, hotel = {} }) {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [quantities, setQuantities] = useState({});
   const [currentImage, setCurrentImage] = useState(0);
@@ -34,6 +34,65 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
         (prev - 1 + selectedRoom.imageurls.length) %
         selectedRoom.imageurls.length
     );
+  };
+
+  // ===== HÀM MỚI: Xử lý đặt multi-room =====
+  const handleBookMultiRoom = () => {
+    // Thu thập tất cả phòng được chọn (quantity > 0)
+    const selectedRooms = rooms
+      .filter((room) => quantities[room._id] > 0)
+      .map((room) => ({
+        roomid: room._id,
+        roomType: room.type,
+        name: room.name,
+        roomsBooked: quantities[room._id],
+        rentperday: room.rentperday,
+        imageurls: room.imageurls,
+      }));
+
+    if (selectedRooms.length === 0) {
+      alert("Vui lòng chọn ít nhất 1 phòng");
+      return;
+    }
+
+    // Nếu chỉ chọn 1 phòng -> chuyển đến booking single-room (backward compatible)
+    if (selectedRooms.length === 1 && selectedRooms[0].roomsBooked === 1) {
+      const room = rooms.find((r) => r._id === selectedRooms[0].roomid);
+      navigate(`/book/${room._id}`, {
+        state: {
+          room,
+          checkin: localStorage.getItem("checkin"),
+          checkout: localStorage.getItem("checkout"),
+          adults: localStorage.getItem("adults"),
+          children: localStorage.getItem("children"),
+        },
+      });
+      return;
+    }
+
+    // Nếu chọn multiple rooms hoặc multiple quantity -> Multi-room flow
+    navigate(`/book/multi-room`, {
+      state: {
+        isMultiRoom: true,
+        selectedRooms: selectedRooms,
+        hotel: hotel,
+        checkin: localStorage.getItem("checkin"),
+        checkout: localStorage.getItem("checkout"),
+        adults: localStorage.getItem("adults"),
+        children: localStorage.getItem("children"),
+      },
+    });
+  };
+
+  // ===== HÀM: Tính tổng phòng được chọn =====
+  const getTotalSelectedRooms = () => {
+    return Object.values(quantities).reduce((sum, qty) => sum + qty, 0);
+  };
+
+  const getTotalPrice = () => {
+    return rooms
+      .filter((room) => quantities[room._id] > 0)
+      .reduce((sum, room) => sum + (room.rentperday * quantities[room._id]), 0);
   };
 
   return (
@@ -200,30 +259,16 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
                   </select>
                 </td>
 
-                {/* ✅ Nút “Tôi sẽ đặt” hiển thị bên phải cùng hàng */}
+                {/* Nút indicator (không click) */}
                 <td className="p-2 text-center align-middle">
                   {quantities[room._id] > 0 && (
                     <div className="flex flex-col items-center space-y-2">
-                      <button
-                        onClick={() => {
-                          navigate(`/book/${room._id}`, {
-                            state: {
-                              room,
-                              checkin: localStorage.getItem("checkin"),
-                              checkout: localStorage.getItem("checkout"),
-                              adults: localStorage.getItem("adults"),
-                              children: localStorage.getItem("children"),
-                            },
-                          });
-                        }}
-                        className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-5 py-2 rounded-md shadow-md transition"
-                      >
-                        Tôi sẽ đặt
-                      </button>
-                      <ul className="text-[12px] text-gray-700 space-y-1 text-left">
-                        <li>• Chỉ mất có 2 phút</li>
-                        <li>• Bạn sẽ không bị trừ tiền ngay</li>
-                      </ul>
+                      <div className="bg-green-100 text-green-700 text-sm font-medium px-3 py-1.5 rounded-md shadow">
+                        ✓ Đã chọn
+                      </div>
+                      <p className="text-[12px] text-gray-600">
+                        {quantities[room._id]} phòng
+                      </p>
                     </div>
                   )}
                 </td>
@@ -233,6 +278,28 @@ export default function RoomsTab({ rooms = [], onRoomSelected }) {
         </table>
       </div>
 
+      {/* ===== NÚT ĐẶT MULTI-ROOM BÊN DƯỚI BẢNG ===== */}
+      {getTotalSelectedRooms() > 0 && (
+        <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4 p-4 bg-blue-50 rounded-lg border-2 border-blue-200 max-w-6xl mx-auto">
+          {/* Thông tin tóm tắt */}
+          <div className="text-center sm:text-left">
+            <p className="text-lg font-semibold text-gray-800">
+              Bạn đã chọn <span className="text-blue-600">{getTotalSelectedRooms()} phòng</span>
+            </p>
+            <p className="text-sm text-gray-600">
+              Tổng giá: <span className="font-bold text-green-600">VND {getTotalPrice().toLocaleString()}</span> / đêm
+            </p>
+          </div>
+
+          {/* Nút đặt */}
+          <button
+            onClick={handleBookMultiRoom}
+            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold px-8 py-3 rounded-lg shadow-lg transition transform hover:scale-105"
+          >
+            Tiếp tục đặt phòng
+          </button>
+        </div>
+      )}
 
 
 
