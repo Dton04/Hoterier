@@ -128,7 +128,7 @@ export default function HotelDetail() {
               <h2 className="text-2xl font-bold text-[#003580] mb-4">
                 Đánh giá từ khách hàng
               </h2>
-              <ReviewsTab reviews={reviews} average={average} />
+              <ReviewsTab hotel={hotel} reviews={reviews} average={average} />
             </div>
           </div>
         </div>
@@ -321,7 +321,7 @@ export default function HotelDetail() {
 
         {/* ======= ĐÁNH GIÁ ======= */}
         <section id="reviews" ref={reviewsRef}>
-          <ReviewsTab reviews={reviews} average={average} />
+          <ReviewsTab hotel={hotel} reviews={reviews} average={average} />
         </section>
 
 

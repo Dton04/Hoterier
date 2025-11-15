@@ -35,6 +35,8 @@ exports.createReview = async (req, res) => {
     if (review) {
       review.rating = rating;
       review.comment = comment;
+      review.userName = booking.name || req.user.name || review.userName;
+      review.criteriaRatings = criteriaRatings;
       await review.save();
     } else {
       review = new Review({
@@ -44,6 +46,7 @@ exports.createReview = async (req, res) => {
         email: req.user.email.toLowerCase(),
         bookingId: booking._id,
         criteriaRatings,
+        userName: booking.name || req.user.name,
       });
       await review.save();
     }
@@ -80,17 +83,24 @@ exports.getReviews = async (req, res) => {
     const total = await Review.countDocuments(filter);
 
     // Thay trong reviewController.js
-    const reviews = await Review.find(filter)
+    const reviewsRaw = await Review.find(filter)
       .populate("hotelId", "name")
       .populate("roomId", "name type")
       .populate({
         path: "bookingId",
-        select: "fullName checkInDate checkOutDate",
+        select: "name checkin checkout",
       })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit));
 
+    const reviews = reviewsRaw.map((r) => {
+      const o = r.toObject();
+      if (!o.userName || o.userName === "Ẩn danh") {
+        o.userName = o.bookingId?.name || (o.email ? o.email.split("@")[0] : "");
+      }
+      return o;
+    });
 
     res.status(200).json({
       reviews,
@@ -161,5 +171,56 @@ exports.deleteReview = async (req, res) => {
     res.json({ message: "Xóa mềm thành công", review });
   } catch (error) {
     res.status(500).json({ message: "Lỗi khi xóa đánh giá", error: error.message });
+  }
+};
+
+// GET /api/reviews/categories-average
+exports.getCategoriesAverage = async (req, res) => {
+  try {
+    const { hotelId } = req.query;
+    if (!hotelId) return res.status(400).json({ message: "Thiếu hotelId" });
+    const reviews = await Review.find({ hotelId, isDeleted: false, isVisible: true }, {
+      criteriaRatings: 1,
+    });
+    const sum = {
+      cleanliness: 0,
+      comfort: 0,
+      staff: 0,
+      location: 0,
+      facilities: 0,
+      value: 0,
+    };
+    let count = 0;
+    for (const r of reviews) {
+      const c = r.criteriaRatings || {};
+      const keys = Object.keys(sum);
+      let hasAny = false;
+      for (const k of keys) {
+        if (typeof c[k] === 'number') {
+          sum[k] += c[k];
+          hasAny = true;
+        }
+      }
+      if (hasAny) count++;
+    }
+    const avg = Object.fromEntries(Object.entries(sum).map(([k, v]) => [k, count ? v / count : 0]));
+    res.json({ average: avg, count });
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi khi tính điểm tiêu chí", error: error.message });
+  }
+};
+
+// GET /api/reviews/eligibility
+exports.getEligibility = async (req, res) => {
+  try {
+    const { hotelId } = req.query;
+    if (!hotelId) return res.status(400).json({ message: "Thiếu hotelId" });
+    const email = req.user?.email?.toLowerCase();
+    if (!email) return res.status(401).json({ message: "Không được phép" });
+    const booking = await Booking.findOne({ hotelId, email, status: 'confirmed', paymentStatus: 'paid' });
+    const review = await Review.findOne({ hotelId, email });
+    res.json({ canReview: !!booking, hasReviewed: !!review });
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi kiểm tra điều kiện đánh giá", error: error.message });
   }
 };

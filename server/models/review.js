@@ -21,7 +21,7 @@ const reviewSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 1,
-    max: 5,
+    max: 10,
   },
   comment: {
     type: String,
@@ -46,12 +46,12 @@ const reviewSchema = new mongoose.Schema({
 
   // 🆕 Chi tiết 6 tiêu chí
   criteriaRatings: {
-    cleanliness: { type: Number, min: 1, max: 5 },
-    comfort: { type: Number, min: 1, max: 5 },
-    staff: { type: Number, min: 1, max: 5 },
-    location: { type: Number, min: 1, max: 5 },
-    facilities: { type: Number, min: 1, max: 5 },
-    value: { type: Number, min: 1, max: 5 },
+    cleanliness: { type: Number, min: 1, max: 10 },
+    comfort: { type: Number, min: 1, max: 10 },
+    staff: { type: Number, min: 1, max: 10 },
+    location: { type: Number, min: 1, max: 10 },
+    facilities: { type: Number, min: 1, max: 10 },
+    value: { type: Number, min: 1, max: 10 },
   },
   
   isDeleted: {
