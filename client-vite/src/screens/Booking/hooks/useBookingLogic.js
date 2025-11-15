@@ -160,7 +160,7 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
         try {
           // Fetch hotel info từ room đầu tiên
           const firstRoom = initialData.selectedRooms[0];
-          
+
           if (!firstRoom?.roomid) {
             throw new Error("Invalid room ID in multi-room selection");
           }
@@ -177,8 +177,14 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
           const days = Math.ceil((checkout - checkin) / (1000 * 60 * 60 * 24)) || 1;
 
           const multiRoomTotal = initialData.selectedRooms.reduce((sum, sRoom) => {
-            return sum + (sRoom.rentperday * sRoom.roomsBooked * days);
+            const pricePerNight =
+              sRoom.discountedPrice ??
+              (sRoom.rentperday - (sRoom.festivalDiscountPerDay || 0)) ??
+              sRoom.rentperday;
+
+            return sum + pricePerNight * sRoom.roomsBooked * days;
           }, 0);
+
 
           setRoom({
             ...data,
@@ -216,12 +222,26 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
         );
       }
 
-      // Áp dụng giảm giá festival (nếu có) — LOGIC MỚI ĐÃ SỬA
-      let adjustedRoom = { ...data };
-      adjustedRoom.originalRentperday = data.rentperday; // 👈 LƯU GIÁ GỐC
-      adjustedRoom.festivalDiscountPerDay = 0; // 👈 KHỞI TẠO MỨC GIẢM
+      // ------------------ FIX FESTIVAL DISCOUNT CHỈ ÁP DỤNG KHÁCH SẠN ĐÚNG ------------------
 
-      if (festival && festival.discountType && festival.discountValue) {
+      let adjustedRoom = { ...data };
+      adjustedRoom.originalRentperday = data.rentperday; // luôn giữ giá gốc
+      adjustedRoom.festivalDiscountPerDay = 0;
+      adjustedRoom.discountApplied = null;
+
+      // Kiểm tra festival có hợp lệ & có áp cho hotel này không
+      const isApplicableFestival =
+        festival &&
+        Array.isArray(festival.applicableHotels) &&
+        festival.applicableHotels.includes(data.hotelId);
+
+      // Nếu festival KHÔNG áp dụng cho khách sạn này → xoá khỏi localStorage
+      if (festival && !isApplicableFestival) {
+        localStorage.removeItem("festival");
+      }
+
+      // Chỉ áp dụng festival nếu đúng khách sạn
+      if (isApplicableFestival) {
         let dailyDiscount = 0;
 
         if (festival.discountType === "percentage") {
@@ -230,12 +250,14 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
           dailyDiscount = festival.discountValue;
         }
 
-        adjustedRoom.festivalDiscountPerDay = dailyDiscount; // 👈 LƯU MỨC GIẢM
-        adjustedRoom.discountApplied = `${festival.discountValue}${festival.discountType === "percentage" ? "%" : " VND"
-          }`;
-
-        // adjustedRoom.rentperday KHÔNG bị thay đổi, nó giữ nguyên giá gốc
+        adjustedRoom.festivalDiscountPerDay = dailyDiscount;
+        adjustedRoom.discountApplied =
+          festival.discountValue +
+          (festival.discountType === "percentage" ? "%" : " VND");
       }
+
+      // ------------------ END FIX ------------------
+
 
       setRoom(adjustedRoom);
       setValue("roomType", adjustedRoom.type || "");
@@ -465,24 +487,24 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
         // Xử lý payment method (giống single-room)
         const paymentMethod = data.paymentMethod;
         const paymentResult = bookingResponse.data.paymentResult || {};
-        
+
         if (paymentMethod === "vnpay") {
           // VNPay logic - chuyển hướng đến URL từ BE
           try {
             setBookingStatus({ type: "info", message: "Đang chuyển hướng đến cổng thanh toán VNPay..." });
-            
+
             // Get bookingId from response (support both single-room and multi-room)
             const bookingId = bookingResponse.data.booking?._id || bookingResponse.data.bookingId;
             const totalAmount = bookingResponse.data.totalAmount || bookingResponse.data.booking?.totalAmount;
             const orderId = `BOOKING-${Date.now()}`;
-            
+
             if (!bookingId) {
               throw new Error("Không có bookingId từ server");
             }
             if (!totalAmount) {
               throw new Error("Không có số tiền từ server");
             }
-            
+
             const vnpayResponse = await axios.post("/api/vnpay/create-payment", {
               amount: totalAmount,
               orderId: orderId,
@@ -505,19 +527,19 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
           // MoMo logic - chuyển hướng đến URL từ BE
           try {
             setBookingStatus({ type: "info", message: "Đang chuyển hướng đến cổng thanh toán MoMo..." });
-            
+
             // Get bookingId from response (support both single-room and multi-room)
             const bookingId = bookingResponse.data.booking?._id || bookingResponse.data.bookingId;
             const totalAmount = bookingResponse.data.totalAmount || bookingResponse.data.booking?.totalAmount;
             const orderId = `BOOKING-${Date.now()}`;
-            
+
             if (!bookingId) {
               throw new Error("Không có bookingId từ server");
             }
             if (!totalAmount) {
               throw new Error("Không có số tiền từ server");
             }
-            
+
             const momoResponse = await axios.post("/api/momo/create-payment", {
               amount: totalAmount,
               orderId: orderId,
@@ -621,11 +643,11 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
           setBookingStatus({ type: "info", message: "Đang chuyển hướng đến cổng thanh toán MoMo..." });
           const orderId = `BOOKING-${Date.now()}`;
           const bookingId = bookingResponse.data.booking._id;
-          
+
           if (!bookingId) {
             throw new Error("Không có bookingId từ server");
           }
-          
+
           const momoResponse = await axios.post("/api/momo/create-payment", {
             amount: finalAmount,
             orderId,
@@ -650,11 +672,11 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
           setBookingStatus({ type: "info", message: "Đang chuyển hướng đến cổng thanh toán VNPay..." });
           const orderId = `BOOKING-${Date.now()}`;
           const bookingId = bookingResponse.data.booking._id;
-          
+
           if (!bookingId) {
             throw new Error("Không có bookingId từ server");
           }
-          
+
           const vnpayResponse = await axios.post("/api/vnpay/create-payment", {
             amount: finalAmount,
             orderId,

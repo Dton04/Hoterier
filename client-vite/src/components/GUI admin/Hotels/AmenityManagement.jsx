@@ -72,7 +72,7 @@ function AdminAmenities() {
   const [form, setForm] = useState({ name: "", description: "", icon: "" });
   const [query, setQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 5; // Số lượng tiện ích trên mỗi trang
+  const pageSize = 10; // Số lượng tiện ích trên mỗi trang
 
   const userInfo = JSON.parse(localStorage.getItem("userInfo"));
   const config = { headers: { Authorization: `Bearer ${userInfo?.token}` } };

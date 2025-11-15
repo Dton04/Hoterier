@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, CheckCircle2, XCircle, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
+
 import CompactBookingBar from "../components/CompactBookingBar"
+import RoomDetailModal from "../tabs/RoomDetailModal";
 
 export default function RoomsTab({ rooms = [], onRoomSelected, hotel = {} }) {
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -22,19 +23,21 @@ export default function RoomsTab({ rooms = [], onRoomSelected, hotel = {} }) {
     }));
   };
 
-  const handleNextImage = () => {
-    if (!selectedRoom?.imageurls) return;
-    setCurrentImage((prev) => (prev + 1) % selectedRoom.imageurls.length);
+  // Auto select phòng khi click "Đặt ngay" từ modal
+  const handleSelectRoomFromModal = (room) => {
+    setQuantities((prev) => ({
+      ...prev,
+      [room._id]: 1,
+    }));
+    setSelectedRoom(null);
+    const targetRow = document.getElementById(`room-row-${room._id}`);
+    if (targetRow) {
+      targetRow.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    targetRow?.classList.add("bg-yellow-100");
+    setTimeout(() => targetRow?.classList.remove("bg-yellow-100"), 1200);
   };
 
-  const handlePrevImage = () => {
-    if (!selectedRoom?.imageurls) return;
-    setCurrentImage(
-      (prev) =>
-        (prev - 1 + selectedRoom.imageurls.length) %
-        selectedRoom.imageurls.length
-    );
-  };
 
   // ===== HÀM MỚI: Xử lý đặt multi-room =====
   const handleBookMultiRoom = () => {
@@ -46,9 +49,20 @@ export default function RoomsTab({ rooms = [], onRoomSelected, hotel = {} }) {
         roomType: room.type,
         name: room.name,
         roomsBooked: quantities[room._id],
+
+        // GIÁ GỐC
         rentperday: room.rentperday,
+
+        // GIÁ GIẢM TỪ FESTIVAL (nếu có)
+        discountedPrice: room.discountedPrice ?? room.rentperday,
+
+        // SỐ TIỀN GIẢM MỖI ĐÊM
+        festivalDiscountPerDay:
+          room.rentperday - (room.discountedPrice ?? room.rentperday),
+
         imageurls: room.imageurls,
       }));
+
 
     if (selectedRooms.length === 0) {
       alert("Vui lòng chọn ít nhất 1 phòng");
@@ -92,7 +106,11 @@ export default function RoomsTab({ rooms = [], onRoomSelected, hotel = {} }) {
   const getTotalPrice = () => {
     return rooms
       .filter((room) => quantities[room._id] > 0)
-      .reduce((sum, room) => sum + (room.rentperday * quantities[room._id]), 0);
+      .reduce((sum, room) => {
+        const price = room.discountedPrice ?? room.rentperday;
+        return sum + price * quantities[room._id];
+      }, 0);
+
   };
 
   return (
@@ -120,12 +138,14 @@ export default function RoomsTab({ rooms = [], onRoomSelected, hotel = {} }) {
           <tbody>
             {rooms.map((room) => (
               <tr
+                id={`room-row-${room._id}`}
                 key={room._id}
                 className={`border-b transition text-[13px] ${room.availabilityStatus !== "available"
                     ? "bg-gray-100 opacity-70"
                     : "hover:bg-blue-50"
                   }`}
               >
+
                 {/* Loại chỗ nghỉ */}
                 <td className="py-3 px-3 align-top border-r border-blue-300 cursor-pointer" onClick={() => {
                   setSelectedRoom(room);
@@ -303,152 +323,23 @@ export default function RoomsTab({ rooms = [], onRoomSelected, hotel = {} }) {
 
 
 
-
       {/* Modal chi tiết phòng kiểu Booking.com */}
       <AnimatePresence>
         {selectedRoom && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4"
-          >
-            <motion.div
-              initial={{ y: 50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 50, opacity: 0 }}
-              className="bg-white rounded-xl shadow-2xl w-full max-w-6xl flex flex-col md:flex-row relative overflow-hidden"
-            >
-              {/* Nút đóng */}
-              <button
-                className="absolute top-3 right-3 bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition"
-                onClick={() => setSelectedRoom(null)}
-              >
-                <X size={18} className="text-gray-700" />
-              </button>
+          <RoomDetailModal
+            room={selectedRoom}
+            currentImage={currentImage}
+            setCurrentImage={setCurrentImage}
+            onClose={() => {
+              setSelectedRoom(null);
+              setCurrentImage(0);
+            }}
+            onBook={handleSelectRoomFromModal}
 
-              {/* Ảnh phòng bên trái */}
-              <div className="md:w-[60%] w-full relative ">
-                {/* Ảnh chính */}
-                <img
-                  src={selectedRoom.imageurls?.[currentImage]}
-                  alt={selectedRoom.name}
-                  className="w-full h-[450px] md:h-[500px] object-cover rounded-none"
-                />
-
-                {/* Nút điều hướng ảnh */}
-                {selectedRoom.imageurls?.length > 1 && (
-                  <>
-                    <button
-                      onClick={handlePrevImage}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 p-2 rounded-full hover:bg-white shadow-md transition"
-                    >
-                      <FaChevronLeft className="text-gray-800" />
-                    </button>
-                    <button
-                      onClick={handleNextImage}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 p-2 rounded-full hover:bg-white shadow-md transition"
-                    >
-                      <FaChevronRight className="text-gray-800" />
-                    </button>
-                  </>
-                )}
-
-                {/* Thumbnail ảnh nhỏ */}
-                <div className="bg-white py-3 flex justify-center items-center gap-2 border-t">
-                  {selectedRoom.imageurls?.slice(0, 8).map((img, i) => (
-                    <img
-                      key={i}
-                      src={img}
-                      onClick={() => setCurrentImage(i)}
-                      alt=""
-                      className={`w-20 h-16 object-cover rounded-md cursor-pointer border transition ${i === currentImage
-                        ? "border-blue-600 shadow-sm"
-                        : "border-gray-300 opacity-80 hover:opacity-100"
-                        }`}
-                    />
-                  ))}
-                </div>
-              </div>
-
-
-              {/* Thông tin phòng bên phải */}
-              <div className="md:w-1/2 w-full p-6 overflow-y-auto max-h-[90vh]">
-                <h2 className="text-2xl font-semibold mb-1">{selectedRoom.name}</h2>
-                <p className="text-gray-600 text-sm mb-3">
-                  {selectedRoom.type} • {selectedRoom.beds} giường • {selectedRoom.baths} phòng tắm
-                </p>
-
-                {/* Giá */}
-                <div className="mb-4">
-                  <p className="text-gray-500 text-sm">Giá cho 1 đêm</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    VND {selectedRoom.rentperday?.toLocaleString()}
-                  </p>
-                </div>
-
-                {/* Mô tả */}
-                <p className="text-gray-700 text-sm mb-4 leading-relaxed">
-                  {selectedRoom.description ||
-                    "Phòng rộng rãi với máy điều hòa, minibar, và phòng tắm riêng có vòi sen."}
-                </p>
-
-                {/* Thông tin tiện nghi */}
-                <div className="space-y-4 text-sm text-gray-700 border-t pt-4">
-                  <div>
-                    <h3 className="font-semibold text-lg mb-2">🛁 Trong phòng tắm riêng của bạn</h3>
-                    <ul className="grid grid-cols-2 gap-x-4 list-disc ml-4">
-                      {(selectedRoom.bathroomAmenities || [
-                        "Đồ vệ sinh cá nhân miễn phí",
-                        "Vòi sen",
-                        "Áo choàng tắm",
-                        "Nhà vệ sinh",
-                        "Khăn tắm",
-                      ]).map((a, i) => (
-                        <li key={i}>{a}</li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div>
-                    <h3 className="font-semibold text-lg mb-2">🛏 Tiện nghi</h3>
-                    <ul className="grid grid-cols-2 gap-x-4 list-disc ml-4">
-                      {selectedRoom.amenities?.map((a, i) => {
-                        const name = typeof a === "string" ? a : a?.name;
-                        return <li key={i}>{name}</li>;
-                      })}
-                    </ul>
-                  </div>
-
-                  <div>
-                    <ul>
-                      <strong>Hút thuốc:</strong> <span>Không được hút thuốc</span>
-                    </ul>
-                  </div>
-
-
-                </div>
-
-                {/* Footer */}
-                <div className="flex justify-between items-center mt-6 border-t pt-4">
-                  <p className="text-gray-500 text-sm">
-                    Kích thước phòng: {selectedRoom.size || "20"} m²
-                  </p>
-                  <button
-                    onClick={() => {
-                      onRoomSelected && onRoomSelected(selectedRoom);
-                      setSelectedRoom(null);
-                    }}
-                    className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition"
-                  >
-                    Đặt ngay
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
+          />
         )}
       </AnimatePresence>
+
 
 
     </div>

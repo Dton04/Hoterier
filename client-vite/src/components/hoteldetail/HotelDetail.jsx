@@ -301,6 +301,7 @@ export default function HotelDetail() {
           <RoomsTab
             rooms={rooms}
             hotel={hotel}
+            amenities={amenities}
             onRoomSelected={() => {
               setShowReviews(true);
               reviewsRef.current?.scrollIntoView({ behavior: "smooth" });
