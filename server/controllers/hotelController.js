@@ -79,7 +79,7 @@ exports.getAllHotels = async (req, res) => {
 };
 
 
-// ✅ GET /api/hotels/:id - Lấy chi tiết khách sạn (hỗ trợ festival)
+//  GET /api/hotels/:id - Lấy chi tiết khách sạn (hỗ trợ festival)
 exports.getHotelById = async (req, res) => {
   const { id } = req.params;
   const includeEmpty = req.query.includeEmpty === "true";
@@ -109,17 +109,30 @@ exports.getHotelById = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy khách sạn" });
     }
 
-    // ✅ Nếu có festival → áp dụng giảm giá cho tất cả phòng
+    // Nếu có festival → áp dụng giảm giá cho tất cả phòng
     if (festivalId && mongoose.Types.ObjectId.isValid(festivalId)) {
       const discount = await Discount.findById(festivalId);
-      if (discount && discount.type === "festival") {
-        hotel.rooms = hotel.rooms.map((r) => ({
-          ...r,
-          discountedPrice:
+
+      //  CHỈ ÁP DỤNG khi khách sạn thuộc applicableHotels
+      const isApplicable =
+        discount &&
+        discount.type === "festival" &&
+        Array.isArray(discount.applicableHotels) &&
+        discount.applicableHotels.map((h) => h.toString()).includes(hotel._id.toString());
+
+      if (isApplicable) {
+        hotel.rooms = hotel.rooms.map((r) => {
+          const discounted =
             discount.discountType === "percentage"
               ? Math.round(r.rentperday * (1 - discount.discountValue / 100))
-              : Math.max(r.rentperday - discount.discountValue, 0),
-        }));
+              : Math.max(r.rentperday - discount.discountValue, 0);
+
+          return {
+            ...r,
+            discountedPrice: discounted,
+            festivalDiscount: r.rentperday - discounted,
+          };
+        });
 
         hotel.festival = {
           _id: discount._id,
@@ -130,7 +143,8 @@ exports.getHotelById = async (req, res) => {
       }
     }
 
-    // ✅ Trả về dữ liệu hoàn chỉnh
+
+    //Trả về dữ liệu hoàn chỉnh
     res.status(200).json({
       _id: hotel._id,
       name: hotel.name,

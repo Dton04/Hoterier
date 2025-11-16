@@ -1,4 +1,4 @@
-  // server.js
+// server.js
   require('dotenv').config();
 
   const express = require('express');
@@ -64,6 +64,7 @@
   const statsRoutes = require('./routes/statsRoutes');
   const discountRoutes = require('./routes/discountRoutes');
   const favoriteRoutes = require('./routes/favoriteRoutes');
+  const chatRoutes = require('./routes/chatRoutes');
 
 
   // Debug routes
@@ -102,24 +103,162 @@
   app.use('/api/amenities', require('./routes/amenityRoutes'));
   app.use('/api/momo', momoRoutes);
   app.use('/api/vnpay', vnpayRoutes);
-  
-
-
+  // Mount chat routes tại đây
+  app.use('/api/chats', chatRoutes);
   app.use('/api/chatbot',chatbotRoutes);
 
   // Xử lý lỗi không được bắt
   app.use((err, req, res, next) => {
+    const multer = require('multer');
+    // Bắt lỗi từ Multer (giới hạn size, v.v.)
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ message: 'Kích thước ảnh vượt quá 5MB' });
+      }
+      return res.status(400).json({ message: `Upload lỗi: ${err.code}` });
+    }
+    // Bắt multipart lỗi boundary / part header
+    if (err && typeof err.message === 'string' && err.message.includes('Malformed part header')) {
+      return res.status(400).json({
+        message: 'Yêu cầu multipart/form-data không hợp lệ (thiếu hoặc sai boundary). Hãy để Postman tự đặt Content-Type khi dùng form-data.',
+      });
+    }
+  
+    // Middleware xử lý lỗi chung (đơn giản)
+    app.use((err, req, res, next) => {
     console.error('Unhandled error:', {
-      message: err.message,
-      stack: err.stack,
-      path: req.path,
-      method: req.method,
+    message: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
     });
     res.status(500).json({
-      message: 'Đã xảy ra lỗi server',
-      error: process.env.NODE_ENV === 'development' ? err.message : undefined,
+    message: 'Đã xảy ra lỗi server',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined,
+    });
     });
   });
 
   const port = process.env.PORT || 5000;
-  app.listen(port, () => console.log(`Server is running on port ${port}`));
+
+// Tạo HTTP server và Socket.IO
+  const http = require('http');
+  const server = http.createServer(app);
+  const { Server } = require('socket.io');
+  const jwt = require('jsonwebtoken');
+  const User = require('./models/user');
+  const Conversation = require('./models/conversation');
+  const Message = require('./models/message');
+
+  const io = new Server(server, {
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    },
+  });
+
+  // Cho phép sử dụng ở controller
+  global.io = io;
+
+  // Xác thực socket bằng JWT
+  io.use(async (socket, next) => {
+    try {
+      const authHeader = socket.handshake.headers?.authorization;
+      const tokenFromHeader = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+      const token = socket.handshake.auth?.token || socket.handshake.query?.token || tokenFromHeader;
+
+      if (!token) {
+        console.error('Socket auth missing token:', {
+          headersAuth: !!tokenFromHeader,
+          authToken: !!socket.handshake.auth?.token,
+          queryToken: !!socket.handshake.query?.token,
+        });
+        return next(new Error('Không có token'));
+      }
+
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.id).select('-password');
+      if (!user) return next(new Error('Token không hợp lệ'));
+
+      socket.user = user;
+      next();
+    } catch (err) {
+      next(new Error('Xác thực socket thất bại'));
+    }
+  });
+
+  // Sự kiện realtime
+  io.on('connection', (socket) => {
+    socket.on('conversation:join', async ({ conversationId }) => {
+      try {
+        if (!mongoose.Types.ObjectId.isValid(conversationId)) return;
+        const conv = await Conversation.findById(conversationId);
+        if (!conv) return;
+
+        const role = socket.user.role;
+        const isParticipant = conv.participants.some(p => p.user.equals(socket.user._id));
+        const hasAgent = conv.participants.some(p => p.role === 'staff' || p.role === 'admin');
+
+        if (role === 'admin') {
+          if (!isParticipant) conv.participants.push({ user: socket.user._id, role: 'admin' });
+        } else if (role === 'staff') {
+          if (!isParticipant) conv.participants.push({ user: socket.user._id, role: 'staff' });
+        } else {
+          if (!isParticipant || !hasAgent) return;
+        }
+        if ((role === 'staff' || role === 'admin') && !isParticipant) {
+          conv.participants.push({ user: socket.user._id, role });
+          await conv.save();
+        }
+        socket.join(conversationId);
+        io.to(conversationId).emit('conversation:joined', { userId: socket.user._id.toString() });
+      } catch (e) {}
+    });
+
+    socket.on('message:send', async ({ conversationId, content }) => {
+      try {
+        if (!content || !content.trim()) return;
+        if (!mongoose.Types.ObjectId.isValid(conversationId)) return;
+
+        const conv = await Conversation.findById(conversationId);
+        if (!conv) return;
+
+        const role = socket.user.role;
+        const isParticipant = conv.participants.some(p => p.user.equals(socket.user._id));
+        const hasAgent = conv.participants.some(p => p.role === 'staff' || p.role === 'admin');
+
+        if (role === 'admin') {
+          if (!isParticipant) conv.participants.push({ user: socket.user._id, role: 'admin' });
+        } else if (role === 'staff') {
+          if (!isParticipant) conv.participants.push({ user: socket.user._id, role: 'staff' });
+        } else {
+          if (!isParticipant || !hasAgent) return;
+        }
+
+        const msg = await Message.create({
+          conversation: conv._id,
+          sender: socket.user._id,
+          content: content.trim(),
+        });
+
+        conv.lastMessageAt = msg.createdAt;
+        await conv.save();
+
+        io.to(conversationId).emit('message:new', {
+          _id: msg._id.toString(),
+          conversation: conversationId,
+          sender: socket.user._id.toString(),
+          content: msg.content,
+          createdAt: msg.createdAt,
+        });
+      } catch (e) {}
+    });
+
+    socket.on('typing', ({ conversationId }) => {
+      if (conversationId) socket.to(conversationId).emit('typing', { userId: socket.user._id.toString() });
+    });
+  });
+
+// Khởi động server HTTP thay cho app.listen
+  server.listen(port, () => console.log(`Server is running on port ${port}`));

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Card, Rate, Input, Button, List, message, Select, Spin, Empty } from "antd";
+import { Card, Input, Button, List, message, Select, Spin, Empty } from "antd";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -15,11 +15,15 @@ const Review = () => {
   const [bookings, setBookings] = useState([]);
   const [paidBookings, setPaidBookings] = useState([]);
   const [selectedHotel, setSelectedHotel] = useState(null);
-  const [rating, setRating] = useState(0);
+  const [rating, setRating] = useState(10);
   const [comment, setComment] = useState("");
   const [reviews, setReviews] = useState([]);
+  const [criteria, setCriteria] = useState({ cleanliness: 10, comfort: 10, staff: 10, location: 10, facilities: 10, value: 10 });
 
-  const user = useSelector((state) => state.loginUserReducer.currentUser);
+  const userFromRedux = useSelector((state) => state.loginUserReducer.currentUser);
+  const storedRaw = typeof window !== 'undefined' ? localStorage.getItem('userInfo') : null;
+  const stored = (()=>{ try { const p = storedRaw ? JSON.parse(storedRaw) : null; return p?.user || p || null; } catch { return null; } })();
+  const user = userFromRedux || stored;
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -64,8 +68,8 @@ const Review = () => {
   }, [user, navigate]);
 
   const handleSubmit = async () => {
-    if (!selectedHotel || rating === 0) {
-      return message.warning("Vui lòng chọn khách sạn và đánh giá sao");
+    if (!selectedHotel || rating < 1 || rating > 10) {
+      return message.warning("Vui lòng chọn khách sạn và đánh giá tổng từ 1–10");
     }
 
     if (!comment.trim()) {
@@ -80,6 +84,7 @@ const Review = () => {
           hotelId: selectedHotel,
           rating,
           comment: comment.trim(),
+          criteriaRatings: criteria,
         },
         {
           headers: {
@@ -92,9 +97,10 @@ const Review = () => {
       message.success("Đánh giá thành công!");
 
       // Reset form
-      setRating(0);
+      setRating(10);
       setComment("");
       setSelectedHotel(null);
+      setCriteria({ cleanliness: 10, comfort: 10, staff: 10, location: 10, facilities: 10, value: 10 });
 
       // Refresh reviews
       const reviewsResponse = await axios.get(`/api/reviews/by-email`, {
@@ -157,12 +163,38 @@ const Review = () => {
                 </div>
 
                 <div style={{ marginBottom: 16 }}>
-                  <p style={{ marginBottom: 8, fontWeight: 500 }}>Đánh giá của bạn:</p>
-                  <Rate
+                  <p style={{ marginBottom: 8, fontWeight: 500 }}>Điểm tổng (1–10):</p>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={10}
                     value={rating}
-                    onChange={setRating}
+                    onChange={(e)=> setRating(Number(e.target.value))}
                     disabled={submitting}
+                    style={{ width: 120 }}
                   />
+                </div>
+
+                <div style={{ marginBottom: 16 }}>
+                  <p style={{ marginBottom: 8, fontWeight: 500 }}>Chấm điểm tiêu chí (1–10):</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    {Object.entries(criteria).map(([k,v]) => (
+                      <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <span>
+                          {k === 'staff' ? 'Nhân viên phục vụ' : k === 'facilities' ? 'Tiện nghi' : k === 'cleanliness' ? 'Sạch sẽ' : k === 'comfort' ? 'Thoải mái' : k === 'value' ? 'Đáng giá tiền' : 'Địa điểm'}
+                        </span>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={10}
+                          value={v}
+                          onChange={(e)=> setCriteria((s)=> ({...s, [k]: Number(e.target.value)}))}
+                          disabled={submitting}
+                          style={{ width: 90 }}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
                 <div style={{ marginBottom: 16 }}>
@@ -219,7 +251,7 @@ const Review = () => {
                     }
                     description={
                       <div>
-                        <Rate disabled value={review.rating} />
+                        <div style={{ fontWeight: 600 }}>{Number(review.rating || 0).toFixed(1)}/10</div>
                         <div style={{ color: "#8c8c8c", fontSize: "12px", marginTop: 4 }}>
                           Đánh giá vào: {moment(review.createdAt).locale("vi").format("DD/MM/YYYY HH:mm")}
                         </div>

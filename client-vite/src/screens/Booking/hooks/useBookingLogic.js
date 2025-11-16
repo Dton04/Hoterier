@@ -100,6 +100,10 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
 
   const [roomsNeeded, setRoomsNeeded] = useState(1);
 
+  // ===== NEW: Multi-room state =====
+  const [isMultiRoom, setIsMultiRoom] = useState(initialData?.isMultiRoom === true);
+  const [multiRoomData, setMultiRoomData] = useState(initialData?.selectedRooms || []);
+
   // Lấy festival từ location hoặc localStorage (giữ y nguyên)
   const festival =
     location?.state?.festival ||
@@ -151,6 +155,62 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
     try {
       setLoading(true);
 
+      // ===== MULTI-ROOM CASE =====
+      if (initialData?.isMultiRoom === true && initialData?.selectedRooms?.length > 0) {
+        try {
+          // Fetch hotel info từ room đầu tiên
+          const firstRoom = initialData.selectedRooms[0];
+
+          if (!firstRoom?.roomid) {
+            throw new Error("Invalid room ID in multi-room selection");
+          }
+
+          const { data } = await axios.post("/api/rooms/getroombyid", { roomid: firstRoom.roomid });
+
+          if (data.hotel && data.hotel.imageurls) {
+            data.imageurls = data.hotel.imageurls;
+          }
+
+          // Tính tổng giá multi-room
+          const checkin = new Date(initialData?.checkin || new Date());
+          const checkout = new Date(initialData?.checkout || new Date());
+          const days = Math.ceil((checkout - checkin) / (1000 * 60 * 60 * 24)) || 1;
+
+          const multiRoomTotal = initialData.selectedRooms.reduce((sum, sRoom) => {
+            const pricePerNight =
+              sRoom.discountedPrice ??
+              (sRoom.rentperday - (sRoom.festivalDiscountPerDay || 0)) ??
+              sRoom.rentperday;
+
+            return sum + pricePerNight * sRoom.roomsBooked * days;
+          }, 0);
+
+
+          setRoom({
+            ...data,
+            name: `${initialData.selectedRooms.length} phòng được chọn`,
+            rentperday: multiRoomTotal / days,
+            isMultiRoom: true,
+            selectedRooms: initialData.selectedRooms,
+          });
+
+          setTotalAmount(multiRoomTotal);
+          setValue("roomType", "Multi-Room");
+
+          return;
+        } catch (multiErr) {
+          console.error("Error in multi-room fetch:", multiErr);
+          setError(true);
+          return;
+        }
+      }
+
+      // ===== SINGLE-ROOM CASE =====
+      if (!roomid) {
+        setError(true);
+        return;
+      }
+
       const { data } = await axios.post("/api/rooms/getroombyid", { roomid });
 
       // 👇 BỔ SUNG ĐOẠN NÀY ĐỂ FE NHẬN ĐÚNG hotel.imageurls
@@ -162,12 +222,26 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
         );
       }
 
-      // Áp dụng giảm giá festival (nếu có) — LOGIC MỚI ĐÃ SỬA
-      let adjustedRoom = { ...data };
-      adjustedRoom.originalRentperday = data.rentperday; // 👈 LƯU GIÁ GỐC
-      adjustedRoom.festivalDiscountPerDay = 0; // 👈 KHỞI TẠO MỨC GIẢM
+      // ------------------ FIX FESTIVAL DISCOUNT CHỈ ÁP DỤNG KHÁCH SẠN ĐÚNG ------------------
 
-      if (festival && festival.discountType && festival.discountValue) {
+      let adjustedRoom = { ...data };
+      adjustedRoom.originalRentperday = data.rentperday; // luôn giữ giá gốc
+      adjustedRoom.festivalDiscountPerDay = 0;
+      adjustedRoom.discountApplied = null;
+
+      // Kiểm tra festival có hợp lệ & có áp cho hotel này không
+      const isApplicableFestival =
+        festival &&
+        Array.isArray(festival.applicableHotels) &&
+        festival.applicableHotels.includes(data.hotelId);
+
+      // Nếu festival KHÔNG áp dụng cho khách sạn này → xoá khỏi localStorage
+      if (festival && !isApplicableFestival) {
+        localStorage.removeItem("festival");
+      }
+
+      // Chỉ áp dụng festival nếu đúng khách sạn
+      if (isApplicableFestival) {
         let dailyDiscount = 0;
 
         if (festival.discountType === "percentage") {
@@ -176,12 +250,14 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
           dailyDiscount = festival.discountValue;
         }
 
-        adjustedRoom.festivalDiscountPerDay = dailyDiscount; // 👈 LƯU MỨC GIẢM
-        adjustedRoom.discountApplied = `${festival.discountValue}${festival.discountType === "percentage" ? "%" : " VND"
-          }`;
-
-        // adjustedRoom.rentperday KHÔNG bị thay đổi, nó giữ nguyên giá gốc
+        adjustedRoom.festivalDiscountPerDay = dailyDiscount;
+        adjustedRoom.discountApplied =
+          festival.discountValue +
+          (festival.discountType === "percentage" ? "%" : " VND");
       }
+
+      // ------------------ END FIX ------------------
+
 
       setRoom(adjustedRoom);
       setValue("roomType", adjustedRoom.type || "");
@@ -348,6 +424,166 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
       setPaymentExpired(false);
       setPointsEarned(null);
 
+      // ===== KIỂM TRA MULTI-ROOM =====
+      // Nếu initialData có isMultiRoom flag -> dùng /book-multi endpoint
+      if (initialData?.isMultiRoom === true && initialData?.selectedRooms?.length > 0) {
+        // MULTI-ROOM FLOW
+        const selectedRoomsData = initialData.selectedRooms.map((sRoom) => ({
+          roomid: sRoom.roomid,
+          roomType: sRoom.roomType,
+          roomsBooked: sRoom.roomsBooked,
+          checkin: data.checkin,
+          checkout: data.checkout,
+        }));
+
+        const bookingResponse = await axios.post("/api/bookings/book-multi", {
+          rooms: selectedRoomsData,
+          customer: {
+            name: data.name,
+            email: data.email,
+            phone: data.phone,
+            adults: Number(data.adults),
+            children: Number(data.children) || 0,
+            specialRequest: data.specialRequest,
+            paymentMethod: data.paymentMethod,
+            diningServices: selectedServices,
+            appliedVouchers:
+              discountResult?.appliedDiscounts?.map((d) => ({
+                code: d.code || d.id,
+                discount: d.discount,
+              })) || [],
+          },
+        });
+
+        setBookingId(bookingResponse.data.booking._id);
+        setNewBookingId(bookingResponse.data.booking._id);
+        setBookingDetails({
+          roomName: `${initialData.selectedRooms.length} phòng được chọn`,
+          checkin: data.checkin,
+          checkout: data.checkout,
+          diningServices: selectedServices,
+        });
+
+        localStorage.setItem("userEmail", data.email);
+        localStorage.setItem("bookingId", bookingResponse.data.booking._id);
+        localStorage.setItem("bookedRoomId", "multi-room");
+
+        // 📨 Gửi email xác nhận multi-room
+        try {
+          await axios.post("/api/bookings/mail/booking-confirmation", {
+            bookingId: bookingResponse.data.booking._id,
+            email: data.email,
+            name: data.name,
+            roomName: `${initialData.selectedRooms.length} phòng đặt chung`,
+            checkin: data.checkin,
+            checkout: data.checkout,
+            totalAmount: bookingResponse.data.booking.totalAmount,
+            paymentMethod: data.paymentMethod,
+          });
+        } catch (mailErr) {
+          console.warn("Không gửi được email xác nhận:", mailErr);
+        }
+
+        // Xử lý payment method (giống single-room)
+        const paymentMethod = data.paymentMethod;
+        const paymentResult = bookingResponse.data.paymentResult || {};
+
+        if (paymentMethod === "vnpay") {
+          // VNPay logic - chuyển hướng đến URL từ BE
+          try {
+            setBookingStatus({ type: "info", message: "Đang chuyển hướng đến cổng thanh toán VNPay..." });
+
+            // Get bookingId from response (support both single-room and multi-room)
+            const bookingId = bookingResponse.data.booking?._id || bookingResponse.data.bookingId;
+            const totalAmount = bookingResponse.data.totalAmount || bookingResponse.data.booking?.totalAmount;
+            const orderId = `BOOKING-${Date.now()}`;
+
+            if (!bookingId) {
+              throw new Error("Không có bookingId từ server");
+            }
+            if (!totalAmount) {
+              throw new Error("Không có số tiền từ server");
+            }
+
+            const vnpayResponse = await axios.post("/api/vnpay/create-payment", {
+              amount: totalAmount,
+              orderId: orderId,
+              orderInfo: `Thanh toán đặt phòng - ${bookingId}`,
+              bookingId: bookingId,
+            });
+            if (vnpayResponse.data.payUrl) {
+              window.location.href = vnpayResponse.data.payUrl;
+            } else {
+              throw new Error("Không nhận được URL thanh toán từ VNPay");
+            }
+          } catch (vnErr) {
+            console.error("Lỗi VNPay:", vnErr);
+            setBookingStatus({
+              type: "error",
+              message: vnErr.response?.data?.message || "Lỗi khởi tạo thanh toán VNPay",
+            });
+          }
+        } else if (paymentMethod === "mobile_payment") {
+          // MoMo logic - chuyển hướng đến URL từ BE
+          try {
+            setBookingStatus({ type: "info", message: "Đang chuyển hướng đến cổng thanh toán MoMo..." });
+
+            // Get bookingId from response (support both single-room and multi-room)
+            const bookingId = bookingResponse.data.booking?._id || bookingResponse.data.bookingId;
+            const totalAmount = bookingResponse.data.totalAmount || bookingResponse.data.booking?.totalAmount;
+            const orderId = `BOOKING-${Date.now()}`;
+
+            if (!bookingId) {
+              throw new Error("Không có bookingId từ server");
+            }
+            if (!totalAmount) {
+              throw new Error("Không có số tiền từ server");
+            }
+
+            const momoResponse = await axios.post("/api/momo/create-payment", {
+              amount: totalAmount,
+              orderId: orderId,
+              orderInfo: `Thanh toán đặt phòng - ${bookingId}`,
+              bookingId: bookingId,
+            });
+            if (momoResponse.data.payUrl) {
+              window.location.href = momoResponse.data.payUrl;
+            } else {
+              throw new Error("Không nhận được URL thanh toán từ MoMo");
+            }
+          } catch (moErr) {
+            console.error("Lỗi MoMo:", moErr);
+            setBookingStatus({
+              type: "error",
+              message: moErr.response?.data?.message || "Lỗi khởi tạo thanh toán MoMo",
+            });
+          }
+        } else if (paymentMethod === "bank_transfer") {
+          setPaymentStatus("pending");
+          setBankInfo({
+            accountNumber: "0123456789",
+            accountName: "Bodo Hotel",
+            bankName: "Vietcombank",
+            amount: bookingResponse.data.booking.totalAmount,
+            reference: bookingResponse.data.booking._id,
+          });
+          setBookingStatus({
+            type: "success",
+            message: `Đặt phòng thành công. Vui lòng chuyển khoản theo thông tin bên dưới.`,
+          });
+        } else if (paymentMethod === "cash") {
+          setPaymentStatus("paid");
+          setPointsEarned(bookingResponse.data.pointsEarned || 0);
+          setBookingStatus({
+            type: "success",
+            message: "Đặt phòng thành công! Booking của bạn đã được xác nhận.",
+          });
+        }
+
+        return;
+      }
+
+      // ===== SINGLE-ROOM FLOW (giữ nguyên) =====
       // Gọi API đặt phòng (giữ nguyên endpoint & payload)
       const bookingResponse = await axios.post("/api/bookings/bookroom", {
         roomid,
@@ -401,68 +637,64 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
       }
 
 
-      // Xử lý theo phương thức thanh toán
+      // Xử lý theo phương thức thanh toán (Single-room)
       if (data.paymentMethod === "mobile_payment") {
-        setBookingStatus({ type: "info", message: "Đang tạo hóa đơn thanh toán MoMo..." });
+        try {
+          setBookingStatus({ type: "info", message: "Đang chuyển hướng đến cổng thanh toán MoMo..." });
+          const orderId = `BOOKING-${Date.now()}`;
+          const bookingId = bookingResponse.data.booking._id;
 
-        const orderId = `BOOKING-${roomid}-${new Date().getTime()}`;
-        const orderInfo = `Thanh toán đặt phòng ${room.name}`;
-        const amount =
-          finalAmount ||
-          Math.max(
-            0,
-            (discountResult?.totalAmount || room.rentperday * days * roomsNeeded) +
-            servicesCost -
-            voucherDiscount
-          );
+          if (!bookingId) {
+            throw new Error("Không có bookingId từ server");
+          }
 
-        const momoResponse = await axios.post("/api/momo/create-payment", {
-          amount: amount.toString(),
-          orderId,
-          orderInfo,
-          bookingId: bookingResponse.data.booking._id,
-        });
-
-        if (momoResponse.data.payUrl) {
-          setBookingStatus({
-            type: "success",
-            message: "Đang chuyển hướng đến trang thanh toán MoMo. Vui lòng hoàn tất thanh toán.",
+          const momoResponse = await axios.post("/api/momo/create-payment", {
+            amount: finalAmount,
+            orderId,
+            orderInfo: `Thanh toán đặt phòng ${room.name}`,
+            bookingId: bookingId,
           });
-          setPaymentStatus("pending");
-          window.location.href = momoResponse.data.payUrl;
-        } else {
-          throw new Error(momoResponse.data.message || "Lỗi khi tạo hóa đơn MoMo");
+
+          if (momoResponse.data.payUrl) {
+            window.location.href = momoResponse.data.payUrl;
+          } else {
+            throw new Error(momoResponse.data.message || "Không nhận được URL thanh toán từ MoMo");
+          }
+        } catch (moErr) {
+          console.error("Lỗi MoMo:", moErr);
+          setBookingStatus({
+            type: "error",
+            message: moErr.response?.data?.message || "Lỗi khởi tạo thanh toán MoMo",
+          });
         }
       } else if (data.paymentMethod === "vnpay") {
-        setBookingStatus({ type: "info", message: "Đang tạo hóa đơn thanh toán VNPay..." });
+        try {
+          setBookingStatus({ type: "info", message: "Đang chuyển hướng đến cổng thanh toán VNPay..." });
+          const orderId = `BOOKING-${Date.now()}`;
+          const bookingId = bookingResponse.data.booking._id;
 
-        const orderId = `BOOKING-${roomid}-${new Date().getTime()}`;
-        const orderInfo = `Thanh toán đặt phòng ${room.name}`;
-        const amount =
-          finalAmount ||
-          Math.max(
-            0,
-            (discountResult?.totalAmount || room.rentperday * days * roomsNeeded) +
-            servicesCost -
-            voucherDiscount
-          );
+          if (!bookingId) {
+            throw new Error("Không có bookingId từ server");
+          }
 
-        const vnpayResponse = await axios.post("/api/vnpay/create-payment", {
-          amount: amount.toString(),
-          orderId,
-          orderInfo,
-          bookingId: bookingResponse.data.booking._id,
-        });
-
-        if (vnpayResponse.data.payUrl) {
-          setBookingStatus({
-            type: "success",
-            message: "Đang chuyển hướng đến trang thanh toán VNPay. Vui lòng hoàn tất thanh toán.",
+          const vnpayResponse = await axios.post("/api/vnpay/create-payment", {
+            amount: finalAmount,
+            orderId,
+            orderInfo: `Thanh toán đặt phòng ${room.name}`,
+            bookingId: bookingId,
           });
-          setPaymentStatus("pending");
-          window.location.href = vnpayResponse.data.payUrl;
-        } else {
-          throw new Error(vnpayResponse.data.message || "Lỗi khi tạo hóa đơn VNPay");
+
+          if (vnpayResponse.data.payUrl) {
+            window.location.href = vnpayResponse.data.payUrl;
+          } else {
+            throw new Error(vnpayResponse.data.message || "Không nhận được URL thanh toán từ VNPay");
+          }
+        } catch (vnErr) {
+          console.error("Lỗi VNPay:", vnErr);
+          setBookingStatus({
+            type: "error",
+            message: vnErr.response?.data?.message || "Lỗi khởi tạo thanh toán VNPay",
+          });
         }
       } else {
         // ✅ Nếu là thanh toán tiền mặt

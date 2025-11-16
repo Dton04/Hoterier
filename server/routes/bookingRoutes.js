@@ -16,6 +16,9 @@ router.post("/", bookingController.createBooking);
 // POST /api/bookings/bookroom - Đặt phòng
 router.post("/bookroom", bookingController.bookRoom);
 
+// POST /api/bookings/book-multi - Đặt nhiều phòng (Booking.com style)
+router.post("/book-multi", bookingController.bookMulti);
+
 // DELETE /api/bookings/:id - Hủy đặt phòng
 router.delete("/:id", bookingController.cancelBooking);
 

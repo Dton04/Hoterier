@@ -14,12 +14,11 @@ export default function OverviewTab({ hotel, average, reviews, onShowReviews }) 
           <span className="text-sm text-blue-600">Xem chi tiết →</span>
         </h3>
         <div className="flex items-center gap-2 mb-2">
-          <Star className="text-yellow-500" size={20} />
           <span className="text-2xl font-bold text-blue-700">
             {average.toFixed(1)}
           </span>
           <span className="text-gray-600 text-sm">
-            / 5 ({reviews.length} đánh giá)
+            / 10 ({reviews.length} đánh giá)
           </span>
         </div>
         <p className="text-gray-500 text-sm">

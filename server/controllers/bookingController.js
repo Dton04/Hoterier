@@ -5,6 +5,7 @@ const Room = require("../models/room");
 const Discount = require("../models/discount");
 const Transaction = require('../models/transaction');
 const User = require("../models/user");
+const Service = require("../models/service");
 const discount = require("../models/discount");
 const nodemailer = require("nodemailer");
 
@@ -557,6 +558,210 @@ exports.bookRoom = async (req, res) => {
       await session.abortTransaction();
       console.error("Lỗi khi đặt phòng:", error.message);
       res.status(500).json({ message: error.message });
+   } finally {
+      session.endSession();
+   }
+};
+
+//Da sua
+// POST /api/bookings/book-multi - Đặt nhiều phòng (Booking.com style)
+exports.bookMulti = async (req, res) => {
+   const {
+      rooms,           // Array: [{roomid, roomType, roomsBooked, checkin, checkout}, ...]
+      customer         // Object: {name, email, phone, adults, children, paymentMethod, diningServices, appliedVouchers, voucherDiscount}
+   } = req.body;
+
+   const session = await mongoose.startSession();
+
+   try {
+      session.startTransaction();
+
+      // Validation
+      if (!rooms || !Array.isArray(rooms) || rooms.length === 0) {
+         throw new Error("Phải có ít nhất một phòng trong đơn đặt");
+      }
+
+      if (!customer || !customer.name || !customer.email || !customer.phone) {
+         throw new Error("Thông tin khách hàng không đầy đủ");
+      }
+
+      // Get hotel from first room
+      const firstRoom = await Room.findById(rooms[0].roomid).session(session);
+      if (!firstRoom) {
+         throw new Error("Không tìm thấy phòng");
+      }
+
+      const hotelId = firstRoom.hotelId;
+
+      // Adjust dates
+      const checkinDate = new Date(rooms[0].checkin);
+      const checkoutDate = new Date(rooms[0].checkout);
+
+      checkinDate.setHours(14, 0, 0, 0);
+      checkoutDate.setHours(12, 0, 0, 0);
+
+      const checkinISO = new Date(checkinDate.getTime() - (checkinDate.getTimezoneOffset() + 420) * 60000);
+      const checkoutISO = new Date(checkoutDate.getTime() - (checkoutDate.getTimezoneOffset() + 420) * 60000);
+
+      if (isNaN(checkinISO) || isNaN(checkoutISO) || checkinISO >= checkoutISO) {
+         throw new Error("Ngày nhận phòng hoặc trả phòng không hợp lệ");
+      }
+
+      // Process each room
+      let totalPrice = 0;
+      const roomDetails = [];
+
+      for (const roomItem of rooms) {
+         if (!mongoose.Types.ObjectId.isValid(roomItem.roomid)) {
+            throw new Error("ID phòng không hợp lệ");
+         }
+
+         const room = await Room.findById(roomItem.roomid).session(session);
+         if (!room) {
+            throw new Error(`Không tìm thấy phòng ${roomItem.type}`);
+         }
+
+         if (room.quantity < roomItem.roomsBooked) {
+            throw new Error(`Số lượng phòng ${roomItem.type} không đủ`);
+         }
+
+         // Calculate price for this room
+         const days = Math.max(1, Math.floor((checkoutISO - checkinISO) / (1000 * 60 * 60 * 24)));
+         const roomPrice = room.rentperday * roomItem.roomsBooked * days;
+         totalPrice += roomPrice;
+
+         // Store room details
+         roomDetails.push({
+            roomid: room._id,
+            roomType: room.type,
+            roomsBooked: roomItem.roomsBooked,
+            checkin: checkinISO,
+            checkout: checkoutISO,
+            finalAmount: roomPrice,
+            rentperday: room.rentperday
+         });
+
+         // Reduce quantity
+         room.quantity -= roomItem.roomsBooked;
+         await room.save({ session });
+      }
+
+      // Calculate service cost
+      let serviceCost = 0;
+      if (customer.diningServices && customer.diningServices.length > 0) {
+         const services = await Service.find({ _id: { $in: customer.diningServices } }).session(session);
+         serviceCost = services.reduce((sum, s) => sum + s.price, 0);
+      }
+
+      // Apply voucher
+      const voucherDiscount = customer.voucherDiscount || 0;
+
+      // Final amount
+      const finalAmount = Math.max(0, totalPrice + serviceCost - voucherDiscount);
+
+      // Create booking with rooms array (NOT roomid)
+      const booking = new Booking({
+         hotelId,
+         rooms: roomDetails,        // ARRAY of room objects
+         // roomid is still required by schema but we don't use it for multi-room
+         roomid: rooms[0].roomid,   // Set to first room for schema compatibility
+         name: customer.name,
+         email: customer.email.toLowerCase(),
+         phone: customer.phone,
+         checkin: checkinISO,
+         checkout: checkoutISO,
+         adults: Number(customer.adults),
+         children: Number(customer.children) || 0,
+         specialRequest: customer.specialRequest || null,
+         paymentMethod: customer.paymentMethod,
+         totalAmount: finalAmount,
+         status: "pending",
+         paymentStatus: "pending",
+         diningServices: customer.diningServices || [],
+         appliedVouchers: customer.appliedVouchers || [],
+         voucherDiscount,
+         roomsBooked: rooms.reduce((sum, r) => sum + r.roomsBooked, 0) // Total rooms count
+      });
+
+      await booking.save({ session });
+
+      // Check for active discounts
+      const now = new Date();
+      const activeDiscounts = await Discount.find({
+         type: "festival",
+         applicableHotels: hotelId,
+         isDeleted: false,
+         startDate: { $lte: now },
+         endDate: { $gte: now },
+      }).session(session);
+
+      let appliedDiscount = null;
+      if (activeDiscounts.length > 0) {
+         appliedDiscount = activeDiscounts.reduce((best, current) => {
+            if (current.discountType === "percentage" && (!best || current.discountValue > best.discountValue)) return current;
+            if (current.discountType === "fixed" && (!best || current.discountValue > best.discountValue)) return current;
+            return best;
+         }, null);
+      }
+
+      // XỬ lý thanh toán
+      let paymentResult = {};
+
+      switch (customer.paymentMethod) {
+
+         case "bank_transfer":
+            paymentResult = await processBankPayment(booking, session);
+            break;
+
+         case "vnpay":
+            paymentResult = {
+               success: true,
+               redirectRequired: true,
+               paymentMethod: "vnpay",
+               bookingId: booking._id,
+               orderId: `VNP${Date.now()}`
+            };
+            break;
+
+         case "mobile_payment":
+            paymentResult = {
+               success: true,
+               redirectRequired: true,
+               paymentMethod: "momo",
+               bookingId: booking._id,
+               orderId: `MOMO${Date.now()}`
+            };
+            break;
+
+         case "cash":
+            paymentResult = {
+               success: true,
+               message: "Thanh toán tại quầy khi nhận phòng."
+            };
+            booking.paymentStatus = "pending";
+            await booking.save({ session });
+            break;
+
+         default:
+            throw new Error("Phương thức thanh toán không hợp lệ");
+      }
+
+      await session.commitTransaction();
+
+      return res.status(201).json({
+         message: "Đặt nhiều phòng thành công!",
+         booking,
+         paymentResult,   
+         totalAmount: finalAmount,
+         roomsBooked: rooms.length,
+         appliedDiscount
+      });
+
+
+   } catch (error) {
+      await session.abortTransaction();
+      console.error("Lỗi book-multi:", error.message);
+      res.status(500).json({ message: error.message || "Lỗi khi đặt phòng" });
    } finally {
       session.endSession();
    }

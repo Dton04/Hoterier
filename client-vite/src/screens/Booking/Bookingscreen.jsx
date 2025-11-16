@@ -24,13 +24,21 @@ export default function Bookingscreen() {
 
    // *** Lấy query parameters từ URL (Dữ liệu từ Chatbot) ***
    const queryParams = new URLSearchParams(location.search);
+   
+   // *** Lấy multi-room data từ location.state (từ RoomsTab) ***
+   const isMultiRoom = location.state?.isMultiRoom === true;
+   const selectedRooms = location.state?.selectedRooms || [];
+   const hotelFromState = location.state?.hotel || null;
+   
+   // *** Merge initialData từ cả URL query params và location.state ***
    const initialData = {
-      checkin: queryParams.get('checkin'),
-      checkout: queryParams.get('checkout'),
-      people: queryParams.get('people'),
+      checkin: location.state?.checkin || queryParams.get('checkin'),
+      checkout: location.state?.checkout || queryParams.get('checkout'),
+      people: location.state?.adults || queryParams.get('people'),
       hotelId: queryParams.get('hotelId'),
+      isMultiRoom: isMultiRoom,
+      selectedRooms: selectedRooms,
    };
-   // *********************************************************
 
    const {
       // from hook
@@ -127,10 +135,10 @@ export default function Bookingscreen() {
                            address: hotel?.address,
                            city: hotel?.region?.name,
                            stars: 5, // có thể cập nhật thêm field sao trong DB nếu cần
-                           rating: 9.5,
-                           reviewScore: 8.8,
+                           rating: hotel?.rating,
+                           reviewScore: hotel?.reviewScore || 9.5,
                            reviewText: "Tuyệt vời",
-                           reviewCount: 3001,
+                           reviewCount: hotel?._id ? room?.totalReviews || 120 : 0,
                            image: hotel?.imageurls?.[0],
                            wifi: hotel?.amenities?.includes("wifi"),
                            parking: hotel?.amenities?.includes("parking"),
@@ -142,6 +150,8 @@ export default function Bookingscreen() {
                         room={room}
                         roomsNeeded={roomsNeeded}
                         getValues={getValues}
+                        isMultiRoom={isMultiRoom}
+                        selectedRooms={selectedRooms}
                      />
                      <PriceSummary
                         room={room}
@@ -205,10 +215,10 @@ export default function Bookingscreen() {
                            selectedServices={selectedServices}
                            handleServiceChange={handleServiceChange}
                            bookingStatus={bookingStatus}
-                           room={room}
-                           getValues={getValues}
                            setRoomsNeeded={setRoomsNeeded}
-                           setValue={setValue}  
+                           setValue={setValue}
+                           isMultiRoom={isMultiRoom}
+                           selectedRooms={selectedRooms}
                         />
 
                      )}

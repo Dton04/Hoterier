@@ -8,6 +8,7 @@ export default function PromoCarousel({ festivalDiscounts = [] }) {
   
   const [showLeft, setShowLeft] = useState(false);
   const [showRight, setShowRight] = useState(true);
+  const [hovered, setHovered] = useState(false);
 
   const checkScroll = () => {
     const el = scrollRef.current;
@@ -18,6 +19,14 @@ export default function PromoCarousel({ festivalDiscounts = [] }) {
     setShowRight(!atEnd);
   };
 
+  // Fix mất nút khi load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      checkScroll();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [festivalDiscounts]);
+
   useEffect(() => {
     const el = scrollRef.current;
     if (el) {
@@ -27,12 +36,10 @@ export default function PromoCarousel({ festivalDiscounts = [] }) {
     }
   }, []);
 
-  
-
   return (
     <section className="py-14 bg-white relative overflow-hidden">
       <div className="max-w-6xl mx-auto px-4">
-        {/* Header */}
+
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-[22px] md:text-[26px] font-bold text-[#1a1a1a]">
             Chương trình khuyến mãi chỗ ở
@@ -46,15 +53,20 @@ export default function PromoCarousel({ festivalDiscounts = [] }) {
         </div>
 
         {/* Carousel */}
-        <div className="relative group">         
+        <div
+          className="relative"
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+        >
+
           {/* Nút trái */}
           {showLeft && (
             <button
               onClick={() => scrollRef.current.scrollBy({ left: -400, behavior: "smooth" })}
-              className={`absolute left-1 top-1/2 -translate-y-1/2 bg-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] 
-                          w-[44px] h-[44px] rounded-[14px] flex items-center justify-center 
-                          hover:shadow-[0_6px_16px_rgba(0,0,0,0.25)] hover:scale-105 transition-all duration-300 
-                          z-20 opacity-0 group-hover:opacity-100`}
+              className={`absolute left-1 top-1/2 -translate-y-1/2 bg-white shadow-[0_4px_12px_rgba(0,0,0,0.15)]
+                          w-[44px] h-[44px] rounded-[14px] flex items-center justify-center z-20
+                          hover:shadow-[0_6px_16px_rgba(0,0,0,0.25)] hover:scale-105 transition-all duration-300
+                          ${hovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}
             >
               <FaChevronLeft className="text-[16px] text-gray-700" />
             </button>
@@ -79,6 +91,7 @@ export default function PromoCarousel({ festivalDiscounts = [] }) {
                     alt={festival.name}
                     className="w-full h-28 sm:h-32 lg:h-36 object-cover rounded-[20px]"
                   />
+
                   <div className="absolute top-2 left-2 bg-pink-600 text-white text-[11px] sm:text-xs font-semibold px-3 py-0.5 rounded-full shadow">
                     Giảm {festival.discountValue || 30}%
                   </div>
@@ -91,14 +104,15 @@ export default function PromoCarousel({ festivalDiscounts = [] }) {
           {showRight && (
             <button
               onClick={() => scrollRef.current.scrollBy({ left: 400, behavior: "smooth" })}
-              className={`absolute right-1 top-1/2 -translate-y-1/2 bg-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] 
-                          w-[44px] h-[44px] rounded-[14px] flex items-center justify-center 
-                          hover:shadow-[0_6px_16px_rgba(0,0,0,0.25)] hover:scale-105 transition-all duration-300 
-                          z-20 opacity-0 group-hover:opacity-100`}
+              className={`absolute right-1 top-1/2 -translate-y-1/2 bg-white shadow-[0_4px_12px_rgba(0,0,0,0.15)]
+                          w-[44px] h-[44px] rounded-[14px] flex items-center justify-center z-20
+                          hover:shadow-[0_6px_16px_rgba(0,0,0,0.25)] hover:scale-105 transition-all duration-300
+                          ${hovered ? "opacity-100" : "opacity-0 pointer-events-none"}`}
             >
               <FaChevronRight className="text-[16px] text-gray-700" />
             </button>
           )}
+
         </div>
       </div>
     </section>

@@ -312,7 +312,7 @@ const HotelManagement = () => {
         footer={null}
         width={1000}
         centered
-        destroyOnClose
+        destroyOnHidden
       >
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

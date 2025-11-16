@@ -1,7 +1,8 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from "react-router-dom";
-import { Provider } from 'react-redux';
+import { Provider, useSelector } from 'react-redux';
 import store from './redux/store';
+import ChatBubble from './components/chat/ChatBubble';
 
 // Import Layouts
 import AdminLayout from "./components/admin dashboard/AdminLayout";
@@ -68,7 +69,12 @@ const ProtectedRoute = ({ children }) => {
 };
 
 const UserRoute = ({ children }) => {
-  const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+  let userInfo = null;
+  try {
+    const raw = localStorage.getItem("userInfo");
+    const parsed = raw ? JSON.parse(raw) : null;
+    userInfo = parsed?.user || parsed;
+  } catch {}
   return userInfo ? children : <Navigate to="/login" replace />;
 };
 
@@ -99,6 +105,8 @@ const UserLayout = () => (
       <Outlet />
     </main>
     <Footer />
+    {/* Mount ChatBubble dùng Portal */}
+    <ChatBubble />
   </>
 );
 
@@ -178,6 +186,7 @@ function App() {
           {/* === ROUTE RIÊNG CHO TRANG THANH TOÁN === */}
           <Route element={<BookingLayout />}>
             <Route path="/book/:roomid" element={<Bookingscreen />} />
+            <Route path="/book/multi-room" element={<Bookingscreen />} />
           </Route>
 
         </Routes>
