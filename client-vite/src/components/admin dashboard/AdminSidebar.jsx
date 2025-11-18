@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-// ✅ ĐÃ CẬP NHẬT: Bỏ FiTable, thêm FiMapPin
-import { FiGrid, FiFileText, FiMapPin, FiUsers, FiStar, FiTag, FiServer, FiHome, FiRotateCcw } from 'react-icons/fi';
+// ✅ ĐÃ CẬP NHẬT: Bỏ FiTable, thêm FiMapPin và FiBell
+import { FiGrid, FiFileText, FiMapPin, FiUsers, FiStar, FiTag, FiServer, FiHome, FiRotateCcw, FiBell } from 'react-icons/fi';
 
 const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const location = useLocation();
@@ -19,6 +19,7 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { label: "Giảm giá", icon: <FiTag />, path: "/admin/discounts" },
     { label: "Đánh giá", icon: <FiStar />, path: "/admin/reviews" },
     { label: "Khu vực", icon: <FiMapPin />, path: "/admin/regions" }, // Thay thế "Tables"
+    { label: "Thông báo", icon: <FiBell />, path: "/admin/notifications" }, // Thêm mục thông báo
   ];
 
   return (

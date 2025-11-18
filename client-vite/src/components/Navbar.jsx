@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { io } from "socket.io-client";
+import { FiBell } from "react-icons/fi";
 
 function Navbar() {
   const location = useLocation();
@@ -10,6 +12,10 @@ function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
   const [points, setPoints] = useState(0);
+  const [isNotifOpen, setNotifOpen] = useState(false);
+  const [hasNewNotif, setHasNewNotif] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [socketRef, setSocketRef] = useState(null);
 
   //Kiểm tra đăng nhập
   const checkLoginStatus = async () => {
@@ -44,6 +50,68 @@ function Navbar() {
     document.body.style.overflow = isNavOpen ? "hidden" : "auto";
   }, [isNavOpen]);
 
+  // 🔔 Realtime notifications với socket.io
+  useEffect(() => {
+    const storedUserInfo = localStorage.getItem("userInfo");
+    const userInfo = storedUserInfo ? JSON.parse(storedUserInfo) : null;
+    const token = userInfo?.user?.token || userInfo?.token;
+    const lastSeenKey = "notif_last_seen";
+
+    const updateHasNewFromList = (list) => {
+      const lastSeen = localStorage.getItem(lastSeenKey);
+      const latestAt = list?.[0]?.createdAt || list?.[0]?.created_at;
+      if (latestAt && (!lastSeen || new Date(latestAt).getTime() > Number(lastSeen))) {
+        setHasNewNotif(true);
+      }
+    };
+
+    const fetchFeed = async () => {
+      try {
+        if (token) {
+          const config = { headers: { Authorization: `Bearer ${token}` } };
+          const res = await axios.get("/api/notifications/feed", config);
+          const list = Array.isArray(res.data) ? res.data : res.data?.notifications || [];
+          setNotifications(list);
+          updateHasNewFromList(list);
+          try { localStorage.setItem("notif_cache", JSON.stringify(list)); } catch {}
+        } else {
+          const res = await axios.get("/api/notifications/public/latest");
+          const list = res.data ? [res.data] : [];
+          setNotifications(list);
+          updateHasNewFromList(list);
+          try { localStorage.setItem("notif_cache", JSON.stringify(list)); } catch {}
+        }
+      } catch (e) {}
+    };
+
+    try {
+      const cachedRaw = localStorage.getItem("notif_cache");
+      const cached = cachedRaw ? JSON.parse(cachedRaw) : null;
+      if (Array.isArray(cached) && cached.length) {
+        setNotifications(cached);
+        updateHasNewFromList(cached);
+      }
+    } catch {}
+
+    fetchFeed();
+
+    if (token) {
+      const s = io("http://localhost:5000", { transports: ["websocket"], auth: { token } });
+      s.on("notification:new", (payload) => {
+        setNotifications((prev) => {
+          const next = [payload, ...prev].slice(0, 10);
+          try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch {}
+          return next;
+        });
+        setHasNewNotif(true);
+      });
+      setSocketRef(s);
+      return () => {
+        s.disconnect();
+      };
+    }
+  }, [isLoggedIn]);
+
   const closeNav = () => {
     setNavOpen(false);
     setUserDropdownOpen(false);
@@ -60,6 +128,15 @@ function Navbar() {
   const handlePointsClick = () => {
     closeNav();
     navigate("/points");
+  };
+
+  const handleNotificationsClick = async () => {
+    setNotifOpen(!isNotifOpen);
+    if (!isNotifOpen) {
+      const now = Date.now();
+      localStorage.setItem("notif_last_seen", String(now));
+      setHasNewNotif(false);
+    }
   };
 
   return (
@@ -99,6 +176,32 @@ function Navbar() {
 
         {/* 👤 User menu + Mobile button */}
         <div className="flex items-center gap-3">
+          {/* 🔔 Notification Bell */}
+          <div className="relative">
+            <button
+              className="flex items-center gap-2 hover:text-[#febb02] font-medium bg-[#003580]"
+              onClick={handleNotificationsClick}
+            >
+              <FiBell className="text-white" />
+            </button>
+            {hasNewNotif && (
+              <span className="absolute -top-1 -right-1 inline-block h-2 w-2 rounded-full bg-red-500"></span>
+            )}
+            {isNotifOpen && (
+              <ul className="absolute right-0 mt-2 bg-white text-gray-800 border border-gray-200 rounded-lg shadow-md w-72 z-50 max-h-80 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <li className="px-4 py-3 text-sm text-gray-500">Không có thông báo</li>
+                ) : (
+                  notifications.map((n, idx) => (
+                    <li key={idx} className="px-4 py-2 hover:bg-gray-100">
+                      <div className="text-sm font-medium">{n.message || n.text || n.title}</div>
+                      <div className="text-xs text-gray-500">{new Date(n.createdAt || n.created_at || Date.now()).toLocaleString()}</div>
+                    </li>
+                  ))
+                )}
+              </ul>
+            )}
+          </div>
           {isLoggedIn ? (
             <div className="relative">
               <button

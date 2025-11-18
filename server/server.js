@@ -65,6 +65,7 @@
   const discountRoutes = require('./routes/discountRoutes');
   const favoriteRoutes = require('./routes/favoriteRoutes');
   const chatRoutes = require('./routes/chatRoutes');
+  const notificationsRoutes = require('./routes/notificationsRoutes');
 
 
   // Debug routes
@@ -106,6 +107,7 @@
   // Mount chat routes tại đây
   app.use('/api/chats', chatRoutes);
   app.use('/api/chatbot',chatbotRoutes);
+  app.use('/api/notifications', notificationsRoutes);
 
   // Xử lý lỗi không được bắt
   app.use((err, req, res, next) => {
@@ -190,6 +192,10 @@
 
   // Sự kiện realtime
   io.on('connection', (socket) => {
+    // Thêm user vào rooms theo role
+    socket.join(`role:${socket.user.role}`);
+    socket.join(`user:${socket.user._id}`);
+    
     socket.on('conversation:join', async ({ conversationId }) => {
       try {
         if (!mongoose.Types.ObjectId.isValid(conversationId)) return;
