@@ -4,7 +4,7 @@ const notificationSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    required: false, // Không bắt buộc vì đây có thể là thông báo hệ thống
   },
   message: {
     type: String,
@@ -14,6 +14,11 @@ const notificationSchema = new mongoose.Schema({
     type: String,
     enum: ['info', 'warning', 'error'],
     default: 'info',
+  },
+  audience: {
+    type: String,
+    enum: ['all', 'staff', 'user', 'admin'],
+    default: 'all',
   },
   createdAt: {
     type: Date,

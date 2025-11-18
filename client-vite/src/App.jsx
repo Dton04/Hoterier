@@ -50,6 +50,7 @@ import ReviewManagement from "./components/GUI admin/Bookings/ReviewManagement";
 import AdminRegions from "./components/GUI admin/Regions/AdminRegions";
 import AmenityManagement from "./components/GUI admin/Hotels/AmenityManagement";
 import HotelServiceManagement from "./components/GUI admin/Hotels/HotelServiceManagement";
+import AdminNotifications from "./components/GUI admin/Notifications/AdminNotifications";
 import CreateRoomForm from "./components/CreateRoomForm";
 import EditRoomForm from "./components/EditRoomForm";
 
@@ -177,6 +178,7 @@ function App() {
             <Route path="reviews" element={<ReviewManagement />} />
             <Route path="regions" element={<AdminRegions />} />
             <Route path="amenities" element={<AmenityManagement />} />
+            <Route path="notifications" element={<AdminNotifications />} />
             {/* Đã gỡ 2 route cũ ngoài Admin */}
             {/* <Route path="createroom" element={<CreateRoomForm />} /> */}
             {/* <Route path="editroom/:id" element={<EditRoomForm />} /> */}
