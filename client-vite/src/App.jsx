@@ -1,5 +1,8 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from "react-router-dom";
+
+import { Toaster } from 'react-hot-toast';
+
 import { Provider, useSelector } from 'react-redux';
 import store from './redux/store';
 import ChatBubble from './components/chat/ChatBubble';
@@ -18,8 +21,8 @@ import Contact from "./components/Contact";
 import Registerscreen from "./screens/Auth/Registerscreen";
 import LoginScreen from "./screens/Auth/Loginscreen";
 import HistoryBookings from "./components/HistoryBookings";
-import ProfileManagement from "./components/ProfileManagement";
-import ProfileDetails from "./components/ProfileDetails";
+import ProfileManagement from "./components/Profile/ProfileManagement";
+import ProfileDetails from "./components/Profile/ProfileDetails";
 import GoogleCallBack from "./screens/Auth/GoogleCallBack";
 import FacebookCallBack from "./screens/Auth/FacebookCallBack";
 import Membership from "./components/Membership";
@@ -122,7 +125,16 @@ const AdminLayoutWrapper = () => (
 
 function App() {
   return (
+    
     <Provider store={store}>
+       <Toaster
+        position="top-center"
+        reverseOrder={false}
+        toastOptions={{
+          duration: 2500,
+          style: { fontSize: "15px" }
+        }}
+      />
       <Router>
         <Routes>
           {/* === CÁC ROUTE CỦA NGƯỜI DÙNG === */}

@@ -5,7 +5,7 @@ const Booking = require("../models/booking");
 const axios = require("axios");
 require("dotenv").config();
 
-/** 🧩 Hàm chuẩn hóa tiếng Việt */
+/**Hàm chuẩn hóa tiếng Việt */
 function normalizeVietnamese(str) {
   return str
     .normalize("NFD")
@@ -16,7 +16,7 @@ function normalizeVietnamese(str) {
     .trim();
 }
 
-/** 🧩 Hàm tính giá thấp nhất */
+/** Hàm tính giá thấp nhất */
 function getLowestPrice(hotel) {
   if (!hotel?.rooms?.length) return null;
   const prices = hotel.rooms
@@ -27,7 +27,7 @@ function getLowestPrice(hotel) {
 
 /** Hàm gọi API chatbot**/
 async function callGeminiChatbot(messages) {
-  console.log("🔑 API Key Loaded:", process.env.GEMINI_API_KEY ? "Có" : "Không tìm thấy");
+  console.log("API Key Loaded:", process.env.GEMINI_API_KEY ? "Có" : "Không tìm thấy");
   try {
     const userMessage = messages[messages.length - 1].content;
 
@@ -69,7 +69,7 @@ async function callGeminiChatbot(messages) {
 
 
 
-/** 🧠 Nhận diện intent */
+/**  Nhận diện intent */
 async function detectIntent(msg) {
   const text = normalizeVietnamese(msg);
 
@@ -169,7 +169,7 @@ exports.chatBotReply = async (req, res) => {
 
     // --- 1. XỬ LÝ CÂU HỎI NGOÀI LỀ (GENERAL) ---
     if (intent === "general") {
-      console.log("💬 Gọi Gemini cho câu hỏi ngoài lề...");
+      console.log(" Gọi Gemini cho câu hỏi ngoài lề...");
       try {
         const aiReply = await callGeminiChatbot([
           { role: "user", content: message },
@@ -210,7 +210,7 @@ exports.chatBotReply = async (req, res) => {
 
         if (response.data?.booking) {
           return res.json({
-            reply: `🎉 Đặt phòng thành công cho ${prev.name}!\nPhương thức thanh toán: ${prev.paymentMethod === "cash" ? "💵 Tiền mặt" : "💳 Trực tuyến"}.\nEmail xác nhận đã gửi tới ${prev.email}.`,
+            reply: `🎉 Đặt phòng thành công cho ${prev.name}!\nPhương thức thanh toán: ${prev.paymentMethod === "cash" ? "Tiền mặt" : "Trực tuyến"}.\nEmail xác nhận đã gửi tới ${prev.email}.`,
             context: {},
           });
         } else {
@@ -342,7 +342,7 @@ exports.chatBotReply = async (req, res) => {
     // --- 4. FALLBACK ---
     return res.json({
       reply:
-        "Tôi chưa hiểu rõ lắm 😅. Bạn muốn tìm khách sạn, đặt phòng hay hỏi điều gì khác ạ?",
+        "Tôi chưa hiểu rõ lắm. Bạn muốn tìm khách sạn, đặt phòng hay hỏi điều gì khác ạ?",
     });
   } catch (err) {
     console.error("❌ Chatbot error:", err.message);

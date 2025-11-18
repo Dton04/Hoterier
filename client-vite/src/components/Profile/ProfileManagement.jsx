@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Spinner, Alert } from "react-bootstrap";
 import { useNavigate, Link } from "react-router-dom";
-import Banner from "../components/Banner";
-import defaultAvatar from "../assets/images/default-avatar.jpg";
+import Banner from "../Banner";
+import defaultAvatar from "../../assets/images/default-avatar.jpg"
 
 import {
   CreditCard, Wallet, Receipt, User, Lock, Briefcase,

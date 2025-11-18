@@ -13,6 +13,8 @@ import BookingForm from "../BookingForm";
 import ServicesTab from "./tabs/ServicesTab";
 import HeaderTab from "./tabs/HeaderTab"
 import HotelHighlights from "./tabs/HotelHighlights";
+import { getSuggestedRoomCombos } from "./components/SuggestedRoomCombos";
+import BookingRecommendation from "./tabs/BookingRecommendation";
 
 import Loader from "../Loader";
 
@@ -39,6 +41,40 @@ export default function HotelDetail() {
 
   const [searchParams] = useSearchParams();
   const festivalId = searchParams.get("festivalId");
+
+
+  const bookingInfo = JSON.parse(localStorage.getItem("bookingInfo")) || {};
+  const storedAdults = Number(bookingInfo.adults) || 1;
+  const storedChildren = Number(bookingInfo.children) || 0;
+  const roomsNeeded = Number(bookingInfo.rooms) || 1;
+  const totalGuests = storedAdults + storedChildren;
+  const suggestedCombo = getSuggestedRoomCombos(rooms, totalGuests, roomsNeeded);
+
+
+  const handleSelectSuggestedCombo = (combo) => {
+    // reset bảng phòng
+    window.dispatchEvent(new Event("reset-room-selection"));
+
+    combo.forEach(room => {
+      window.dispatchEvent(new CustomEvent("auto-select-room", {
+        detail: { roomId: room._id }
+      }));
+    });
+
+    document.getElementById("rooms-table")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  };
+
+
+
+
+
+
+
+
+
 
   useEffect(() => {
     const sections = ["overview", "rooms", "amenities", "rules", "reviews"];
@@ -69,9 +105,9 @@ export default function HotelDetail() {
           discountRes,
         ] = await Promise.all([
           axios.get(`/api/hotels/${id}`, {
-          params: { festivalId }, 
-        }),
-          
+            params: { festivalId },
+          }),
+
           axios.get(`/api/amenities`),
           axios.get(`/api/services/hotel/${id}`),
           axios.get(`/api/reviews?hotelId=${id}`),
@@ -80,7 +116,7 @@ export default function HotelDetail() {
         ]);
 
         setHotel(hotelRes.data.hotel || hotelRes.data);
-        setRooms(hotelRes.data.rooms || [] );
+        setRooms(hotelRes.data.rooms || []);
         const amenityNames = Array.isArray(amenityRes.data)
           ? amenityRes.data.map((a) => (typeof a === "string" ? a : a?.name)).filter(Boolean)
           : [];
@@ -163,8 +199,6 @@ export default function HotelDetail() {
         <BookingForm />
       </div>
 
-
-
       <div className="max-w-6xl mx-auto  space-y-10 ">
 
         {/* ======= THANH MỤC LỤC ======= */}
@@ -244,6 +278,8 @@ export default function HotelDetail() {
               )}
             </div>
 
+
+
             {/* Giới thiệu */}
             <div>
 
@@ -291,9 +327,18 @@ export default function HotelDetail() {
 
           </div>
 
-
-
         </section>
+
+        {/* ===== GỢI Ý PHÒNG THEO SỐ KHÁCH ===== */}
+        {suggestedCombo && suggestedCombo.length > 0 && (
+          <BookingRecommendation
+            combo={suggestedCombo}
+            totalGuests={totalGuests}
+            onSelect={() => handleSelectSuggestedCombo(suggestedCombo)}
+          />
+
+        )}
+
 
 
         {/* ======= THÔNG TIN & GIÁ ======= */}

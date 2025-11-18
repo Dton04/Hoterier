@@ -11,7 +11,7 @@ function Navbar() {
   const [user, setUser] = useState(null);
   const [points, setPoints] = useState(0);
 
-  // 🟢 Kiểm tra đăng nhập
+  //Kiểm tra đăng nhập
   const checkLoginStatus = async () => {
     const storedUserInfo = localStorage.getItem("userInfo");
     if (!storedUserInfo) return;

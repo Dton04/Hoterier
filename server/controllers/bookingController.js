@@ -1440,10 +1440,10 @@ exports.sendBookingConfirmationEmail = async (req, res) => {
       };
 
       await transporter.sendMail(mailOptions);
-      console.log(`📧 Email xác nhận đã gửi tới ${email}`);
+      console.log(` Email xác nhận đã gửi tới ${email}`);
       res.status(200).json({ message: "Gửi email xác nhận thành công" });
    } catch (err) {
-      console.error("❌ Lỗi gửi email xác nhận:", err);
+      console.error(" Lỗi gửi email xác nhận:", err);
       res.status(500).json({ message: "Không thể gửi email xác nhận", error: err.message });
    }
 };
