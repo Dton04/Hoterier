@@ -71,15 +71,27 @@ function Navbar() {
           const config = { headers: { Authorization: `Bearer ${token}` } };
           const res = await axios.get("/api/notifications/feed", config);
           const list = Array.isArray(res.data) ? res.data : res.data?.notifications || [];
-          setNotifications(list);
-          updateHasNewFromList(list);
-          try { localStorage.setItem("notif_cache", JSON.stringify(list)); } catch {}
+          const now = Date.now();
+          const filtered = list.filter(n => (
+            (!n.startsAt || new Date(n.startsAt).getTime() <= now) &&
+            (!n.endsAt || new Date(n.endsAt).getTime() >= now) &&
+            !n.isOutdated
+          ));
+          setNotifications(filtered);
+          updateHasNewFromList(filtered);
+          try { localStorage.setItem("notif_cache", JSON.stringify(filtered)); } catch {}
         } else {
           const res = await axios.get("/api/notifications/public/latest");
           const list = res.data ? [res.data] : [];
-          setNotifications(list);
-          updateHasNewFromList(list);
-          try { localStorage.setItem("notif_cache", JSON.stringify(list)); } catch {}
+          const now = Date.now();
+          const filtered = list.filter(n => (
+            (!n.startsAt || new Date(n.startsAt).getTime() <= now) &&
+            (!n.endsAt || new Date(n.endsAt).getTime() >= now) &&
+            !n.isOutdated
+          ));
+          setNotifications(filtered);
+          updateHasNewFromList(filtered);
+          try { localStorage.setItem("notif_cache", JSON.stringify(filtered)); } catch {}
         }
       } catch (e) {}
     };
@@ -98,6 +110,24 @@ function Navbar() {
     if (token) {
       const s = io("http://localhost:5000", { transports: ["websocket"], auth: { token } });
       s.on("notification:new", (payload) => {
+        const now = Date.now();
+        const startOk = !payload.startsAt || new Date(payload.startsAt).getTime() <= now;
+        const endOk = !payload.endsAt || new Date(payload.endsAt).getTime() >= now;
+        if (payload.isOutdated || !endOk) return;
+        if (!startOk) {
+          const delay = new Date(payload.startsAt).getTime() - now;
+          if (delay > 0) {
+            setTimeout(() => {
+              setNotifications((prev) => {
+                const next = [payload, ...prev].slice(0, 10);
+                try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch {}
+                return next;
+              });
+              setHasNewNotif(true);
+            }, delay);
+          }
+          return;
+        }
         setNotifications((prev) => {
           const next = [payload, ...prev].slice(0, 10);
           try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch {}
@@ -194,8 +224,37 @@ function Navbar() {
                 ) : (
                   notifications.map((n, idx) => (
                     <li key={idx} className="px-4 py-2 hover:bg-gray-100">
-                      <div className="text-sm font-medium">{n.message || n.text || n.title}</div>
-                      <div className="text-xs text-gray-500">{new Date(n.createdAt || n.created_at || Date.now()).toLocaleString()}</div>
+                      {n.isSystem || n.category === 'system' ? (
+                        <div>
+                          <div className="text-sm font-semibold">{n.message}</div>
+                          {n.hotelName && (
+                            <div className="text-xs text-gray-700">Khách sạn: {n.hotelName}</div>
+                          )}
+                          {(n.checkin || n.checkout) && (
+                            <div className="text-xs text-gray-700">Ngày: {n.checkin ? new Date(n.checkin).toLocaleString('vi-VN') : ''} → {n.checkout ? new Date(n.checkout).toLocaleString('vi-VN') : ''}</div>
+                          )}
+                          {(n.adults || n.children || n.roomsBooked) && (
+                            <div className="text-xs text-gray-700">Khách: {n.adults || 0} người lớn, {n.children || 0} trẻ em, {n.roomsBooked || 1} phòng</div>
+                          )}
+                          {typeof n.amountPaid === 'number' && n.amountPaid > 0 && (
+                            <div className="text-xs text-gray-700">Thanh toán: {Number(n.amountPaid).toLocaleString('vi-VN')} VND</div>
+                          )}
+                          <div className="text-[11px] text-gray-500 mt-1">{new Date(n.createdAt || n.created_at || Date.now()).toLocaleString('vi-VN')}</div>
+                          <div className="mt-2">
+                            <button
+                              className="text-xs bg-[#003580] text-white px-3 py-1 rounded hover:bg-[#0050a3]"
+                              onClick={() => { setNotifOpen(false); navigate('/bookings'); }}
+                            >
+                              Xem chi tiết
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="text-sm font-medium">{n.message || n.text || n.title}</div>
+                          <div className="text-xs text-gray-500">{new Date(n.createdAt || n.created_at || Date.now()).toLocaleString('vi-VN')}</div>
+                        </>
+                      )}
                     </li>
                   ))
                 )}

@@ -9,6 +9,9 @@ const AdminNotifications = () => {
   const [message, setMessage] = useState('');
   const [type, setType] = useState('info');
   const [sendResult, setSendResult] = useState(null);
+  const [scheduleMode, setScheduleMode] = useState('none'); // none | 15m | custom
+  const [startsAt, setStartsAt] = useState('');
+  const [endsAt, setEndsAt] = useState('');
 
   // Helper function để lấy token từ localStorage
   const getAuthToken = () => {
@@ -30,7 +33,8 @@ const AdminNotifications = () => {
       const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
       
       const res = await axios.get('/api/notifications/admin/list', config);
-      setNotifications(Array.isArray(res.data) ? res.data : res.data?.notifications || []);
+      const list = Array.isArray(res.data) ? res.data : res.data?.notifications || [];
+      setNotifications(list.filter(n => !n.isSystem && n.category !== 'system'));
     } catch (err) {
       console.error('Lỗi lấy danh sách thông báo:', err);
       if (err.response?.status === 401) {
@@ -61,6 +65,12 @@ const AdminNotifications = () => {
       
       const config = { headers: { Authorization: `Bearer ${token}` } };
       const payload = { audience, message, type };
+      if (scheduleMode === '15m') {
+        payload.durationMinutes = 15;
+      } else if (scheduleMode === 'custom') {
+        if (startsAt) payload.startsAt = startsAt;
+        if (endsAt) payload.endsAt = endsAt;
+      }
       
       console.log('Gửi thông báo với payload:', payload);
       console.log('Token:', token.substring(0, 20) + '...');
@@ -71,6 +81,9 @@ const AdminNotifications = () => {
       setMessage('');
       setAudience('all');
       setType('info');
+      setScheduleMode('none');
+      setStartsAt('');
+      setEndsAt('');
       
       // Refresh danh sách thông báo
       fetchNotifications();
@@ -134,15 +147,46 @@ const AdminNotifications = () => {
               </select>
             </div>
             
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-2">Nội dung thông báo</label>
+            <textarea 
+              className="w-full rounded-md border border-gray-300 p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              rows="3" 
+              value={message} 
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Nhập nội dung thông báo..."
+            />
+          </div>
+
+            {/* Lịch hiển thị */}
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-2">Nội dung thông báo</label>
-              <textarea 
-                className="w-full rounded-md border border-gray-300 p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                rows="3" 
-                value={message} 
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Nhập nội dung thông báo..."
-              />
+              <label className="block text-sm font-medium text-gray-600 mb-2">Thời gian hiển thị</label>
+              <div className="flex flex-wrap gap-4 mb-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="radio" name="scheduleMode" value="none" checked={scheduleMode==='none'} onChange={(e)=>setScheduleMode(e.target.value)} />
+                  Không giới hạn
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="radio" name="scheduleMode" value="15m" checked={scheduleMode==='15m'} onChange={(e)=>setScheduleMode(e.target.value)} />
+                  Trong 15 phút
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="radio" name="scheduleMode" value="custom" checked={scheduleMode==='custom'} onChange={(e)=>setScheduleMode(e.target.value)} />
+                  Khoảng thời gian tùy chọn
+                </label>
+              </div>
+              {scheduleMode==='custom' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Bắt đầu</label>
+                    <input type="datetime-local" className="w-full rounded-md border border-gray-300 p-2 text-sm" value={startsAt} onChange={(e)=>setStartsAt(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Kết thúc</label>
+                    <input type="datetime-local" className="w-full rounded-md border border-gray-300 p-2 text-sm" value={endsAt} onChange={(e)=>setEndsAt(e.target.value)} />
+                  </div>
+                </div>
+              )}
             </div>
             
             <div className="flex items-center justify-end gap-2">
@@ -196,8 +240,14 @@ const AdminNotifications = () => {
                       </div>
                       <p className="text-sm text-gray-700">{notif.message}</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        {new Date(notif.createdAt || notif.created_at || Date.now()).toLocaleString('vi-VN')}
+                        Tạo: {new Date(notif.createdAt || notif.created_at || Date.now()).toLocaleString('vi-VN')}
                       </p>
+                      {(notif.startsAt || notif.endsAt) && (
+                        <p className="text-xs text-gray-500">Hiển thị: {notif.startsAt ? new Date(notif.startsAt).toLocaleString('vi-VN') : 'Ngay lập tức'} → {notif.endsAt ? new Date(notif.endsAt).toLocaleString('vi-VN') : 'Không giới hạn'}</p>
+                      )}
+                      {notif.isOutdated && (
+                        <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-700">Đã hết hạn</span>
+                      )}
                     </div>
                   </div>
                 </div>

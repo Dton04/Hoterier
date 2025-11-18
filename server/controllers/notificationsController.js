@@ -4,7 +4,7 @@ const User = require('../models/user');
 // Lấy danh sách thông báo cho admin
 const getAdminNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find({})
+    const notifications = await Notification.find({ isSystem: { $ne: true } })
       .sort({ createdAt: -1 })
       .limit(50);
     
@@ -24,7 +24,7 @@ const getAdminNotifications = async (req, res) => {
 // Gửi thông báo mới (chỉ admin)
 const sendNotification = async (req, res) => {
   try {
-    const { audience, message, type } = req.body;
+    const { audience, message, type, startsAt, endsAt, durationMinutes } = req.body;
     
     if (!message || !type) {
       return res.status(400).json({
@@ -39,6 +39,14 @@ const sendNotification = async (req, res) => {
       message,
       type: type || 'info',
       audience: audience || 'all',
+      startsAt: startsAt ? new Date(startsAt) : new Date(),
+      endsAt: (() => {
+        if (endsAt) return new Date(endsAt);
+        if (durationMinutes && Number(durationMinutes) > 0) {
+          return new Date(Date.now() + Number(durationMinutes) * 60 * 1000);
+        }
+        return null;
+      })(),
       createdAt: new Date()
     });
 
@@ -72,15 +80,38 @@ const sendNotification = async (req, res) => {
 // Lấy thông báo cho user hiện tại
 const getUserNotifications = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const now = new Date();
+    // Cập nhật trạng thái outdated cho các thông báo đã hết hạn
+    await Notification.updateMany({ endsAt: { $ne: null, $lt: now }, isOutdated: { $ne: true } }, { $set: { isOutdated: true } });
+
     const notifications = await Notification.find({
-      $or: [
-        { audience: 'all' },
-        { audience: req.user.role }
+      $and: [
+        {
+          $or: [
+            { audience: 'all' },
+            { audience: req.user.role },
+            { targetUserId: req.user._id }
+          ]
+        },
+        {
+          $or: [
+            { startsAt: { $exists: false } },
+            { startsAt: null },
+            { startsAt: { $lte: now } }
+          ]
+        },
+        {
+          $or: [
+            { endsAt: { $exists: false } },
+            { endsAt: null },
+            { endsAt: { $gte: now } }
+          ]
+        },
+        { isOutdated: { $ne: true } }
       ]
     })
-    .sort({ createdAt: -1 })
-    .limit(20);
+      .sort({ createdAt: -1 })
+      .limit(20);
 
     const latest = notifications[0]?.createdAt || null;
     const hasNew = !req.user.lastNotificationSeenAt || (latest && latest > req.user.lastNotificationSeenAt);

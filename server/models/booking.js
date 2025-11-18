@@ -151,6 +151,8 @@ const bookingSchema = new mongoose.Schema({
     default: null, // Lưu transactionId từ VNPay (sau khi thanh toán thành công)
   },
 
+  totalAmount: { type: Number, default: 0 },
+
   roomsBooked: { type: Number, default: 1 },
 
 }, { timestamps: true });
