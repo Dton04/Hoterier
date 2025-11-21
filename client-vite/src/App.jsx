@@ -6,6 +6,8 @@ import { Toaster } from 'react-hot-toast';
 import { Provider, useSelector } from 'react-redux';
 import store from './redux/store';
 import ChatBubble from './components/chat/ChatBubble';
+import ChatBot from "./components/chatbot/ChatBot";
+import UnifiedChat from "./components/chat/UnifiedChat";
 
 // Import Layouts
 import AdminLayout from "./components/admin dashboard/AdminLayout";
@@ -37,7 +39,7 @@ import Review from "./screens/Review";
 import DiscountsPage from "./screens/DiscountsPage";
 import FestivalHotels from "./screens/FestivalHotels";
 
-import ChatBot from "./components/chatbot/ChatBot";
+
 
 // Import Admin Screens
 import AdminDashboard from "./components/GUI admin/Dashboards/AdminDashboard";
@@ -104,13 +106,14 @@ const UserLayout = () => (
     {/* Outlet là nơi các trang con của người dùng sẽ hiển thị */}
     <main className="pt-[70px] bg-gray-50 min-h-screen">
 
+       <ChatBot />
+      <UnifiedChat/>
 
-      <ChatBot />
       <Outlet />
     </main>
     <Footer />
     {/* Mount ChatBubble dùng Portal */}
-    <ChatBubble />
+    
   </>
 );
 

@@ -156,14 +156,14 @@ exports.chatBotReply = async (req, res) => {
     const { message, context = {} } = req.body || {};
     if (!message) return res.status(400).json({ reply: "Thiếu tin nhắn" });
 
-    console.log("📩 USER:", message);
+    console.log("USER:", message);
 
     let intent = await detectIntent(message); // Dùng let
     const prev = context || {};
 
     // --- DUY TRÌ CONTEXTUAL INTENT ---
     if (prev.region && intent === "general") {
-      console.log("🛠️ Duy trì intent: Đã có khu vực, chuyển từ general -> search");
+      console.log("Duy trì intent: Đã có khu vực, chuyển từ general -> search");
       intent = "search";
     }
 
@@ -238,7 +238,7 @@ exports.chatBotReply = async (req, res) => {
 
     // 2b. FLOW: Xử lý khi người dùng CHỌN KHÁCH SẠN (tìm kiếm phòng)
     if (prev.hotelId && !prev.roomId) {
-      console.log("🛠️ FLOW: Đã chọn khách sạn, đang tìm phòng...");
+      console.log("FLOW: Đã chọn khách sạn, đang tìm phòng...");
 
       // KHÔNG CẦN HỎI NGÀY Ở ĐÂY NỮA, VÌ NÓ ĐÃ ĐƯỢC HỎI Ở BƯỚC 3C DƯỚI ĐÂY
       // Mục đích là để luồng search cơ bản (3) phải cung cấp đủ ngày trước khi hiển thị khách sạn.
