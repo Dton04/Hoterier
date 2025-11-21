@@ -3,6 +3,8 @@ const mongoose = require("mongoose");
 const Booking = require("../models/booking");
 const Room = require("../models/room");
 const Discount = require("../models/discount");
+const Notification = require('../models/notification');
+const Hotel = require('../models/hotel');
 const Transaction = require('../models/transaction');
 const User = require("../models/user");
 const Service = require("../models/service");
@@ -368,6 +370,37 @@ exports.createBooking = async (req, res) => {
 
       await session.commitTransaction();
 
+      // Tạo thông báo cho người đặt phòng
+      try {
+         const user = await User.findOne({ email: email.toLowerCase() });
+         const hotel = await Hotel.findById(room.hotelId).lean();
+         const hotelName = hotel?.name || 'Khách sạn';
+         if (user) {
+            const notif = new Notification({
+               userId: null,
+               targetUserId: user._id,
+               audience: 'user',
+               type: 'info',
+               category: 'system',
+               isSystem: true,
+              message: `Đã thanh toán thành công cho đơn đặt phòng tại ${hotelName}`,
+              hotelName,
+              checkin: checkinDate,
+              checkout: checkoutDate,
+               adults: Number(adults),
+               children: Number(children) || 0,
+              roomsBooked: Number(roomsBooked),
+              amountPaid: newBooking.totalAmount,
+              startsAt: new Date(),
+              endsAt: null,
+            });
+            await notif.save();
+            if (global.io) global.io.to(`user:${user._id}`).emit('notification:new', notif);
+         }
+      } catch (e) {
+         console.error('Không thể tạo thông báo đặt phòng:', e.message);
+      }
+
       res.status(201).json({ message: "Đặt phòng thành công", booking: newBooking });
    } catch (error) {
       await session.abortTransaction();
@@ -546,6 +579,34 @@ exports.bookRoom = async (req, res) => {
       await room.save({ session });
 
       await session.commitTransaction();
+
+      try {
+         const user = await User.findOne({ email: email.toLowerCase() });
+         const hotel = await Hotel.findById(room.hotelId).lean();
+         const hotelName = hotel?.name || 'Khách sạn';
+         if (user) {
+            const notif = new Notification({
+               userId: null,
+               targetUserId: user._id,
+               audience: 'user',
+               type: 'info',
+               category: 'system',
+               isSystem: true,
+               message: `Đã thanh toán thành công cho đơn đặt phòng tại ${hotelName}`,
+               hotelName,
+               checkin: checkinISO,
+               checkout: checkoutISO,
+               adults: Number(adults),
+               children: Number(children) || 0,
+               roomsBooked: Number(roomsBooked),
+               amountPaid: booking.totalAmount,
+               startsAt: new Date(),
+               endsAt: null,
+            });
+            await notif.save();
+            if (global.io) global.io.to(`user:${user._id}`).emit('notification:new', notif);
+         }
+      } catch (e) {}
 
       res.status(201).json({
          message: "Đặt phòng thành công",
@@ -748,6 +809,37 @@ exports.bookMulti = async (req, res) => {
 
       await session.commitTransaction();
 
+      // Thông báo cho người đặt phòng
+      try {
+         const user = await User.findOne({ email: customer.email.toLowerCase() });
+         const hotel = await Hotel.findById(hotelId).lean();
+         const hotelName = hotel?.name || 'Khách sạn';
+         if (user) {
+            const notif = new Notification({
+               userId: null,
+               targetUserId: user._id,
+               audience: 'user',
+               type: 'info',
+               category: 'system',
+               isSystem: true,
+              message: `Đã thanh toán thành công cho đơn đặt phòng tại ${hotelName}`,
+              hotelName,
+              checkin: checkinISO,
+              checkout: checkoutISO,
+               adults: Number(customer.adults),
+               children: Number(customer.children) || 0,
+              roomsBooked: rooms.reduce((sum, r) => sum + r.roomsBooked, 0),
+              amountPaid: booking.totalAmount,
+              startsAt: new Date(),
+              endsAt: null,
+            });
+            await notif.save();
+            if (global.io) global.io.to(`user:${user._id}`).emit('notification:new', notif);
+         }
+      } catch (e) {
+         console.error('Không thể tạo thông báo book-multi:', e.message);
+      }
+
       return res.status(201).json({
          message: "Đặt nhiều phòng thành công!",
          booking,
@@ -893,6 +985,39 @@ exports.confirmBooking = async (req, res) => {
       }
 
       await session.commitTransaction();
+
+      // Thông báo duyệt đơn cho người đặt
+      try {
+         const user = await User.findOne({ email: booking.email.toLowerCase() });
+         const room = await Room.findById(booking.roomid).lean();
+         const hotel = room ? await Hotel.findById(room.hotelId).lean() : null;
+         const hotelName = hotel?.name || 'Khách sạn';
+         if (user) {
+            const notif = new Notification({
+               userId: null,
+               targetUserId: user._id,
+               audience: 'user',
+               type: 'info',
+               category: 'system',
+               isSystem: true,
+              message: `Đơn đặt phòng tại ${hotelName} đã được duyệt`,
+              hotelName,
+              checkin: booking.checkin,
+              checkout: booking.checkout,
+               adults: Number(booking.adults),
+               children: Number(booking.children) || 0,
+               roomsBooked: Number(booking.roomsBooked) || 1,
+               amountPaid: booking.totalAmount,
+               startsAt: new Date(),
+               endsAt: null,
+            });
+            await notif.save();
+            if (global.io) global.io.to(`user:${user._id}`).emit('notification:new', notif);
+         }
+      } catch (e) {
+         console.error('Không thể tạo thông báo duyệt đơn:', e.message);
+      }
+
       res.status(200).json({ message: "Xác nhận đặt phòng thành công", booking });
    } catch (error) {
       await session.abortTransaction();
