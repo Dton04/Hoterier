@@ -19,9 +19,11 @@ export default function BookingForm({
   setValue,
   isMultiRoom,
   selectedRooms,
+  watch,
+  checkAvailability,
 }) {
-  const [checkinDate, setCheckinDate] = useState("");
-  const [checkoutDate, setCheckoutDate] = useState("");
+
+  const [roomWarning, setRoomWarning] = useState(null);
 
   useEffect(() => {
     try {
@@ -31,8 +33,7 @@ export default function BookingForm({
       const checkin = bookingInfo.checkin?.split("T")[0] || "";
       const checkout = bookingInfo.checkout?.split("T")[0] || "";
 
-      setCheckinDate(checkin);
-      setCheckoutDate(checkout);
+
       setValue?.("checkin", checkin);
       setValue?.("checkout", checkout);
       setValue?.("adults", bookingInfo.adults || 2);
@@ -42,6 +43,25 @@ export default function BookingForm({
       console.error("Lỗi đọc bookingInfo:", error);
     }
   }, [setValue, setRoomsNeeded]);
+
+  //REALTIME CHECK AVAILABILITY
+  useEffect(() => {
+    if (!watch || !checkAvailability) return;
+
+    const ci = watch("checkin");
+    const co = watch("checkout");
+
+    if (ci && co) {
+      checkAvailability().then((res) => {
+        if (!res?.available) {
+          setRoomWarning(res.message);
+        } else {
+          setRoomWarning(null);
+        }
+      });
+    }
+  }, [watch("checkin"), watch("checkout"), watch("roomsBooked")]);
+
 
   return (
     <form
@@ -109,75 +129,50 @@ export default function BookingForm({
         )}
       </div>
 
-      {/* Ngày nhận/trả phòng */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="text-sm text-gray-600 mb-1 block">
-            Nhận phòng (từ 14:00)
-          </label>
-          <input
-            type="date"
-            value={checkinDate}
-            onChange={(e) => {
-              setCheckinDate(e.target.value);
-              setValue("checkin", e.target.value);
-            }}
-            {...register("checkin")}
-            className={`w-full border ${errors.checkin ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#003580] focus:border-[#003580]`}
-          />
-          {errors.checkin && (
-            <p className="text-red-500 text-xs mt-1">{errors.checkin.message}</p>
-          )}
-        </div>
-        <div>
-          <label className="text-sm text-gray-600 mb-1 block">
-            Trả phòng (trước 12:00)
-          </label>
-          <input
-            type="date"
-            value={checkoutDate}
-            onChange={(e) => {
-              setCheckoutDate(e.target.value);
-              setValue("checkout", e.target.value);
-            }}
-            {...register("checkout")}
-            className={`w-full border ${errors.checkout ? "border-red-500" : "border-gray-300"} rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#003580] focus:border-[#003580]`}
-          />
-          {errors.checkout && (
-            <p className="text-red-500 text-xs mt-1">{errors.checkout.message}</p>
-          )}
-        </div>
-      </div>
+     
 
       {/* Số người & trẻ em */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Người lớn
-          </label>
-          <select
-            {...register("adults")}
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#003580]"
-          >
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-              <option key={n} value={n}>{n} người</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Trẻ em
-          </label>
-          <select
-            {...register("children")}
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-[#003580]"
-          >
-            {[0, 1, 2, 3, 4, 5].map((n) => (
-              <option key={n} value={n}>{n} trẻ</option>
-            ))}
-          </select>
-        </div>
-      </div>
+      {/* Số khách (hiển thị, không cho chỉnh) */}
+      {watch && (
+        <>
+          {/* Hidden input để vẫn submit lên BE */}
+          <input type="hidden" {...register("adults")} />
+          <input type="hidden" {...register("children")} />
+
+          <div className="border border-gray-200 rounded-lg px-4 py-3 bg-gray-50">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">
+                Số khách
+              </span>
+              <span className="text-sm text-gray-800 font-semibold">
+                {watch("adults") || 2} người lớn
+                {` · `}
+                {watch("children") || 0} trẻ em
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Muốn thay đổi số khách?{" "}
+              <button
+                type="button"
+                className="font-semibold text-blue-600 underline"
+                onClick={() => {
+                  const hotelId = localStorage.getItem("hotelIdForBooking");
+                  if (hotelId) {
+                    window.location.href = `/hotel/${hotelId}`;
+                  } else {
+                    window.history.back();
+                  }
+                }}
+              >
+                Quay lại bước chọn phòng
+              </button>
+              .
+            </p>
+
+          </div>
+        </>
+      )}
+
 
       {/* Phương thức thanh toán */}
       <div>
@@ -274,7 +269,7 @@ export default function BookingForm({
       {/* Nút đặt phòng */}
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || roomWarning}
         className="w-full bg-[#feba02] hover:bg-[#e5a800] text-[#003580] font-bold text-lg py-4 rounded-lg transition disabled:opacity-50"
       >
         {loading ? "Đang xử lý..." : "HOÀN TẤT ĐẶT PHÒNG"}

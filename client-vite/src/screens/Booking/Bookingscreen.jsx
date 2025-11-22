@@ -34,7 +34,7 @@ export default function Bookingscreen() {
    const initialData = {
       checkin: location.state?.checkin || queryParams.get('checkin'),
       checkout: location.state?.checkout || queryParams.get('checkout'),
-      people: location.state?.adults || queryParams.get('people'),
+      people: location.state?.people || queryParams.get("people"),
       hotelId: queryParams.get('hotelId'),
       isMultiRoom: isMultiRoom,
       selectedRooms: selectedRooms,
@@ -77,6 +77,8 @@ export default function Bookingscreen() {
       calculateServiceCost,
       roomsNeeded,
       setValue,
+      watch,
+      checkAvailability, 
    } = useBookingLogic({ roomid, navigate, initialData });
 
    const [hotel, setHotel] = useState(null);
@@ -173,9 +175,9 @@ export default function Bookingscreen() {
                                  : "bg-red-50 border-red-200 text-red-700"
                               }`}
                         >
-                           {paymentStatus === "paid" && "✅ Đã thanh toán"}
-                           {paymentStatus === "pending" && "⏳ Đang chờ thanh toán"}
-                           {paymentStatus === "canceled" && "❌ Đã hủy giao dịch"}
+                           {paymentStatus === "paid" && " Đã thanh toán"}
+                           {paymentStatus === "pending" && "Đang chờ thanh toán"}
+                           {paymentStatus === "canceled" && " Đã hủy giao dịch"}
                         </div>
                      )}
 
@@ -219,6 +221,9 @@ export default function Bookingscreen() {
                            setValue={setValue}
                            isMultiRoom={isMultiRoom}
                            selectedRooms={selectedRooms}
+                           watch={watch}
+
+                           checkAvailability={checkAvailability} 
                         />
 
                      )}

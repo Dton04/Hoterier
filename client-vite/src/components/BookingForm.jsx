@@ -1,9 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
 import { FaMapMarkerAlt, FaRegCalendarAlt, FaUserFriends } from "react-icons/fa";
+
+import { DateRange } from "react-date-range";
+import { format } from "date-fns";
+import "react-date-range/dist/styles.css";
+import "react-date-range/dist/theme/default.css";
 
 function BookingForm() {
   const [formData, setFormData] = useState({
@@ -13,32 +16,59 @@ function BookingForm() {
     checkout: "",
     adults: 2,
     children: 0,
-    rooms: 1,
+    
   });
 
   const [regions, setRegions] = useState([]);
   const [filteredRegions, setFilteredRegions] = useState([]);
   const [openGuestDropdown, setOpenGuestDropdown] = useState(false);
+
+  // 👉 trạng thái cho DateRange
+  const [openCalendar, setOpenCalendar] = useState(false);
+  const [dateRange, setDateRange] = useState([
+    {
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      key: "selection",
+    },
+  ]);
+
   const dropdownRef = useRef(null);
+  const calendarRef = useRef(null);
+
   const [childrenAges, setChildrenAges] = useState([]);
   const navigate = useNavigate();
 
-  // LocalStorage
+  // ====== LocalStorage ======
   useEffect(() => {
     const saved = localStorage.getItem("bookingInfo");
     if (saved) {
       try {
         const data = JSON.parse(saved);
+        const checkin = data.checkin ? new Date(data.checkin) : "";
+        const checkout = data.checkout ? new Date(data.checkout) : "";
+
         setFormData((prev) => ({
           ...prev,
           destination: data.destination || "",
-          checkin: data.checkin ? new Date(data.checkin) : "",
-          checkout: data.checkout ? new Date(data.checkout) : "",
+          checkin,
+          checkout,
           adults: data.adults || 2,
           children: data.children || 0,
           rooms: data.rooms || 1,
         }));
-        // restore children ages if present
+
+        // sync vào dateRange cho lịch
+        if (checkin && checkout) {
+          setDateRange([
+            {
+              startDate: checkin,
+              endDate: checkout,
+              key: "selection",
+            },
+          ]);
+        }
+
         if (data.childrenAges && Array.isArray(data.childrenAges)) {
           setChildrenAges(data.childrenAges);
         }
@@ -48,7 +78,7 @@ function BookingForm() {
     }
   }, []);
 
-  // 
+  // Khôi phục tên vùng theo id đã lưu
   useEffect(() => {
     const saved = localStorage.getItem("bookingInfo");
     if (saved && regions.length > 0) {
@@ -69,7 +99,6 @@ function BookingForm() {
     }
   }, [regions]);
 
-
   useEffect(() => {
     axios
       .get("/api/regions")
@@ -89,8 +118,8 @@ function BookingForm() {
       setFilteredRegions(
         value.trim()
           ? regions.filter((region) =>
-            region.name.toLowerCase().includes(value.toLowerCase())
-          )
+              region.name.toLowerCase().includes(value.toLowerCase())
+            )
           : []
       );
     }
@@ -107,16 +136,16 @@ function BookingForm() {
 
   const handleCounter = (field, delta) => {
     setFormData((prev) => {
-      const next = Math.max(field === 'adults' ? 1 : field === 'rooms' ? 1 : 0, prev[field] + delta);
-      // enforce maximums
+      const next = Math.max(
+        field === "adults" ? 1 : field === "rooms" ? 1 : 0,
+        prev[field] + delta
+      );
       const maxMap = { adults: 16, children: 8, rooms: 9 };
       const capped = Math.min(next, maxMap[field] || next);
 
-      // if children decreased, trim childrenAges
-      if (field === 'children') {
+      if (field === "children") {
         setChildrenAges((prevAges) => {
           if (capped < prevAges.length) return prevAges.slice(0, capped);
-          // if increased, append default age 2
           const newAges = [...prevAges];
           while (newAges.length < capped) newAges.push(2);
           return newAges;
@@ -140,10 +169,14 @@ function BookingForm() {
     const submitData = {
       destination: formData.destination,
       checkin: checkinDate
-        ? new Date(checkinDate.getTime() - checkinDate.getTimezoneOffset() * 60000).toISOString()
+        ? new Date(
+            checkinDate.getTime() - checkinDate.getTimezoneOffset() * 60000
+          ).toISOString()
         : "",
       checkout: checkoutDate
-        ? new Date(checkoutDate.getTime() - checkoutDate.getTimezoneOffset() * 60000).toISOString()
+        ? new Date(
+            checkoutDate.getTime() - checkoutDate.getTimezoneOffset() * 60000
+          ).toISOString()
         : "",
       adults: formData.adults,
       children: formData.children,
@@ -154,10 +187,20 @@ function BookingForm() {
     navigate(`/hotel-results?${new URLSearchParams(submitData).toString()}`);
   };
 
+  // đóng dropdown + lịch khi click ra ngoài
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target)
+      ) {
         setOpenGuestDropdown(false);
+      }
+      if (
+        calendarRef.current &&
+        !calendarRef.current.contains(event.target)
+      ) {
+        setOpenCalendar(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -176,7 +219,7 @@ function BookingForm() {
         "
       >
         {/* Destination */}
-        <div className="relative flex-1 min-w-[220px] border-b-[4px] sm:border-b-0 sm:border-r-[4px] border-[#e0a200]  sm:rounded-l-lg">
+        <div className="relative flex-1 min-w-[220px] border-b-[4px] sm:border-b-0 sm:border-r-[4px] border-[#e0a200] sm:rounded-l-lg">
           <FaMapMarkerAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0071c2] text-lg" />
           <input
             type="text"
@@ -203,36 +246,47 @@ function BookingForm() {
           )}
         </div>
 
-        {/* Check-in */}
-        <div className="relative flex-1 min-w-[180px] border-b-[4px] sm:border-b-0 sm:border-r-[4px] border-[#e0a200]">
+        {/* Date Range (Checkin - Checkout) */}
+        <div className="relative flex-1 min-w-[260px] border-b-[4px] sm:border-b-0 sm:border-r-[4px] border-[#e0a200] cursor-pointer">
           <FaRegCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0071c2] text-lg" />
-          <DatePicker
-            selected={formData.checkin}
-            onChange={(date) => setFormData({ ...formData, checkin: date })}
-            selectsStart
-            startDate={formData.checkin}
-            endDate={formData.checkout}
-            minDate={new Date()}
-            placeholderText="Nhận phòng"
-            className="w-full pl-10 pr-3 h-[54px] text-[15px] border-0 focus:ring-0 focus:outline-none placeholder-gray-500"
-            dateFormat="dd/MM/yyyy"
-          />
-        </div>
 
-        {/* Check-out */}
-        <div className="relative flex-1 min-w-[180px] border-b-[4px] sm:border-b-0 sm:border-r-[4px] border-[#e0a200]">
-          <FaRegCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0071c2] text-lg" />
-          <DatePicker
-            selected={formData.checkout}
-            onChange={(date) => setFormData({ ...formData, checkout: date })}
-            selectsEnd
-            startDate={formData.checkin}
-            endDate={formData.checkout}
-            minDate={formData.checkin}
-            placeholderText="Trả phòng"
-            className="w-full pl-10 pr-3 h-[54px] text-[15px] border-0 focus:ring-0 focus:outline-none placeholder-gray-500"
-            dateFormat="dd/MM/yyyy"
-          />
+          <div
+            onClick={() => setOpenCalendar((prev) => !prev)}
+            className="w-full pl-10 pr-3 h-[54px] text-[15px] flex items-center hover:bg-gray-50"
+          >
+            {formData.checkin && formData.checkout ? (
+              <>
+                {format(new Date(formData.checkin), "dd/MM/yyyy")} -{" "}
+                {format(new Date(formData.checkout), "dd/MM/yyyy")}
+              </>
+            ) : (
+              "Chọn ngày"
+            )}
+          </div>
+
+          {openCalendar && (
+            <div
+              ref={calendarRef}
+              className="absolute top-full left-0 z-50 mt-1 shadow-lg bg-white"
+            >
+              <DateRange
+                ranges={dateRange}
+                onChange={(item) => {
+                  const selection = item.selection;
+                  setDateRange([selection]);
+                  setFormData((prev) => ({
+                    ...prev,
+                    checkin: selection.startDate,
+                    checkout: selection.endDate,
+                  }));
+                }}
+                moveRangeOnFirstSelection={false}
+                minDate={new Date()}
+                months={2}
+                direction="horizontal"
+              />
+            </div>
+          )}
         </div>
 
         {/* Guests & Rooms */}
@@ -250,17 +304,22 @@ function BookingForm() {
 
           {openGuestDropdown && (
             <div className="absolute top-full left-0 bg-white border border-gray-300 rounded-md shadow-md mt-1 p-4 min-w-[320px] z-50">
-              <div className="text-sm text-gray-700 font-medium mb-3">Khách và Phòng</div>
+              <div className="text-sm text-gray-700 font-medium mb-3">
+                Khách và Phòng
+              </div>
               <div className="space-y-3">
+                {/* Adults */}
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="font-medium">Người lớn</div>
-                    <div className="text-xs text-gray-500">Từ 13 tuổi trở lên</div>
+                    <div className="text-xs text-gray-500">
+                      Từ 13 tuổi trở lên
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => handleCounter('adults', -1)}
+                      onClick={() => handleCounter("adults", -1)}
                       className="w-8 h-8 rounded-full border flex items-center justify-center"
                     >
                       -
@@ -268,7 +327,7 @@ function BookingForm() {
                     <div className="w-6 text-center">{formData.adults}</div>
                     <button
                       type="button"
-                      onClick={() => handleCounter('adults', 1)}
+                      onClick={() => handleCounter("adults", 1)}
                       className="w-8 h-8 rounded-full border flex items-center justify-center"
                     >
                       +
@@ -276,6 +335,7 @@ function BookingForm() {
                   </div>
                 </div>
 
+                {/* Children */}
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="font-medium">Trẻ em</div>
@@ -284,7 +344,7 @@ function BookingForm() {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => handleCounter('children', -1)}
+                      onClick={() => handleCounter("children", -1)}
                       className="w-8 h-8 rounded-full border flex items-center justify-center"
                     >
                       -
@@ -292,7 +352,7 @@ function BookingForm() {
                     <div className="w-6 text-center">{formData.children}</div>
                     <button
                       type="button"
-                      onClick={() => handleCounter('children', 1)}
+                      onClick={() => handleCounter("children", 1)}
                       className="w-8 h-8 rounded-full border flex items-center justify-center"
                     >
                       +
@@ -300,11 +360,14 @@ function BookingForm() {
                   </div>
                 </div>
 
+                {/* Children ages */}
                 {formData.children > 0 && (
                   <div className="grid grid-cols-2 gap-2">
                     {Array.from({ length: formData.children }).map((_, idx) => (
                       <div key={idx} className="flex items-center gap-2">
-                        <label className="text-xs">Tuổi trẻ em {idx + 1}</label>
+                        <label className="text-xs">
+                          Tuổi trẻ em {idx + 1}
+                        </label>
                         <select
                           value={childrenAges[idx] ?? 2}
                           onChange={(e) => {
@@ -318,7 +381,9 @@ function BookingForm() {
                           className="border rounded px-2 py-1 text-sm"
                         >
                           {Array.from({ length: 18 }).map((__, a) => (
-                            <option key={a} value={a}>{a}</option>
+                            <option key={a} value={a}>
+                              {a}
+                            </option>
                           ))}
                         </select>
                       </div>
@@ -326,6 +391,7 @@ function BookingForm() {
                   </div>
                 )}
 
+                {/* Rooms */}
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="font-medium">Phòng</div>
@@ -334,7 +400,7 @@ function BookingForm() {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => handleCounter('rooms', -1)}
+                      onClick={() => handleCounter("rooms", -1)}
                       className="w-8 h-8 rounded-full border flex items-center justify-center"
                     >
                       -
@@ -342,7 +408,7 @@ function BookingForm() {
                     <div className="w-6 text-center">{formData.rooms}</div>
                     <button
                       type="button"
-                      onClick={() => handleCounter('rooms', 1)}
+                      onClick={() => handleCounter("rooms", 1)}
                       className="w-8 h-8 rounded-full border flex items-center justify-center"
                     >
                       +
@@ -354,8 +420,12 @@ function BookingForm() {
                   <button
                     type="button"
                     onClick={() => {
-                      // reset to defaults
-                      setFormData((prev) => ({ ...prev, adults: 2, children: 0, rooms: 1 }));
+                      setFormData((prev) => ({
+                        ...prev,
+                        adults: 2,
+                        children: 0,
+                        
+                      }));
                       setChildrenAges([]);
                     }}
                     className="px-3 py-1 border rounded text-sm"

@@ -93,32 +93,34 @@ const HotelResults = () => {
 
 
   useEffect(() => {
-  const params = new URLSearchParams(location.search);
-  const regionFromQuery = params.get("region");
-  const destinationId = params.get("destination");
-  const districtFromQuery = params.get("district");
+    const params = new URLSearchParams(location.search);
+    const regionFromQuery = params.get("region");
+    const destinationId = params.get("destination");
+    const districtFromQuery = params.get("district");
 
-  // Nếu URL có destination → tìm theo ID
-  if (destinationId && regions.length > 0) {
-    const foundRegion = regions.find((r) => r._id === destinationId);
-    if (foundRegion) {
+
+
+    // Nếu URL có destination → tìm theo ID
+    if (destinationId && regions.length > 0) {
+      const foundRegion = regions.find((r) => r._id === destinationId);
+      if (foundRegion) {
+        setFilters((prev) => ({
+          ...prev,
+          region: foundRegion.name,  // 👈 Lọc theo tên
+          city: "",
+        }));
+        return;
+      }
+    }
+
+    if (regionFromQuery) {
       setFilters((prev) => ({
         ...prev,
-        region: foundRegion.name,  // 👈 Lọc theo tên
-        city: "",
+        region: decodeURIComponent(regionFromQuery),
+        city: decodeURIComponent(districtFromQuery || ""),
       }));
-      return; 
     }
-  }
-
-  if (regionFromQuery) {
-    setFilters((prev) => ({
-      ...prev,
-      region: decodeURIComponent(regionFromQuery),
-      city: decodeURIComponent(districtFromQuery || ""),
-    }));
-  }
-}, [location.search, regions]);
+  }, [location.search, regions]);
 
 
   // Khu vực
@@ -214,6 +216,22 @@ const HotelResults = () => {
           })
         );
       }
+
+
+      const adults = Number(searchParams.get("adults") || 1);
+      const children = Number(searchParams.get("children") || 0);
+      const totalGuests = adults + children;
+
+      hotelsWithExtras = hotelsWithExtras.map((hotel) => {
+        const alloc = autoAllocateRooms(hotel.rooms, totalGuests);
+        return {
+          ...hotel,
+          autoAllocation: alloc.allocation,
+          allocationSuccess: alloc.success,
+          guestRemaining: alloc.remaining
+        };
+      });
+
 
       setHotels(hotelsWithExtras);
       await fetchAverageRatings(hotelsWithExtras);
@@ -347,6 +365,43 @@ const HotelResults = () => {
       amenities: [],
     });
   };
+
+
+  // 🔹 AUTO ALLOCATION giống Booking.com
+  const autoAllocateRooms = (rooms, totalGuests) => {
+    const sorted = [...rooms].sort((a, b) => b.maxcount - a.maxcount);
+
+    let remain = totalGuests;
+    const result = [];
+
+    for (const room of sorted) {
+      if (remain <= 0) break;
+
+      const fit = room.maxcount;
+      const needed = Math.ceil(remain / fit);
+
+      const canBook = Math.min(needed, room.quantity);
+
+      if (canBook > 0) {
+        result.push({
+          roomid: room._id,
+          name: room.name,
+          roomType: room.type,
+          maxcount: room.maxcount,
+          roomsBooked: canBook,
+          rentperday: room.rentperday,
+        });
+        remain -= canBook * fit;
+      }
+    }
+
+    return {
+      success: remain <= 0,
+      allocation: result,
+      remaining: remain,
+    };
+  };
+
 
 
   return (

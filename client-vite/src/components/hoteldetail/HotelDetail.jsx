@@ -13,6 +13,8 @@ import BookingForm from "../BookingForm";
 import ServicesTab from "./tabs/ServicesTab";
 import HeaderTab from "./tabs/HeaderTab"
 import HotelHighlights from "./tabs/HotelHighlights";
+import { getSuggestedRoomCombos } from "./components/SuggestedRoomCombos";
+import BookingRecommendation from "./tabs/BookingRecommendation";
 
 import Loader from "../Loader";
 
@@ -39,6 +41,85 @@ export default function HotelDetail() {
 
   const [searchParams] = useSearchParams();
   const festivalId = searchParams.get("festivalId");
+
+
+  
+  const autoAllocateRooms = (rooms, totalGuests) => {
+    if (!rooms?.length) return null;
+
+    const available = rooms.filter(r => r.availabilityStatus === "available");
+    if (!available.length) return null;
+
+    // Sort giảm dần theo sức chứa
+    const sorted = [...available].sort((a, b) => b.maxcount - a.maxcount);
+
+    let remaining = totalGuests;
+    const allocation = [];
+
+    for (const room of sorted) {
+      if (remaining <= 0) break;
+
+      const cap = room.maxcount;
+
+      // số phòng loại này cần
+      const need = Math.ceil(remaining / cap);
+      const canUse = Math.min(need, room.quantity);
+
+      if (canUse > 0) {
+        allocation.push({
+          ...room,
+          count: canUse
+        });
+
+        remaining -= cap * canUse;
+      }
+    }
+
+    return {
+      success: remaining <= 0,
+      allocation,
+      remaining
+    };
+  };
+
+
+  const bookingInfo = JSON.parse(localStorage.getItem("bookingInfo")) || {};
+  const storedAdults = Number(bookingInfo.adults) || 1;
+  const storedChildren = Number(bookingInfo.children) || 0;
+  const roomsNeeded = Number(bookingInfo.rooms) || 1;
+  const totalGuests = storedAdults + storedChildren;
+  const allocationResult = autoAllocateRooms(rooms, totalGuests);
+
+
+
+
+
+
+
+  const handleSelectSuggestedCombo = (combo) => {
+    // reset bảng phòng
+    window.dispatchEvent(new Event("reset-room-selection"));
+
+    combo.forEach(room => {
+      window.dispatchEvent(new CustomEvent("auto-select-room", {
+        detail: { roomId: room._id }
+      }));
+    });
+
+    document.getElementById("rooms-table")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  };
+
+
+
+
+
+
+
+
+
 
   useEffect(() => {
     const sections = ["overview", "rooms", "amenities", "rules", "reviews"];
@@ -69,9 +150,9 @@ export default function HotelDetail() {
           discountRes,
         ] = await Promise.all([
           axios.get(`/api/hotels/${id}`, {
-          params: { festivalId }, 
-        }),
-          
+            params: { festivalId },
+          }),
+
           axios.get(`/api/amenities`),
           axios.get(`/api/services/hotel/${id}`),
           axios.get(`/api/reviews?hotelId=${id}`),
@@ -80,7 +161,7 @@ export default function HotelDetail() {
         ]);
 
         setHotel(hotelRes.data.hotel || hotelRes.data);
-        setRooms(hotelRes.data.rooms || [] );
+        setRooms(hotelRes.data.rooms || []);
         const amenityNames = Array.isArray(amenityRes.data)
           ? amenityRes.data.map((a) => (typeof a === "string" ? a : a?.name)).filter(Boolean)
           : [];
@@ -163,8 +244,6 @@ export default function HotelDetail() {
         <BookingForm />
       </div>
 
-
-
       <div className="max-w-6xl mx-auto  space-y-10 ">
 
         {/* ======= THANH MỤC LỤC ======= */}
@@ -244,6 +323,8 @@ export default function HotelDetail() {
               )}
             </div>
 
+
+
             {/* Giới thiệu */}
             <div>
 
@@ -291,9 +372,29 @@ export default function HotelDetail() {
 
           </div>
 
-
-
         </section>
+
+        {/* ===== GỢI Ý PHÒNG THEO SỐ KHÁCH ===== */}
+        {allocationResult && allocationResult.success && (
+          <BookingRecommendation
+            combo={allocationResult.allocation}
+            totalGuests={totalGuests}
+            onSelect={(combo) => handleSelectSuggestedCombo(combo)}
+          />
+        )}
+
+        {allocationResult && !allocationResult.success && (
+          <div className="p-4 bg-red-50 border border-red-300 rounded-lg my-4">
+            <p className="text-red-600 font-semibold">
+              ❌ Khách sạn không đủ phòng cho {totalGuests} khách.
+            </p>
+            <p className="text-sm text-gray-600">
+              Còn thiếu <b>{allocationResult.remaining}</b> khách.
+            </p>
+          </div>
+        )}
+
+
 
 
         {/* ======= THÔNG TIN & GIÁ ======= */}

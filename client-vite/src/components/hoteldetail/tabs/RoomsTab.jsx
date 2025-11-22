@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, CheckCircle2, XCircle, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -112,6 +112,30 @@ export default function RoomsTab({ rooms = [], onRoomSelected, hotel = {} }) {
       }, 0);
 
   };
+
+  // ⭐ NEW: Nhận số lượng phòng chính xác từ BookingRecommendation
+useEffect(() => {
+  const qtyHandler = (e) => {
+    const { roomId, qty } = e.detail;
+
+    setQuantities(prev => ({
+      ...prev,
+      [roomId]: qty
+    }));
+
+    const row = document.getElementById(`room-row-${roomId}`);
+    row?.scrollIntoView({ behavior: "smooth", block: "center" });
+    row?.classList.add("bg-yellow-100");
+    setTimeout(() => row?.classList.remove("bg-yellow-100"), 1200);
+  };
+
+  window.addEventListener("set-room-quantity", qtyHandler);
+
+  return () => window.removeEventListener("set-room-quantity", qtyHandler);
+}, []);
+
+
+
 
   return (
     <div>
@@ -284,7 +308,7 @@ export default function RoomsTab({ rooms = [], onRoomSelected, hotel = {} }) {
                   {quantities[room._id] > 0 && (
                     <div className="flex flex-col items-center space-y-2">
                       <div className="bg-green-100 text-green-700 text-sm font-medium px-3 py-1.5 rounded-md shadow">
-                        ✓ Đã chọn
+                        Đã chọn
                       </div>
                       <p className="text-[12px] text-gray-600">
                         {quantities[room._id]} phòng

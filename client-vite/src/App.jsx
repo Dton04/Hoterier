@@ -1,8 +1,13 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from "react-router-dom";
+
+import { Toaster } from 'react-hot-toast';
+
 import { Provider, useSelector } from 'react-redux';
 import store from './redux/store';
 import ChatBubble from './components/chat/ChatBubble';
+import ChatBot from "./components/chatbot/ChatBot";
+import UnifiedChat from "./components/chat/UnifiedChat";
 
 // Import Layouts
 import AdminLayout from "./components/admin dashboard/AdminLayout";
@@ -18,8 +23,8 @@ import Contact from "./components/Contact";
 import Registerscreen from "./screens/Auth/Registerscreen";
 import LoginScreen from "./screens/Auth/Loginscreen";
 import HistoryBookings from "./components/HistoryBookings";
-import ProfileManagement from "./components/ProfileManagement";
-import ProfileDetails from "./components/ProfileDetails";
+import ProfileManagement from "./components/Profile/ProfileManagement";
+import ProfileDetails from "./components/Profile/ProfileDetails";
 import GoogleCallBack from "./screens/Auth/GoogleCallBack";
 import FacebookCallBack from "./screens/Auth/FacebookCallBack";
 import Membership from "./components/Membership";
@@ -34,7 +39,7 @@ import Review from "./screens/Review";
 import DiscountsPage from "./screens/DiscountsPage";
 import FestivalHotels from "./screens/FestivalHotels";
 
-import ChatBot from "./components/chatbot/ChatBot";
+
 
 // Import Admin Screens
 import AdminDashboard from "./components/GUI admin/Dashboards/AdminDashboard";
@@ -50,6 +55,7 @@ import ReviewManagement from "./components/GUI admin/Bookings/ReviewManagement";
 import AdminRegions from "./components/GUI admin/Regions/AdminRegions";
 import AmenityManagement from "./components/GUI admin/Hotels/AmenityManagement";
 import HotelServiceManagement from "./components/GUI admin/Hotels/HotelServiceManagement";
+import AdminNotifications from "./components/GUI admin/Notifications/AdminNotifications";
 import CreateRoomForm from "./components/CreateRoomForm";
 import EditRoomForm from "./components/EditRoomForm";
 
@@ -100,13 +106,14 @@ const UserLayout = () => (
     {/* Outlet là nơi các trang con của người dùng sẽ hiển thị */}
     <main className="pt-[70px] bg-gray-50 min-h-screen">
 
+       <ChatBot />
+      <UnifiedChat/>
 
-      <ChatBot />
       <Outlet />
     </main>
     <Footer />
     {/* Mount ChatBubble dùng Portal */}
-    <ChatBubble />
+    
   </>
 );
 
@@ -122,7 +129,16 @@ const AdminLayoutWrapper = () => (
 
 function App() {
   return (
+    
     <Provider store={store}>
+       <Toaster
+        position="top-center"
+        reverseOrder={false}
+        toastOptions={{
+          duration: 2500,
+          style: { fontSize: "15px" }
+        }}
+      />
       <Router>
         <Routes>
           {/* === CÁC ROUTE CỦA NGƯỜI DÙNG === */}
@@ -177,6 +193,7 @@ function App() {
             <Route path="reviews" element={<ReviewManagement />} />
             <Route path="regions" element={<AdminRegions />} />
             <Route path="amenities" element={<AmenityManagement />} />
+            <Route path="notifications" element={<AdminNotifications />} />
             {/* Đã gỡ 2 route cũ ngoài Admin */}
             {/* <Route path="createroom" element={<CreateRoomForm />} /> */}
             {/* <Route path="editroom/:id" element={<EditRoomForm />} /> */}

@@ -5,7 +5,7 @@ const Booking = require("../models/booking");
 const axios = require("axios");
 require("dotenv").config();
 
-/** 🧩 Hàm chuẩn hóa tiếng Việt */
+/**Hàm chuẩn hóa tiếng Việt */
 function normalizeVietnamese(str) {
   return str
     .normalize("NFD")
@@ -16,7 +16,7 @@ function normalizeVietnamese(str) {
     .trim();
 }
 
-/** 🧩 Hàm tính giá thấp nhất */
+/** Hàm tính giá thấp nhất */
 function getLowestPrice(hotel) {
   if (!hotel?.rooms?.length) return null;
   const prices = hotel.rooms
@@ -25,9 +25,18 @@ function getLowestPrice(hotel) {
   return prices.length ? Math.min(...prices) : null;
 }
 
+
+function calculateRoomsNeeded(people, maxcount) {
+  if (!people || !maxcount) return 1;
+  return Math.ceil(people / maxcount);
+}
+
+
+
+
 /** Hàm gọi API chatbot**/
 async function callGeminiChatbot(messages) {
-  console.log("🔑 API Key Loaded:", process.env.GEMINI_API_KEY ? "Có" : "Không tìm thấy");
+  console.log("API Key Loaded:", process.env.GEMINI_API_KEY ? "Có" : "Không tìm thấy");
   try {
     const userMessage = messages[messages.length - 1].content;
 
@@ -69,7 +78,7 @@ async function callGeminiChatbot(messages) {
 
 
 
-/** 🧠 Nhận diện intent */
+/**  Nhận diện intent */
 async function detectIntent(msg) {
   const text = normalizeVietnamese(msg);
 
@@ -156,20 +165,20 @@ exports.chatBotReply = async (req, res) => {
     const { message, context = {} } = req.body || {};
     if (!message) return res.status(400).json({ reply: "Thiếu tin nhắn" });
 
-    console.log("📩 USER:", message);
+    console.log("USER:", message);
 
     let intent = await detectIntent(message); // Dùng let
     const prev = context || {};
 
     // --- DUY TRÌ CONTEXTUAL INTENT ---
     if (prev.region && intent === "general") {
-      console.log("🛠️ Duy trì intent: Đã có khu vực, chuyển từ general -> search");
+      console.log("Duy trì intent: Đã có khu vực, chuyển từ general -> search");
       intent = "search";
     }
 
     // --- 1. XỬ LÝ CÂU HỎI NGOÀI LỀ (GENERAL) ---
     if (intent === "general") {
-      console.log("💬 Gọi Gemini cho câu hỏi ngoài lề...");
+      console.log(" Gọi Gemini cho câu hỏi ngoài lề...");
       try {
         const aiReply = await callGeminiChatbot([
           { role: "user", content: message },
@@ -210,7 +219,7 @@ exports.chatBotReply = async (req, res) => {
 
         if (response.data?.booking) {
           return res.json({
-            reply: `🎉 Đặt phòng thành công cho ${prev.name}!\nPhương thức thanh toán: ${prev.paymentMethod === "cash" ? "💵 Tiền mặt" : "💳 Trực tuyến"}.\nEmail xác nhận đã gửi tới ${prev.email}.`,
+            reply: `🎉 Đặt phòng thành công cho ${prev.name}!\nPhương thức thanh toán: ${prev.paymentMethod === "cash" ? "Tiền mặt" : "Trực tuyến"}.\nEmail xác nhận đã gửi tới ${prev.email}.`,
             context: {},
           });
         } else {
@@ -236,42 +245,51 @@ exports.chatBotReply = async (req, res) => {
 
 
 
-    // 2b. FLOW: Xử lý khi người dùng CHỌN KHÁCH SẠN (tìm kiếm phòng)
+    // 2b. FLOW: Xử lý khi người dùng CHỌN KHÁCH SẠN (tìm phòng)
     if (prev.hotelId && !prev.roomId) {
-      console.log("🛠️ FLOW: Đã chọn khách sạn, đang tìm phòng...");
+      console.log("FLOW: Đã chọn khách sạn, đang tìm phòng...");
 
-      // KHÔNG CẦN HỎI NGÀY Ở ĐÂY NỮA, VÌ NÓ ĐÃ ĐƯỢC HỎI Ở BƯỚC 3C DƯỚI ĐÂY
-      // Mục đích là để luồng search cơ bản (3) phải cung cấp đủ ngày trước khi hiển thị khách sạn.
-      // Nếu người dùng bỏ qua ngày, luồng (3) sẽ quay lại hỏi ngày.
-
-      // Tiếp tục luồng tìm phòng khi đã có ngày
       const hotel = await Hotel.findById(prev.hotelId).populate("rooms").lean();
 
       if (!hotel)
-        return res.json({ reply: "Khách sạn không hợp lệ.", context: { region: prev.region, people: prev.people } });
+        return res.json({
+          reply: "Khách sạn không hợp lệ.",
+          context: { region: prev.region, people: prev.people }
+        });
 
       const roomsList = hotel.rooms
-        .filter((r) => r.rentperday > 0)
+        .filter(r => r.maxcount >= 1)
         .slice(0, 5)
-        .map(
-          (r, i) =>
-            `${i + 1}. ${r.roomType} (${r.adults || 'N/A'} người) - ${Number(r.rentperday).toLocaleString()}₫/đêm`
-        )
-        .join("\n");
+        .map((r, i) => {
+          const price = r.discountedPrice ?? r.rentperday;
+          const roomsNeeded = calculateRoomsNeeded(prev.people, r.maxcount);
+
+          return `${i + 1}. ${r.name}
+- Tối đa: ${r.maxcount} người/phòng
+- Số phòng cần cho ${prev.people} người: ${roomsNeeded} phòng
+- Giá mỗi phòng: ${price.toLocaleString()}₫/đêm`;
+        })
+        .join("\n\n");
 
       if (!roomsList)
-        return res.json({ reply: `Xin lỗi, khách sạn ${hotel.name} hiện không còn phòng trống.`, context: { region: prev.region, people: prev.people } });
+        return res.json({
+          reply: `Xin lỗi, khách sạn ${hotel.name} hiện không còn phòng trống.`,
+          context: { region: prev.region, people: prev.people }
+        });
 
       return res.json({
-        reply: `Tuyệt vời! Tại **${hotel.name}**, chúng tôi có những phòng sau (tối đa 5 phòng): \n${roomsList}\n\nVui lòng chọn phòng để tiếp tục.`,
+        reply: `Tuyệt vời! Tại **${hotel.name}**, chúng tôi có những phòng sau (tối đa 5 phòng):\n\n${roomsList}\n\nVui lòng chọn phòng để tiếp tục.`,
         suggest: hotel.rooms.slice(0, 5).map((r) => ({
           id: r._id,
-          name: r.roomType,
-          price: r.rentperday,
+          name: r.name,
+          people: r.maxcount,
+          roomsNeeded: calculateRoomsNeeded(prev.people, r.maxcount),
+          price: r.discountedPrice ?? r.rentperday,
         })),
-        context: prev, // Giữ nguyên context, chờ roomId
+        context: prev,
       });
     }
+
 
     // --- 3. XỬ LÝ LUỒNG TÌM KIẾM/HỎI THÔNG TIN (SEARCH/BOOKING) ---
     if (intent === "search" || intent === "booking") {
@@ -342,7 +360,7 @@ exports.chatBotReply = async (req, res) => {
     // --- 4. FALLBACK ---
     return res.json({
       reply:
-        "Tôi chưa hiểu rõ lắm 😅. Bạn muốn tìm khách sạn, đặt phòng hay hỏi điều gì khác ạ?",
+        "Tôi chưa hiểu rõ lắm. Bạn muốn tìm khách sạn, đặt phòng hay hỏi điều gì khác ạ?",
     });
   } catch (err) {
     console.error("❌ Chatbot error:", err.message);

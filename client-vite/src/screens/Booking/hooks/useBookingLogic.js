@@ -4,6 +4,7 @@ import axios from "axios";
 import { useForm } from "react-hook-form";
 import * as yup from "yup";
 import { yupResolver } from "@hookform/resolvers/yup";
+import toast from "react-hot-toast";
 
 /**
  * Schema xác thực (giữ nguyên như bản cũ)
@@ -100,9 +101,7 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
 
   const [roomsNeeded, setRoomsNeeded] = useState(1);
 
-  // ===== NEW: Multi-room state =====
-  const [isMultiRoom, setIsMultiRoom] = useState(initialData?.isMultiRoom === true);
-  const [multiRoomData, setMultiRoomData] = useState(initialData?.selectedRooms || []);
+
 
   // Lấy festival từ location hoặc localStorage (giữ y nguyên)
   const festival =
@@ -119,6 +118,29 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
         : [...prev, serviceId]
     );
   };
+
+  // ---------- Real-time Availability Check ----------
+  const checkAvailability = async () => {
+    try {
+      const checkin = getValues("checkin");
+      const checkout = getValues("checkout");
+      const roomsBooked = Number(getValues("roomsBooked") || 1);
+
+      if (!roomid || !checkin || !checkout) return;
+
+      const response = await axios.post("/api/rooms/check-availability", {
+        roomid,
+        checkin,
+        checkout,
+        roomsNeeded: roomsBooked
+      });
+
+      return response.data;
+    } catch (err) {
+      return { available: false, message: "Lỗi kiểm tra phòng trống" };
+    }
+  };
+
 
   const calculateServiceCost = () => {
     return selectedServices.reduce((total, serviceId) => {
@@ -260,6 +282,13 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
 
 
       setRoom(adjustedRoom);
+
+      if (initialData.people && adjustedRoom.maxcount) {
+    const autoRooms = Math.ceil(Number(initialData.people) / adjustedRoom.maxcount);
+    setRoomsNeeded(autoRooms);
+    setValue("roomsBooked", autoRooms);
+}
+
       setValue("roomType", adjustedRoom.type || "");
 
       if (adjustedRoom.availabilityStatus !== "available") {
@@ -347,10 +376,8 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
       const finalAmount = Math.max(0, priceAfterFestival - response.data.totalDiscountAmount) + calculateServiceCost();
       setTotalAmount(finalAmount);
 
-      setBookingStatus({
-        type: "success",
-        message: `Áp dụng mã giảm giá thành công! Tổng giảm: ${response.data.totalDiscountAmount.toLocaleString()} VND`,
-      });
+      toast.success(`Áp dụng mã giảm giá thành công! Tổng giảm: ${response.data.totalDiscountAmount.toLocaleString()} VND`);
+
     } catch (err) {
       setDiscountResult(null);
       setBookingStatus({
@@ -376,12 +403,50 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
       setLoading(true);
       setBookingStatus(null);
 
+
       const totalGuests = Number(data.adults) + Number(data.children || 0);
+
       const calculatedRoomsNeeded = Math.ceil(totalGuests / (room?.maxcount || 1));
+
       const roomsBooked = Number(data.roomsBooked) || 1;
+
+      if (initialData?.isMultiRoom === true) {
+
+        // Tính tổng sức chứa thật sự của tất cả phòng
+        const totalCapacity = initialData.selectedRooms.reduce(
+          (sum, r) => sum + r.maxcount * r.roomsBooked,
+          0
+        );
+
+        if (totalGuests > totalCapacity) {
+          toast.error(
+            `Combo phòng chứa tối đa ${totalCapacity} khách. 
+      Bạn đang có ${totalGuests} khách nên không thể đặt combo này.`,
+            { duration: 3500 }
+          );
+          setLoading(false);
+          return;
+        }
+
+      } else {
+        // =========================
+        // SINGLE ROOM VALIDATION (giữ nguyên)
+        // =========================
+        if (roomsBooked < calculatedRoomsNeeded) {
+          setRoomsNeeded(calculatedRoomsNeeded);
+          toast.error(
+            `Phòng tối đa ${room.maxcount} người/phòng. 
+      Bạn có ${totalGuests} khách → cần tối thiểu ${calculatedRoomsNeeded} phòng.`,
+            { duration: 3500 }
+          );
+          setLoading(false);
+          return;
+        }
+      }
+
+
       setRoomsNeeded(roomsBooked);
 
-      // Tính số ngày ở (chuẩn checkin 14:00 / checkout 12:00)
       const checkinDate = new Date(data.checkin);
       checkinDate.setHours(14, 0, 0, 0);
       const checkoutDate = new Date(data.checkout);
@@ -389,10 +454,8 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
       const days = Math.floor((checkoutDate - checkinDate) / (1000 * 60 * 60 * 24)) || 1;
 
       if (days <= 0) {
-        setBookingStatus({
-          type: "error",
-          message: "Ngày trả phòng phải sau ngày nhận phòng.",
-        });
+        toast.error("Ngày trả phòng phải sau ngày nhận phòng.");
+
         setLoading(false);
         return;
       }
@@ -468,7 +531,7 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
         localStorage.setItem("bookingId", bookingResponse.data.booking._id);
         localStorage.setItem("bookedRoomId", "multi-room");
 
-        // 📨 Gửi email xác nhận multi-room
+        //Gửi email xác nhận multi-room
         try {
           await axios.post("/api/bookings/mail/booking-confirmation", {
             bookingId: bookingResponse.data.booking._id,
@@ -491,7 +554,7 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
         if (paymentMethod === "vnpay") {
           // VNPay logic - chuyển hướng đến URL từ BE
           try {
-            setBookingStatus({ type: "info", message: "Đang chuyển hướng đến cổng thanh toán VNPay..." });
+            toast.success(" Đặt phòng thành công! Đang chuyển đến VNPay...");
 
             // Get bookingId from response (support both single-room and multi-room)
             const bookingId = bookingResponse.data.booking?._id || bookingResponse.data.bookingId;
@@ -567,17 +630,11 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
             amount: bookingResponse.data.booking.totalAmount,
             reference: bookingResponse.data.booking._id,
           });
-          setBookingStatus({
-            type: "success",
-            message: `Đặt phòng thành công. Vui lòng chuyển khoản theo thông tin bên dưới.`,
-          });
+          toast.success(" Đặt phòng thành công! Vui lòng chuyển khoản theo thông tin hiển thị.");
         } else if (paymentMethod === "cash") {
           setPaymentStatus("paid");
           setPointsEarned(bookingResponse.data.pointsEarned || 0);
-          setBookingStatus({
-            type: "success",
-            message: "Đặt phòng thành công! Booking của bạn đã được xác nhận.",
-          });
+          toast.success(" Đặt phòng thành công! Thanh toán tại quầy lễ tân.");
         }
 
         return;
@@ -616,7 +673,7 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
       localStorage.setItem("bookingId", bookingResponse.data.booking._id);
       localStorage.setItem("bookedRoomId", roomid);
 
-      // 📨 Gửi email xác nhận đặt phòng cho tất cả phương thức
+      // Gửi email xác nhận đặt phòng cho tất cả phương thức
       try {
         await axios.post("/api/bookings/mail/booking-confirmation", {
           bookingId: bookingResponse.data.booking._id,
@@ -640,7 +697,7 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
       // Xử lý theo phương thức thanh toán (Single-room)
       if (data.paymentMethod === "mobile_payment") {
         try {
-          setBookingStatus({ type: "info", message: "Đang chuyển hướng đến cổng thanh toán MoMo..." });
+          toast.success("Đặt phòng thành công! Đang chuyển đến MoMo...");
           const orderId = `BOOKING-${Date.now()}`;
           const bookingId = bookingResponse.data.booking._id;
 
@@ -697,23 +754,23 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
           });
         }
       } else {
-        // ✅ Nếu là thanh toán tiền mặt
+        //Nếu là thanh toán tiền mặt (CHỈ HIỆN TOAST)
         if (data.paymentMethod === "cash") {
-          setBookingStatus({
-            type: "success",
-            message: "🎉 Đặt phòng thành công! Vui lòng thanh toán tại quầy lễ tân khi nhận phòng.",
+
+          toast.success(" Đặt phòng thành công! Thanh toán tại quầy lễ tân khi nhận phòng.", {
+            duration: 3500,
           });
+
           setPaymentStatus("pending");
-          // ❌ Không cần gửi mail lần nữa vì đã gửi ở trên
+
+          // ❌ Không dùng bookingStatus nữa
           return;
         }
 
 
-        // ✅ Nếu là các phương thức khác
-        setBookingStatus({
-          type: "success",
-          message: "Đặt phòng thành công! Vui lòng kiểm tra thông tin thanh toán.",
-        });
+
+        toast.success("Đặt phòng thành công! Booking của bạn đã được xác nhận.");
+
         setPaymentStatus(bookingResponse.data.booking.paymentStatus);
 
         if (data.paymentMethod === "bank_transfer" && bookingResponse.data.paymentResult?.bankInfo) {
@@ -740,26 +797,21 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
           const pointsResult = await accumulatePoints(bookingResponse.data.booking._id);
           if (pointsResult.success) {
             setPointsEarned(pointsResult.pointsEarned);
-            setBookingStatus({
-              type: "success",
-              message: `Thanh toán thành công! Bạn đã nhận được ${pointsResult.pointsEarned} điểm. Đang chuyển hướng đến trang đánh giá...`,
-            });
+            toast.success(`🎉 Thanh toán thành công! Bạn được cộng ${pointsEarned} điểm.`);
             setTimeout(() => navigate(`/reviews`), 5000);
           } else {
             setTimeout(() => navigate(`/reviews`), 5000);
           }
         } else {
-          setBookingStatus({
-            type: "warning",
-            message: "Đặt phòng đang chờ xác nhận. Bạn sẽ có thể gửi đánh giá sau khi thanh toán hoàn tất.",
-          });
+          toast("⏳ Đặt phòng đang chờ xác nhận...");
         }
       }
     } catch (err) {
       console.error("Lỗi đặt phòng:", err);
       const errorMessage =
         err.response?.data?.message || "Lỗi khi đặt phòng hoặc tạo hóa đơn thanh toán. Vui lòng thử lại.";
-      setBookingStatus({ type: "error", message: errorMessage });
+      toast.error(errorMessage);
+
     } finally {
       setLoading(false);
     }
@@ -776,10 +828,8 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
       const pointsResult = await accumulatePoints(bookingId);
       if (pointsResult.success) {
         setPointsEarned(pointsResult.pointsEarned);
-        setBookingStatus({
-          type: "success",
-          message: `Thanh toán thành công! Bạn đã nhận được ${pointsResult.pointsEarned} điểm. Đang chuyển hướng đến trang đánh giá...`,
-        });
+        toast.success(`🎉 Thanh toán thành công! Bạn được cộng ${pointsEarned} điểm.`);
+
       } else {
         setBookingStatus({
           type: "warning",
@@ -881,7 +931,8 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
       if (bookingInfo) {
         setValue("checkin", formatDate(bookingInfo.checkin));
         setValue("checkout", formatDate(bookingInfo.checkout));
-        setValue("adults", bookingInfo.adults || 2);
+        setValue("adults", initialData.people ? Number(initialData.people) : (bookingInfo?.adults || 2));
+
         setValue("children", bookingInfo.children || 0);
         setValue("roomsBooked", bookingInfo.rooms || 1);
         setRoomsNeeded(bookingInfo.rooms || 1);
@@ -988,5 +1039,6 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
     // utils
     formatDate,
     fetchRoomData,
+    checkAvailability,
   };
 }
