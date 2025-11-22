@@ -43,12 +43,57 @@ export default function HotelDetail() {
   const festivalId = searchParams.get("festivalId");
 
 
+  
+  const autoAllocateRooms = (rooms, totalGuests) => {
+    if (!rooms?.length) return null;
+
+    const available = rooms.filter(r => r.availabilityStatus === "available");
+    if (!available.length) return null;
+
+    // Sort giảm dần theo sức chứa
+    const sorted = [...available].sort((a, b) => b.maxcount - a.maxcount);
+
+    let remaining = totalGuests;
+    const allocation = [];
+
+    for (const room of sorted) {
+      if (remaining <= 0) break;
+
+      const cap = room.maxcount;
+
+      // số phòng loại này cần
+      const need = Math.ceil(remaining / cap);
+      const canUse = Math.min(need, room.quantity);
+
+      if (canUse > 0) {
+        allocation.push({
+          ...room,
+          count: canUse
+        });
+
+        remaining -= cap * canUse;
+      }
+    }
+
+    return {
+      success: remaining <= 0,
+      allocation,
+      remaining
+    };
+  };
+
+
   const bookingInfo = JSON.parse(localStorage.getItem("bookingInfo")) || {};
   const storedAdults = Number(bookingInfo.adults) || 1;
   const storedChildren = Number(bookingInfo.children) || 0;
   const roomsNeeded = Number(bookingInfo.rooms) || 1;
   const totalGuests = storedAdults + storedChildren;
-  const suggestedCombo = getSuggestedRoomCombos(rooms, totalGuests, roomsNeeded);
+  const allocationResult = autoAllocateRooms(rooms, totalGuests);
+
+
+
+
+
 
 
   const handleSelectSuggestedCombo = (combo) => {
@@ -330,14 +375,25 @@ export default function HotelDetail() {
         </section>
 
         {/* ===== GỢI Ý PHÒNG THEO SỐ KHÁCH ===== */}
-        {suggestedCombo && suggestedCombo.length > 0 && (
+        {allocationResult && allocationResult.success && (
           <BookingRecommendation
-            combo={suggestedCombo}
+            combo={allocationResult.allocation}
             totalGuests={totalGuests}
-            onSelect={() => handleSelectSuggestedCombo(suggestedCombo)}
+            onSelect={(combo) => handleSelectSuggestedCombo(combo)}
           />
-
         )}
+
+        {allocationResult && !allocationResult.success && (
+          <div className="p-4 bg-red-50 border border-red-300 rounded-lg my-4">
+            <p className="text-red-600 font-semibold">
+              ❌ Khách sạn không đủ phòng cho {totalGuests} khách.
+            </p>
+            <p className="text-sm text-gray-600">
+              Còn thiếu <b>{allocationResult.remaining}</b> khách.
+            </p>
+          </div>
+        )}
+
 
 
 

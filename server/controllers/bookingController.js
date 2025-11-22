@@ -383,16 +383,16 @@ exports.createBooking = async (req, res) => {
                type: 'info',
                category: 'system',
                isSystem: true,
-              message: `Đã thanh toán thành công cho đơn đặt phòng tại ${hotelName}`,
-              hotelName,
-              checkin: checkinDate,
-              checkout: checkoutDate,
+               message: `Đã thanh toán thành công cho đơn đặt phòng tại ${hotelName}`,
+               hotelName,
+               checkin: checkinDate,
+               checkout: checkoutDate,
                adults: Number(adults),
                children: Number(children) || 0,
-              roomsBooked: Number(roomsBooked),
-              amountPaid: newBooking.totalAmount,
-              startsAt: new Date(),
-              endsAt: null,
+               roomsBooked: Number(roomsBooked),
+               amountPaid: newBooking.totalAmount,
+               startsAt: new Date(),
+               endsAt: null,
             });
             await notif.save();
             if (global.io) global.io.to(`user:${user._id}`).emit('notification:new', notif);
@@ -575,8 +575,20 @@ exports.bookRoom = async (req, res) => {
       }
 
       // Giảm số lượng phòng có sẵn
-      room.quantity -= roomsBooked;
+      for (let day = new Date(checkinDate); day < checkoutDate; day.setDate(day.getDate() + 1)) {
+
+         const dayStr = day.toISOString().split("T")[0];
+         const daily = getOrInitInventory(room, dayStr, room.quantity); // 5 phòng/ngày mặc định
+
+         if (daily.quantity < roomsBooked) {
+            throw new Error(`Không đủ phòng vào ngày ${dayStr}`);
+         }
+
+         daily.quantity -= roomsBooked; 
+      }
+
       await room.save({ session });
+
 
       await session.commitTransaction();
 
@@ -606,7 +618,7 @@ exports.bookRoom = async (req, res) => {
             await notif.save();
             if (global.io) global.io.to(`user:${user._id}`).emit('notification:new', notif);
          }
-      } catch (e) {}
+      } catch (e) { }
 
       res.status(201).json({
          message: "Đặt phòng thành công",
@@ -822,16 +834,16 @@ exports.bookMulti = async (req, res) => {
                type: 'info',
                category: 'system',
                isSystem: true,
-              message: `Đã thanh toán thành công cho đơn đặt phòng tại ${hotelName}`,
-              hotelName,
-              checkin: checkinISO,
-              checkout: checkoutISO,
+               message: `Đã thanh toán thành công cho đơn đặt phòng tại ${hotelName}`,
+               hotelName,
+               checkin: checkinISO,
+               checkout: checkoutISO,
                adults: Number(customer.adults),
                children: Number(customer.children) || 0,
-              roomsBooked: rooms.reduce((sum, r) => sum + r.roomsBooked, 0),
-              amountPaid: booking.totalAmount,
-              startsAt: new Date(),
-              endsAt: null,
+               roomsBooked: rooms.reduce((sum, r) => sum + r.roomsBooked, 0),
+               amountPaid: booking.totalAmount,
+               startsAt: new Date(),
+               endsAt: null,
             });
             await notif.save();
             if (global.io) global.io.to(`user:${user._id}`).emit('notification:new', notif);
@@ -843,7 +855,7 @@ exports.bookMulti = async (req, res) => {
       return res.status(201).json({
          message: "Đặt nhiều phòng thành công!",
          booking,
-         paymentResult,   
+         paymentResult,
          totalAmount: finalAmount,
          roomsBooked: rooms.length,
          appliedDiscount
@@ -1000,10 +1012,10 @@ exports.confirmBooking = async (req, res) => {
                type: 'info',
                category: 'system',
                isSystem: true,
-              message: `Đơn đặt phòng tại ${hotelName} đã được duyệt`,
-              hotelName,
-              checkin: booking.checkin,
-              checkout: booking.checkout,
+               message: `Đơn đặt phòng tại ${hotelName} đã được duyệt`,
+               hotelName,
+               checkin: booking.checkin,
+               checkout: booking.checkout,
                adults: Number(booking.adults),
                children: Number(booking.children) || 0,
                roomsBooked: Number(booking.roomsBooked) || 1,

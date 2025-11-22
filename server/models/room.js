@@ -4,18 +4,18 @@ const roomSchema = new mongoose.Schema({
   hotelId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Hotel",
-    required: true, // Mỗi phòng phải thuộc về một khách sạn
+    required: true, 
   },
   name: { type: String, required: true, trim: true },
-  type: { type: String, required: true, trim: true }, // Ví dụ: Deluxe, Standard...
+  type: { type: String, required: true, trim: true }, 
   description: { type: String, required: true },
 
-  maxcount: { type: Number, required: true }, // số người tối đa
-  beds: { type: Number, required: true },     // số giường
-  baths: { type: Number, required: true },    // số phòng tắm
+  maxcount: { type: Number, required: true }, 
+  beds: { type: Number, required: true },   
+  baths: { type: Number, required: true },   
 
   rentperday: { type: Number, required: true, min: 0 },
-  quantity: { type: Number, default: 1 }, // số lượng phòng loại này
+  quantity: { type: Number, default: 1 },
 
   phonenumber: { type: String, trim: true },
 
@@ -31,6 +31,13 @@ const roomSchema = new mongoose.Schema({
     enum: ["available", "maintenance", "busy"],
     default: "available",
   },
+
+  dailyInventory: [
+  {
+    date: { type: String, required: true },      // yyyy-mm-dd
+    quantity: { type: Number, required: true },  
+  }
+],
 
   currentbookings: [
     {

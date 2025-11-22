@@ -119,6 +119,29 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
     );
   };
 
+  // ---------- Real-time Availability Check ----------
+  const checkAvailability = async () => {
+    try {
+      const checkin = getValues("checkin");
+      const checkout = getValues("checkout");
+      const roomsBooked = Number(getValues("roomsBooked") || 1);
+
+      if (!roomid || !checkin || !checkout) return;
+
+      const response = await axios.post("/api/rooms/check-availability", {
+        roomid,
+        checkin,
+        checkout,
+        roomsNeeded: roomsBooked
+      });
+
+      return response.data;
+    } catch (err) {
+      return { available: false, message: "Lỗi kiểm tra phòng trống" };
+    }
+  };
+
+
   const calculateServiceCost = () => {
     return selectedServices.reduce((total, serviceId) => {
       const service = availableServices.find((s) => s._id === serviceId);
@@ -259,6 +282,13 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
 
 
       setRoom(adjustedRoom);
+
+      if (initialData.people && adjustedRoom.maxcount) {
+    const autoRooms = Math.ceil(Number(initialData.people) / adjustedRoom.maxcount);
+    setRoomsNeeded(autoRooms);
+    setValue("roomsBooked", autoRooms);
+}
+
       setValue("roomType", adjustedRoom.type || "");
 
       if (adjustedRoom.availabilityStatus !== "available") {
@@ -901,7 +931,8 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
       if (bookingInfo) {
         setValue("checkin", formatDate(bookingInfo.checkin));
         setValue("checkout", formatDate(bookingInfo.checkout));
-        setValue("adults", bookingInfo.adults || 2);
+        setValue("adults", initialData.people ? Number(initialData.people) : (bookingInfo?.adults || 2));
+
         setValue("children", bookingInfo.children || 0);
         setValue("roomsBooked", bookingInfo.rooms || 1);
         setRoomsNeeded(bookingInfo.rooms || 1);
@@ -1008,5 +1039,6 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
     // utils
     formatDate,
     fetchRoomData,
+    checkAvailability,
   };
 }

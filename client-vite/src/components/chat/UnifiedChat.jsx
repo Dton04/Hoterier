@@ -45,18 +45,18 @@ export default function UnifiedChat() {
 
    // --- SOCKET INIT ---
    useEffect(() => {
-      if (!token) return;
+   if (!token) return;
 
-      const s = connectSocket(token);
-      setSocket(s);
+   const s = connectSocket(token);
+   setSocket(s);
 
-      // Increase unread
-      s.on("message:new", () => {
-         if (!open) setUnread((u) => u + 1);
-      });
+   s.on("message:new", () => {
+      if (!open) setUnread((u) => u + 1);
+   });
 
-      return () => s.disconnect();
-   }, [token, open]);
+   return () => s.disconnect();
+}, [token]);
+
 
    // --- GET OR CREATE CONVERSATION ---
    useEffect(() => {
@@ -103,10 +103,14 @@ export default function UnifiedChat() {
       if (role === "user") {
          const ok = await ensureConversation();
          if (!ok) return;
+
+         if (socket && conversationId)
+            socket.emit("conversation:join", { conversationId });
       }
 
       setOpen(true);
    };
+
 
    // Auto set real time tab for admin/staff
    useEffect(() => {
@@ -159,8 +163,8 @@ export default function UnifiedChat() {
                      <button
                         onClick={() => setTab("bot")}
                         className={`flex-1 py-2 font-semibold ${tab === "bot"
-                              ? "border-b-2 border-blue-600 text-blue-600"
-                              : "text-gray-500"
+                           ? "border-b-2 border-blue-600 text-blue-600"
+                           : "text-gray-500"
                            }`}
                      >
                         Trợ lý Hotelier
@@ -169,8 +173,8 @@ export default function UnifiedChat() {
                      <button
                         onClick={() => setTab("realtime")}
                         className={`flex-1 py-2 font-semibold ${tab === "realtime"
-                              ? "border-b-2 border-blue-600 text-blue-600"
-                              : "text-gray-500"
+                           ? "border-b-2 border-blue-600 text-blue-600"
+                           : "text-gray-500"
                            }`}
                      >
                         Hỗ trợ khách hàng
@@ -199,7 +203,9 @@ export default function UnifiedChat() {
                         conversationId={conversationId}
                         clearUnread={() => setUnread(0)}
                         embedded={true}
+                        onClose={() => setOpen(false)}
                      />
+
                   )}
                </div>
             </div>

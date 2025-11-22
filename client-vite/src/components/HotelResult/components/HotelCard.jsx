@@ -143,6 +143,33 @@ const HotelCard = ({
                 <p className="text-xs sm:text-sm text-red-500 font-medium">
                   Chỉ còn {hotel.rooms[0].quantity} phòng với giá này
                 </p>
+
+                
+                {hotel.autoAllocation && (
+                  <div className="mt-3 bg-blue-50 border border-blue-200 rounded-md p-3 text-sm">
+                    {hotel.allocationSuccess ? (
+                      <>
+                        <p className="text-blue-700 font-semibold mb-1">
+                          Được đề xuất cho nhóm của bạn:
+                        </p>
+
+                        {hotel.autoAllocation.map((item, idx) => (
+                          <div key={idx} className="ml-1 text-gray-700">
+                            <span className="font-semibold">{item.roomsBooked}×</span>{" "}
+                            {item.roomType} —{" "}
+                            <span className="text-gray-500">{item.maxcount} khách/phòng</span>
+                          </div>
+                        ))}
+                      </>
+                    ) : (
+                      <p className="text-red-600 font-semibold">
+                        Không đủ phòng cho nhóm của bạn
+                        (còn thiếu {hotel.guestRemaining} khách)
+                      </p>
+                    )}
+                  </div>
+                )}
+
               </div>
             )}
           </div>

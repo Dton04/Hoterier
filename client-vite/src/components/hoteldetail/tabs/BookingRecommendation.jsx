@@ -1,21 +1,14 @@
 export default function BookingRecommendation({ combo = [], totalGuests, onSelect }) {
   if (!combo.length) return null;
 
-  // GOM NHÓM PHÒNG GIỐNG NHAU
-  const grouped = [];
-  combo.forEach((room) => {
-    const exist = grouped.find((g) => g._id === room._id);
-    if (exist) {
-      exist.count += 1;
-    } else {
-      grouped.push({
-        ...room,
-        count: 1
-      });
-    }
-  });
+  // allocationResult trả về đúng { ...room, count }
+  // => KHÔNG nhóm lại theo _id nữa
+  const grouped = combo;
 
-  // Tổng tiền đúng theo số phòng
+  // Tổng số phòng thực sự dùng
+  const totalRooms = grouped.reduce((sum, r) => sum + r.count, 0);
+
+  // Tổng tiền
   const totalPrice = grouped.reduce(
     (total, room) =>
       total + (room.discountedPrice ?? room.rentperday) * room.count,
@@ -29,13 +22,16 @@ export default function BookingRecommendation({ combo = [], totalGuests, onSelec
       </h2>
 
       <p className="text-gray-600 mb-4">
-        Combo gồm <b>{combo.length}</b> phòng phù hợp nhất:
+        Combo gồm <b>{totalRooms}</b> phòng phù hợp nhất:
       </p>
 
       <div className="space-y-4">
-        {grouped.map((room, idx) => (
+        {grouped.map((room) => (
           <div key={room._id} className="flex gap-4 border rounded-lg p-3">
-            <img src={room.imageurls?.[0]} className="w-32 h-24 rounded-lg object-cover" />
+            <img
+              src={room.imageurls?.[0]}
+              className="w-32 h-24 rounded-lg object-cover"
+            />
 
             <div className="flex-1">
               <p className="font-semibold text-blue-700">
@@ -71,20 +67,22 @@ export default function BookingRecommendation({ combo = [], totalGuests, onSelec
                 new CustomEvent("set-room-quantity", {
                   detail: {
                     roomId: room._id,
-                    qty: room.count   
-                  }
+                    qty: room.count,
+                  },
                 })
               );
             });
 
-            document.getElementById("rooms")?.scrollIntoView({ behavior: "smooth" });
-            onSelect(combo);
+            document.getElementById("rooms")?.scrollIntoView({
+              behavior: "smooth",
+            });
+
+            onSelect(grouped);
           }}
           className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
         >
           Đặt các lựa chọn của bạn
         </button>
-
       </div>
     </div>
   );

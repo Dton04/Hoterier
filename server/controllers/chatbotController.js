@@ -25,6 +25,15 @@ function getLowestPrice(hotel) {
   return prices.length ? Math.min(...prices) : null;
 }
 
+
+function calculateRoomsNeeded(people, maxcount) {
+  if (!people || !maxcount) return 1;
+  return Math.ceil(people / maxcount);
+}
+
+
+
+
 /** Hàm gọi API chatbot**/
 async function callGeminiChatbot(messages) {
   console.log("API Key Loaded:", process.env.GEMINI_API_KEY ? "Có" : "Không tìm thấy");
@@ -236,42 +245,51 @@ exports.chatBotReply = async (req, res) => {
 
 
 
-    // 2b. FLOW: Xử lý khi người dùng CHỌN KHÁCH SẠN (tìm kiếm phòng)
+    // 2b. FLOW: Xử lý khi người dùng CHỌN KHÁCH SẠN (tìm phòng)
     if (prev.hotelId && !prev.roomId) {
       console.log("FLOW: Đã chọn khách sạn, đang tìm phòng...");
 
-      // KHÔNG CẦN HỎI NGÀY Ở ĐÂY NỮA, VÌ NÓ ĐÃ ĐƯỢC HỎI Ở BƯỚC 3C DƯỚI ĐÂY
-      // Mục đích là để luồng search cơ bản (3) phải cung cấp đủ ngày trước khi hiển thị khách sạn.
-      // Nếu người dùng bỏ qua ngày, luồng (3) sẽ quay lại hỏi ngày.
-
-      // Tiếp tục luồng tìm phòng khi đã có ngày
       const hotel = await Hotel.findById(prev.hotelId).populate("rooms").lean();
 
       if (!hotel)
-        return res.json({ reply: "Khách sạn không hợp lệ.", context: { region: prev.region, people: prev.people } });
+        return res.json({
+          reply: "Khách sạn không hợp lệ.",
+          context: { region: prev.region, people: prev.people }
+        });
 
       const roomsList = hotel.rooms
-        .filter((r) => r.rentperday > 0)
+        .filter(r => r.maxcount >= 1)
         .slice(0, 5)
-        .map(
-          (r, i) =>
-            `${i + 1}. ${r.roomType} (${r.adults || 'N/A'} người) - ${Number(r.rentperday).toLocaleString()}₫/đêm`
-        )
-        .join("\n");
+        .map((r, i) => {
+          const price = r.discountedPrice ?? r.rentperday;
+          const roomsNeeded = calculateRoomsNeeded(prev.people, r.maxcount);
+
+          return `${i + 1}. ${r.name}
+- Tối đa: ${r.maxcount} người/phòng
+- Số phòng cần cho ${prev.people} người: ${roomsNeeded} phòng
+- Giá mỗi phòng: ${price.toLocaleString()}₫/đêm`;
+        })
+        .join("\n\n");
 
       if (!roomsList)
-        return res.json({ reply: `Xin lỗi, khách sạn ${hotel.name} hiện không còn phòng trống.`, context: { region: prev.region, people: prev.people } });
+        return res.json({
+          reply: `Xin lỗi, khách sạn ${hotel.name} hiện không còn phòng trống.`,
+          context: { region: prev.region, people: prev.people }
+        });
 
       return res.json({
-        reply: `Tuyệt vời! Tại **${hotel.name}**, chúng tôi có những phòng sau (tối đa 5 phòng): \n${roomsList}\n\nVui lòng chọn phòng để tiếp tục.`,
+        reply: `Tuyệt vời! Tại **${hotel.name}**, chúng tôi có những phòng sau (tối đa 5 phòng):\n\n${roomsList}\n\nVui lòng chọn phòng để tiếp tục.`,
         suggest: hotel.rooms.slice(0, 5).map((r) => ({
           id: r._id,
-          name: r.roomType,
-          price: r.rentperday,
+          name: r.name,
+          people: r.maxcount,
+          roomsNeeded: calculateRoomsNeeded(prev.people, r.maxcount),
+          price: r.discountedPrice ?? r.rentperday,
         })),
-        context: prev, // Giữ nguyên context, chờ roomId
+        context: prev,
       });
     }
+
 
     // --- 3. XỬ LÝ LUỒNG TÌM KIẾM/HỎI THÔNG TIN (SEARCH/BOOKING) ---
     if (intent === "search" || intent === "booking") {

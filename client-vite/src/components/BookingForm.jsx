@@ -16,7 +16,7 @@ function BookingForm() {
     checkout: "",
     adults: 2,
     children: 0,
-    rooms: 1,
+    
   });
 
   const [regions, setRegions] = useState([]);
@@ -424,7 +424,7 @@ function BookingForm() {
                         ...prev,
                         adults: 2,
                         children: 0,
-                        rooms: 1,
+                        
                       }));
                       setChildrenAges([]);
                     }}

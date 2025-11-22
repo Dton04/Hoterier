@@ -14,6 +14,7 @@ function ChatBot({ embedded = false }) {
   const [context, setContext] = useState({});
   const [suggestions, setSuggestions] = useState([]);
   const navigate = useNavigate();
+  
 
   const sendMessage = async () => {
     // 🔍 Bắt thông tin người dùng từ câu nhập
@@ -104,7 +105,7 @@ function ChatBot({ embedded = false }) {
 
           setMessages((prev) => [
             ...prev,
-            { sender: "bot", text: "💳 Đang chuyển đến trang thanh toán..." },
+            { sender: "bot", text: "Đang chuyển đến trang thanh toán..." },
           ]);
 
           // 🔁 Điều hướng ngay FE, không cần chờ phản hồi từ BE

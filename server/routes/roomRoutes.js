@@ -46,6 +46,9 @@ router.post("/", protect, restrictRoomManagement, roomController.createRoom);
 //  PATCH /api/rooms/:id - Cập nhật phòng
 router.patch("/:id", protect, restrictRoomManagement, roomController.updateRoom);
 
+//POST check phòng trống
+router.post("/check-availability", roomController.checkAvailability);
+
 //  POST /api/rooms/:id/images - Tải ảnh phòng
 router.post("/:id/images", protect, restrictRoomManagement, upload.array('images', 5), roomController.uploadRoomImages);
 
