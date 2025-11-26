@@ -101,7 +101,7 @@ exports.getHotelById = async (req, res) => {
       .populate({
         path: "rooms",
         select:
-          "_id name maxcount beds baths rentperday type description imageurls availabilityStatus currentbookings quantity",
+          "_id name maxcount beds baths rentperday type description imageurls availabilityStatus currentbookings quantity dailyInventory",
       })
       .lean(); // ✅ trả object thường, dễ map
 

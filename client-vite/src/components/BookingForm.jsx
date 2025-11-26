@@ -16,7 +16,7 @@ function BookingForm() {
     checkout: "",
     adults: 2,
     children: 0,
-    
+    rooms: 1,
   });
 
   const [regions, setRegions] = useState([]);
@@ -78,7 +78,7 @@ function BookingForm() {
     }
   }, []);
 
-  // Khôi phục tên vùng theo id đã lưu
+
   useEffect(() => {
     const saved = localStorage.getItem("bookingInfo");
     if (saved && regions.length > 0) {
@@ -118,8 +118,8 @@ function BookingForm() {
       setFilteredRegions(
         value.trim()
           ? regions.filter((region) =>
-              region.name.toLowerCase().includes(value.toLowerCase())
-            )
+            region.name.toLowerCase().includes(value.toLowerCase())
+          )
           : []
       );
     }
@@ -140,7 +140,7 @@ function BookingForm() {
         field === "adults" ? 1 : field === "rooms" ? 1 : 0,
         prev[field] + delta
       );
-      const maxMap = { adults: 16, children: 8, rooms: 9 };
+      const maxMap = { adults: 50, children: 10, rooms: 20 };
       const capped = Math.min(next, maxMap[field] || next);
 
       if (field === "children") {
@@ -159,6 +159,22 @@ function BookingForm() {
     });
   };
 
+
+  // Tính tổng người
+  function calculateGuests(adults, childrenAges) {
+    let totalAdults = adults;
+    let totalChildren = 0;
+
+    childrenAges.forEach((age) => {
+      if (age >= 6) totalAdults += 1;        // 6–17 tuổi → tính như người lớn
+      else if (age >= 2) totalChildren += 1; // 2–5 tuổi → tính trẻ em
+
+    });
+
+    return { totalAdults, totalChildren };
+  }
+
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const checkinDate = formData.checkin ? new Date(formData.checkin) : "";
@@ -166,23 +182,24 @@ function BookingForm() {
     if (checkinDate) checkinDate.setHours(14, 0, 0, 0);
     if (checkoutDate) checkoutDate.setHours(12, 0, 0, 0);
 
+    // 🔥 Tính tổng người đúng chuẩn Booking.com
+    const { totalAdults, totalChildren } = calculateGuests(
+      formData.adults,
+      childrenAges
+    );
+
     const submitData = {
       destination: formData.destination,
-      checkin: checkinDate
-        ? new Date(
-            checkinDate.getTime() - checkinDate.getTimezoneOffset() * 60000
-          ).toISOString()
-        : "",
-      checkout: checkoutDate
-        ? new Date(
-            checkoutDate.getTime() - checkoutDate.getTimezoneOffset() * 60000
-          ).toISOString()
-        : "",
-      adults: formData.adults,
-      children: formData.children,
+      checkin: checkinDate.toISOString(),
+      checkout: checkoutDate.toISOString(),
+
+      adults: totalAdults,
+      children: totalChildren,
+
       rooms: formData.rooms,
       childrenAges: formData.children > 0 ? childrenAges : [],
     };
+
     localStorage.setItem("bookingInfo", JSON.stringify(submitData));
     navigate(`/hotel-results?${new URLSearchParams(submitData).toString()}`);
   };
@@ -219,7 +236,7 @@ function BookingForm() {
         "
       >
         {/* Destination */}
-        <div className="relative flex-1 min-w-[220px] border-b-[4px] sm:border-b-0 sm:border-r-[4px] border-[#e0a200] sm:rounded-l-lg">
+        <div className="relative flex-1 min-w-[220px] border-b-[4px] sm:border-b-0 sm:border-r-[4px] border-[#e0a200] md:rounded-l-lg">
           <FaMapMarkerAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0071c2] text-lg" />
           <input
             type="text"
@@ -247,7 +264,7 @@ function BookingForm() {
         </div>
 
         {/* Date Range (Checkin - Checkout) */}
-        <div className="relative flex-1 min-w-[260px] border-b-[4px] sm:border-b-0 sm:border-r-[4px] border-[#e0a200] cursor-pointer">
+        <div className="relative flex-1 min-w-[260px] border-b-[4px] sm:border-b-0 md:border-r-[4px] border-[#e0a200] cursor-pointer">
           <FaRegCalendarAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-[#0071c2] text-lg" />
 
           <div
@@ -267,8 +284,12 @@ function BookingForm() {
           {openCalendar && (
             <div
               ref={calendarRef}
-              className="absolute top-full left-0 z-50 mt-1 shadow-lg bg-white"
+              className=" absolute top-full z-50 mt-1 shadow-lg bg-white
+              left-1/2 -translate-x-1/2  
+              w-[95vw] max-w-[380px]      
+              md:left-0 md:translate-x-0 "
             >
+
               <DateRange
                 ranges={dateRange}
                 onChange={(item) => {
@@ -303,7 +324,15 @@ function BookingForm() {
           </div>
 
           {openGuestDropdown && (
-            <div className="absolute top-full left-0 bg-white border border-gray-300 rounded-md shadow-md mt-1 p-4 min-w-[320px] z-50">
+            <div
+              className="
+    absolute top-full z-50 bg-white border border-gray-300 rounded-md shadow-md mt-1
+    w-[90vw] max-w-[330px] p-2 
+    left-1/2 -translate-x-1/2
+    md:left-auto md:right-0 md:translate-x-0  
+  "
+            >
+
               <div className="text-sm text-gray-700 font-medium mb-3">
                 Khách và Phòng
               </div>
@@ -424,7 +453,7 @@ function BookingForm() {
                         ...prev,
                         adults: 2,
                         children: 0,
-                        
+
                       }));
                       setChildrenAges([]);
                     }}

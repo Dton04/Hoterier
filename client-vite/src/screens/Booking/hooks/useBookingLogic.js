@@ -284,10 +284,10 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
       setRoom(adjustedRoom);
 
       if (initialData.people && adjustedRoom.maxcount) {
-    const autoRooms = Math.ceil(Number(initialData.people) / adjustedRoom.maxcount);
-    setRoomsNeeded(autoRooms);
-    setValue("roomsBooked", autoRooms);
-}
+        const autoRooms = Math.ceil(Number(initialData.people) / adjustedRoom.maxcount);
+        setRoomsNeeded(autoRooms);
+        setValue("roomsBooked", autoRooms);
+      }
 
       setValue("roomType", adjustedRoom.type || "");
 
@@ -404,9 +404,33 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
       setBookingStatus(null);
 
 
-      const totalGuests = Number(data.adults) + Number(data.children || 0);
 
-      const calculatedRoomsNeeded = Math.ceil(totalGuests / (room?.maxcount || 1));
+      const adultsRaw = Number(data.adults);
+      const childrenRaw = Number(data.children);
+
+      // Lấy danh sách tuổi trẻ em từ localStorage
+      const bookingInfo = JSON.parse(localStorage.getItem("bookingInfo"));
+      const childrenAges = bookingInfo?.childrenAges || [];
+
+      // Quy đổi theo Booking.com:
+      let totalAdults = adultsRaw;
+      let totalChildren = 0;
+
+      childrenAges.forEach((age) => {
+        if (age >= 6) {
+          totalAdults += 1;
+        } else if (age >= 2) {
+          totalChildren += 1;
+        }
+
+      });
+
+      const totalGuests = totalAdults + totalChildren;
+
+      const calculatedRoomsNeeded = Math.ceil(
+        totalGuests / (room?.maxcount || 1)
+      );
+
 
       const roomsBooked = Number(data.roomsBooked) || 1;
 
@@ -447,10 +471,9 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
 
       setRoomsNeeded(roomsBooked);
 
-      const checkinDate = new Date(data.checkin);
-      checkinDate.setHours(14, 0, 0, 0);
-      const checkoutDate = new Date(data.checkout);
-      checkoutDate.setHours(12, 0, 0, 0);
+      const checkinDate = new Date(`${data.checkin}T14:00:00`);
+      const checkoutDate = new Date(`${data.checkout}T12:00:00`);
+
       const days = Math.floor((checkoutDate - checkinDate) / (1000 * 60 * 60 * 24)) || 1;
 
       if (days <= 0) {
@@ -505,8 +528,8 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
             name: data.name,
             email: data.email,
             phone: data.phone,
-            adults: Number(data.adults),
-            children: Number(data.children) || 0,
+            adults: totalAdults,
+            children: totalChildren,
             specialRequest: data.specialRequest,
             paymentMethod: data.paymentMethod,
             diningServices: selectedServices,
@@ -646,8 +669,8 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
         roomid,
         hotelId: room.hotelId,
         ...data,
-        adults: Number(data.adults),
-        children: Number(data.children) || 0,
+        adults: totalAdults,
+        children: totalChildren,
         roomsBooked,
         totalAmount: finalAmount,
         diningServices: selectedServices,

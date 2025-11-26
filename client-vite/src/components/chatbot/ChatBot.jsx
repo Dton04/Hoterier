@@ -152,16 +152,7 @@ function ChatBot({ embedded = false }) {
     {(embedded || open) && (
       <div className="bg-white w-full h-full shadow-2xl rounded-xl flex flex-col border border-gray-200">
 
-        <div className="bg-white text-black font-semibold p-3 flex justify-between items-center border-b">
-          <span>Trợ lý Hotelier</span>
-
-          {/* embedded: không cho đóng */}
-          {!embedded && (
-            <button onClick={() => setOpen(false)} className="text-black hover:text-red-300 text-lg">
-              ✕
-            </button>
-          )}
-        </div>
+       
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50">

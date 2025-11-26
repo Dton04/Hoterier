@@ -110,29 +110,67 @@ export default function RoomsTab({ rooms = [], onRoomSelected, hotel = {} }) {
         const price = room.discountedPrice ?? room.rentperday;
         return sum + price * quantities[room._id];
       }, 0);
+  };
 
+  // ===== HÀM: Lấy số phòng trống tối thiểu trong khoảng thời gian =====
+  const getMinAvailableRooms = (room) => {
+    const checkinStr = localStorage.getItem("checkin");
+    const checkoutStr = localStorage.getItem("checkout");
+
+    if (!checkinStr || !checkoutStr) {
+      return room.quantity;
+    }
+
+    const checkin = new Date(checkinStr);
+    const checkout = new Date(checkoutStr);
+
+    if (isNaN(checkin) || isNaN(checkout)) {
+      return room.quantity;
+    }
+
+    const dailyInventory = room.dailyInventory || [];
+    let minAvailable = room.quantity;
+
+    // Sử dụng UTC để tránh lệch ngày (giống backend)
+    const checkinDateOnly = new Date(Date.UTC(checkin.getFullYear(), checkin.getMonth(), checkin.getDate()));
+    const checkoutDateOnly = new Date(Date.UTC(checkout.getFullYear(), checkout.getMonth(), checkout.getDate()));
+
+    // Duyệt qua từng ngày trong khoảng thời gian
+    for (let d = new Date(checkinDateOnly); d < checkoutDateOnly; d.setUTCDate(d.getUTCDate() + 1)) {
+      const dayStr = d.toISOString().split("T")[0];
+
+      // Tìm inventory cho ngày này
+      const daily = dailyInventory.find(inv => inv.date === dayStr);
+      const available = daily ? daily.quantity : room.quantity;
+
+      if (available < minAvailable) {
+        minAvailable = available;
+      }
+    }
+
+    return minAvailable;
   };
 
   // ⭐ NEW: Nhận số lượng phòng chính xác từ BookingRecommendation
-useEffect(() => {
-  const qtyHandler = (e) => {
-    const { roomId, qty } = e.detail;
+  useEffect(() => {
+    const qtyHandler = (e) => {
+      const { roomId, qty } = e.detail;
 
-    setQuantities(prev => ({
-      ...prev,
-      [roomId]: qty
-    }));
+      setQuantities(prev => ({
+        ...prev,
+        [roomId]: qty
+      }));
 
-    const row = document.getElementById(`room-row-${roomId}`);
-    row?.scrollIntoView({ behavior: "smooth", block: "center" });
-    row?.classList.add("bg-yellow-100");
-    setTimeout(() => row?.classList.remove("bg-yellow-100"), 1200);
-  };
+      const row = document.getElementById(`room-row-${roomId}`);
+      row?.scrollIntoView({ behavior: "smooth", block: "center" });
+      row?.classList.add("bg-yellow-100");
+      setTimeout(() => row?.classList.remove("bg-yellow-100"), 1200);
+    };
 
-  window.addEventListener("set-room-quantity", qtyHandler);
+    window.addEventListener("set-room-quantity", qtyHandler);
 
-  return () => window.removeEventListener("set-room-quantity", qtyHandler);
-}, []);
+    return () => window.removeEventListener("set-room-quantity", qtyHandler);
+  }, []);
 
 
 
@@ -165,8 +203,8 @@ useEffect(() => {
                 id={`room-row-${room._id}`}
                 key={room._id}
                 className={`border-b transition text-[13px] ${room.availabilityStatus !== "available"
-                    ? "bg-gray-100 opacity-70"
-                    : "hover:bg-blue-50"
+                  ? "bg-gray-100 opacity-70"
+                  : "hover:bg-blue-50"
                   }`}
               >
 
@@ -268,17 +306,44 @@ useEffect(() => {
                 {/* Các lựa chọn */}
                 <td className="p-2 align-top text-sm leading-snug border-r border-blue-300">
                   {room.availabilityStatus === "available" ? (
-                    <ul className="space-y-1 text-gray-700">
-                      <li className="flex items-center gap-1 text-green-600">
-                        <CheckCircle2 size={14} /> Bao gồm nhận phòng sớm + trả phòng trễ
-                      </li>
-                      <li className="flex items-center gap-1 text-green-600">
-                        <CheckCircle2 size={14} /> Thanh toán tại khách sạn
-                      </li>
-                      <li className="flex items-center gap-1 text-red-500">
-                        <XCircle size={14} /> Không hoàn tiền
-                      </li>
-                    </ul>
+                    <>
+                      <ul className="space-y-1 text-gray-700 mb-2">
+                        <li className="flex items-center gap-1 text-green-600">
+                          <CheckCircle2 size={14} /> Bao gồm nhận phòng sớm + trả phòng trễ
+                        </li>
+                        <li className="flex items-center gap-1 text-green-600">
+                          <CheckCircle2 size={14} /> Thanh toán tại khách sạn
+                        </li>
+                        <li className="flex items-center gap-1 text-red-500">
+                          <XCircle size={14} /> Không hoàn tiền
+                        </li>
+                      </ul>
+
+                      {/* Hiển thị số phòng còn lại */}
+                      {(() => {
+                        const minAvailable = getMinAvailableRooms(room);
+                        if (minAvailable === 0) {
+                          return (
+                            <div className="mt-2 bg-red-50 border border-red-200 rounded px-2 py-1">
+                              <p className="text-red-700 font-bold text-xs">❌ Hết phòng</p>
+                            </div>
+                          );
+                        } else if (minAvailable <= 3) {
+                          return (
+                            <div className="mt-2 bg-orange-50 border border-orange-200 rounded px-2 py-1">
+                              <p className="text-orange-700 font-bold text-xs">⚠️ Chỉ còn {minAvailable} phòng!</p>
+                            </div>
+                          );
+                        } else if (minAvailable <= 5) {
+                          return (
+                            <div className="mt-2 bg-blue-50 border border-blue-200 rounded px-2 py-1">
+                              <p className="text-blue-700 font-semibold text-xs">Còn {minAvailable} phòng</p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </>
                   ) : (
                     <p className="text-red-600 text-sm italic">
                       Không thể chọn do phòng đang bận / bảo trì.
