@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { FiMenu, FiSearch, FiGrid, FiUser, FiLogOut } from 'react-icons/fi';
 import { BiChevronDown } from 'react-icons/bi';
 import defaultAvatar from '../../assets/images/default-avatar.jpg';
@@ -7,6 +7,20 @@ import defaultAvatar from '../../assets/images/default-avatar.jpg';
 const AdminHeader = ({ sidebarOpen, setSidebarOpen }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  let user = null;
+  let displayName = 'Tài khoản';
+  let role = 'user';
+  try {
+    const raw = localStorage.getItem('userInfo');
+    const parsed = raw ? JSON.parse(raw) : null;
+    user = parsed?.user || parsed;
+    displayName = user?.name || displayName;
+    role = user?.isAdmin ? 'admin' : (user?.role || 'user');
+  } catch {}
+
+  const basePath = location.pathname.startsWith('/staff') ? '/staff' : '/admin';
 
   const trigger = useRef(null);
   const dropdown = useRef(null);
@@ -78,7 +92,7 @@ const AdminHeader = ({ sidebarOpen, setSidebarOpen }) => {
                 className="h-8 w-8 rounded-full border border-gray-300 object-cover"
               />
               <span className="hidden text-sm font-medium text-gray-700 md:block">
-                Admin
+                {displayName}
               </span>
               <BiChevronDown className={`h-5 w-5 text-gray-500 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -92,7 +106,7 @@ const AdminHeader = ({ sidebarOpen, setSidebarOpen }) => {
                 <ul className="flex flex-col gap-0.5 border-b border-gray-200 p-2">
                   <li>
                     <Link
-                      to="/admin/dashboard"
+                      to={`${basePath}/dashboard`}
                       onClick={() => setDropdownOpen(false)}
                       className="flex items-center gap-3.5 rounded-md px-3 py-2 text-sm text-black font-medium duration-300 ease-in-out hover:bg-gray-100"
                     >

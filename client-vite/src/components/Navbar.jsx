@@ -323,6 +323,27 @@ function Navbar() {
                         </button>
                       </li>
                     </>
+                  ) : user.role === "staff" ? (
+                    <>
+                      <li>
+                        <Link
+                          to="/staff/dashboard"
+                          onClick={closeNav}
+                          className="block px-4 py-2 hover:bg-gray-100"
+                        >
+                          <i className="fas fa-tachometer-alt mr-2 text-blue-600"></i>
+                          Staff Dashboard
+                        </Link>
+                      </li>
+                      <li>
+                        <button
+                          onClick={handleLogout}
+                          className="w-full text-left block px-4 py-2 text-red-600 hover:bg-gray-100"
+                        >
+                          <i className="fas fa-sign-out-alt mr-2"></i> Đăng xuất
+                        </button>
+                      </li>
+                    </>
                   ) : (
                     <>
                       <li>
@@ -424,12 +445,12 @@ function Navbar() {
               ></span>
             </div>
           </button>
-        </div>
-      </div>
+                </div>
+              </div>
 
-      {/* 📱 Mobile Menu Overlay - Giống Booking.com */}
-      {isNavOpen && (
-        <div className="fixed inset-0 bg-white text-gray-800 z-[9999] overflow-y-auto animate-fadeIn">
+              {/* 📱 Mobile Menu Overlay - Giống Booking.com */}
+              {isNavOpen && (
+                <div className="fixed inset-0 bg-white text-gray-800 z-[9999] overflow-y-auto animate-fadeIn">
           {/* Header */}
           <div className="flex justify-between items-center p-5 border-b border-gray-200 sticky top-0 bg-white">
             <h2 className="text-lg font-semibold text-[#003580]">Khác</h2>
@@ -521,24 +542,27 @@ function Navbar() {
               </ul>
             </div>
 
-            {/* Đăng nhập / Tài khoản */}
-            <div className="border-t border-gray-200 pt-5">
-              {isLoggedIn ? (
-                <>
-                  <h3 className="font-semibold mb-2 text-[#003580]">Tài khoản của tôi</h3>
-                  <ul className="space-y-2 text-gray-700">
-                    <li><Link to="/profile" onClick={closeNav}>Hồ sơ cá nhân</Link></li>
-                    <li><Link to="/bookings" onClick={closeNav}>Đặt phòng của tôi</Link></li>
-                    <li><Link to="/favorites" onClick={closeNav}>Danh sách yêu thích</Link></li>
-                    <li><Link to="/reviews" onClick={closeNav}>Đánh giá của tôi</Link></li>
-                    <li>
-                      <button onClick={handleLogout} className="text-red-600">
-                        Đăng xuất
-                      </button>
-                    </li>
-                  </ul>
-                </>
-              ) : (
+                {/* Đăng nhập / Tài khoản */}
+                <div className="border-t border-gray-200 pt-5">
+                  {isLoggedIn ? (
+                    <>
+                      <h3 className="font-semibold mb-2 text-[#003580]">Tài khoản của tôi</h3>
+                      <ul className="space-y-2 text-gray-700">
+                        <li><Link to="/profile" onClick={closeNav}>Hồ sơ cá nhân</Link></li>
+                        <li><Link to="/bookings" onClick={closeNav}>Đặt phòng của tôi</Link></li>
+                        <li><Link to="/favorites" onClick={closeNav}>Danh sách yêu thích</Link></li>
+                        <li><Link to="/reviews" onClick={closeNav}>Đánh giá của tôi</Link></li>
+                        {user?.role === 'staff' && (
+                          <li><Link to="/staff/dashboard" onClick={closeNav}>Staff Dashboard</Link></li>
+                        )}
+                        <li>
+                          <button onClick={handleLogout} className="text-red-600">
+                            Đăng xuất
+                          </button>
+                        </li>
+                      </ul>
+                    </>
+                  ) : (
                 <>
                   <Link
                     to="/login"

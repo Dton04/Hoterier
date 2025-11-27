@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Booking = require("../models/booking");
 const Review = require("../models/review");
 const Room = require("../models/room");
+const Hotel = require("../models/hotel");
 
 // Thống kê tổng quan cho admin
 exports.getOverviewStats = async (req, res) => {
@@ -10,11 +11,22 @@ exports.getOverviewStats = async (req, res) => {
       return res.status(503).json({ message: "Kết nối cơ sở dữ liệu chưa sẵn sàng" });
     }
 
-    // Đếm tổng số đặt phòng, đánh giá và tính doanh thu
+    const { ownerEmail } = req.query;
+    let hotelFilter = {};
+    if (ownerEmail) {
+      const email = String(ownerEmail).toLowerCase();
+      const hotels = await Hotel.find({ email }).select("_id");
+      const hotelIds = hotels.map(h => h._id);
+      hotelFilter = { hotelId: { $in: hotelIds } };
+    }
+
+    const bookingFilterBase = { status: { $in: ["confirmed", "completed"] }, ...hotelFilter };
+    const confirmedFilter = { status: "confirmed", ...hotelFilter };
+
     const [totalBookings, totalReviews, confirmedBookings] = await Promise.all([
-      Booking.countDocuments({ status: { $in: ["confirmed", "completed"] } }),
+      Booking.countDocuments(bookingFilterBase),
       Review.countDocuments({ isDeleted: false }),
-      Booking.find({ status: "confirmed" }).populate("roomid", "rentperday"),
+      Booking.find(confirmedFilter).populate("roomid", "rentperday"),
     ]);
 
     const totalRevenue = confirmedBookings.reduce((total, booking) => {
@@ -38,7 +50,7 @@ exports.getOverviewStats = async (req, res) => {
 
 // Thống kê doanh thu theo tháng
 exports.getMonthlyStats = async (req, res) => {
-  const { month, year } = req.query;
+  const { month, year, ownerEmail } = req.query;
 
   try {
     if (mongoose.connection.readyState !== 1) {
@@ -46,6 +58,12 @@ exports.getMonthlyStats = async (req, res) => {
     }
 
     const query = { status: "confirmed" };
+    if (ownerEmail) {
+      const email = String(ownerEmail).toLowerCase();
+      const hotels = await Hotel.find({ email }).select("_id");
+      const hotelIds = hotels.map(h => h._id);
+      query.hotelId = { $in: hotelIds };
+    }
     if (month && year) {
       const m = parseInt(month);
       const y = parseInt(year);

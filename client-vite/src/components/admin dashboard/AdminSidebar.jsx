@@ -7,20 +7,36 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const location = useLocation();
   const { pathname } = location;
 
+  let role = 'user';
+  try {
+    const raw = localStorage.getItem('userInfo');
+    const parsed = raw ? JSON.parse(raw) : null;
+    const u = parsed?.user || parsed;
+    role = u?.isAdmin ? 'admin' : (u?.role || 'user');
+  } catch {}
+
+  const basePath = pathname.startsWith('/staff') ? '/staff' : '/admin';
+
   // ✅ ĐÃ CẬP NHẬT MẢNG MENU
-  const menuItems = [
+  const menuItemsAdmin = [
     { label: "Dashboard", icon: <FiGrid />, path: "/admin/dashboard" },
     { label: "Đặt phòng", icon: <FiFileText />, path: "/admin/bookings" },
     { label: "Người dùng & NV", icon: <FiUsers />, path: "/admin/users" },
     { label: "Khách sạn", icon: <FiHome />, path: "/admin/hotels" },
-     { label: "Dịch vụ khách sạn (chung)", icon: <FiServer />, path: "/admin/hotel-services" },
+    { label: "Dịch vụ khách sạn (chung)", icon: <FiServer />, path: "/admin/hotel-services" },
     { label: "Dịch vụ khách sạn", icon: <FiServer />, path: "/admin/services" },
     { label: "Tiện nghi phòng", icon: <FiRotateCcw />, path: "/admin/amenities" },
     { label: "Giảm giá", icon: <FiTag />, path: "/admin/discounts" },
     { label: "Đánh giá", icon: <FiStar />, path: "/admin/reviews" },
-    { label: "Khu vực", icon: <FiMapPin />, path: "/admin/regions" }, // Thay thế "Tables"
-    { label: "Thông báo", icon: <FiBell />, path: "/admin/notifications" }, // Thêm mục thông báo
+    { label: "Khu vực", icon: <FiMapPin />, path: "/admin/regions" },
+    { label: "Thông báo", icon: <FiBell />, path: "/admin/notifications" },
   ];
+
+  const menuItemsStaff = [
+    { label: "Dashboard", icon: <FiGrid />, path: `${basePath}/dashboard` },
+  ];
+
+  const menuItems = role === 'admin' ? menuItemsAdmin : menuItemsStaff;
 
   return (
     <aside
@@ -53,8 +69,7 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
                   <NavLink
                     to={item.path}
                     className={`group relative flex items-center gap-3 rounded-md py-2 px-4 font-medium text-gray-600 duration-300 ease-in-out hover:bg-gray-100 ${
-                      // Logic active link đúng hơn
-                      (pathname === item.path || (item.path !== '/admin/dashboard' && pathname.startsWith(item.path))) && 'bg-blue-50 text-blue-600'
+                      (pathname === item.path || pathname.startsWith(item.path)) && 'bg-blue-50 text-blue-600'
                     }`}
                   >
                     {item.icon}
