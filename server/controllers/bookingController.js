@@ -8,6 +8,7 @@ const Hotel = require('../models/hotel');
 const Transaction = require('../models/transaction');
 const User = require("../models/user");
 const Service = require("../models/service");
+const UserVoucher = require("../models/userVouchers");
 // const discount = require("../models/discount"); // thừa, có thể bỏ
 const nodemailer = require("nodemailer");
 
@@ -639,6 +640,22 @@ exports.bookRoom = async (req, res) => {
         throw new Error("Phương thức thanh toán không hợp lệ");
     }
 
+    // Mark vouchers as used
+    if (appliedVouchers && appliedVouchers.length > 0) {
+      const userId = await User.findOne({ email: email.toLowerCase() }).select('_id');
+      if (userId) {
+        for (const voucher of appliedVouchers) {
+          const code = typeof voucher === 'string' ? voucher : voucher.code;
+
+          await UserVoucher.findOneAndUpdate(
+            { userId: userId._id, voucherCode: code, isUsed: false },
+            { isUsed: true, usedAt: new Date(), bookingId: booking._id },
+            { session }
+          );
+        }
+      }
+    }
+
     await session.commitTransaction();
 
     // Thông báo
@@ -892,6 +909,22 @@ exports.bookMulti = async (req, res) => {
 
       default:
         throw new Error("Phương thức thanh toán không hợp lệ");
+    }
+
+    // Mark vouchers as used
+    if (customer.appliedVouchers && customer.appliedVouchers.length > 0) {
+      const userId = await User.findOne({ email: customer.email.toLowerCase() }).select('_id');
+      if (userId) {
+        for (const voucher of customer.appliedVouchers) {
+          const code = typeof voucher === 'string' ? voucher : voucher.code;
+
+          await UserVoucher.findOneAndUpdate(
+            { userId: userId._id, voucherCode: code, isUsed: false },
+            { isUsed: true, usedAt: new Date(), bookingId: booking._id },
+            { session }
+          );
+        }
+      }
     }
 
     await session.commitTransaction();

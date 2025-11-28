@@ -225,7 +225,7 @@ export default function RoomsTab({ rooms = [], onRoomSelected, hotel = {} }) {
                   </p>
                   {room.availabilityStatus !== "available" ? (
                     <p className="text-red-600 text-sm font-medium mt-1">
-                      ⚠️ Phòng hiện không có sẵn để đặt
+                      Phòng hiện không có sẵn để đặt
                     </p>
                   ) : (
                     <>
@@ -325,13 +325,13 @@ export default function RoomsTab({ rooms = [], onRoomSelected, hotel = {} }) {
                         if (minAvailable === 0) {
                           return (
                             <div className="mt-2 bg-red-50 border border-red-200 rounded px-2 py-1">
-                              <p className="text-red-700 font-bold text-xs">❌ Hết phòng</p>
+                              <p className="text-red-700 font-bold text-xs"> Hết phòng</p>
                             </div>
                           );
                         } else if (minAvailable <= 3) {
                           return (
                             <div className="mt-2 bg-orange-50 border border-orange-200 rounded px-2 py-1">
-                              <p className="text-orange-700 font-bold text-xs">⚠️ Chỉ còn {minAvailable} phòng!</p>
+                              <p className="text-orange-700 font-bold text-xs"> Chỉ còn {minAvailable} phòng!</p>
                             </div>
                           );
                         } else if (minAvailable <= 5) {

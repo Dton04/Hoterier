@@ -24,12 +24,12 @@ export default function Bookingscreen() {
 
    // *** Lấy query parameters từ URL (Dữ liệu từ Chatbot) ***
    const queryParams = new URLSearchParams(location.search);
-   
+
    // *** Lấy multi-room data từ location.state (từ RoomsTab) ***
    const isMultiRoom = location.state?.isMultiRoom === true;
    const selectedRooms = location.state?.selectedRooms || [];
    const hotelFromState = location.state?.hotel || null;
-   
+
    // *** Merge initialData từ cả URL query params và location.state ***
    const initialData = {
       checkin: location.state?.checkin || queryParams.get('checkin'),
@@ -78,13 +78,13 @@ export default function Bookingscreen() {
       roomsNeeded,
       setValue,
       watch,
-      checkAvailability, 
+      checkAvailability,
+      collectedVouchers,
    } = useBookingLogic({ roomid, navigate, initialData });
 
    const [hotel, setHotel] = useState(null);
-
-
    const [currentStep, setCurrentStep] = useState(1);
+
    useEffect(() => {
       if (paymentStatus === "paid") setCurrentStep(3);
       else if (room && !paymentStatus) setCurrentStep(2);
@@ -223,9 +223,9 @@ export default function Bookingscreen() {
                            selectedRooms={selectedRooms}
                            watch={watch}
 
-                           checkAvailability={checkAvailability} 
+                           checkAvailability={checkAvailability}
+                           collectedVouchers={collectedVouchers}
                         />
-
                      )}
                   </div>
                </div>

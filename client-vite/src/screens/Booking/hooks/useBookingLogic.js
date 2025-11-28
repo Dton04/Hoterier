@@ -82,6 +82,8 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [paymentExpired, setPaymentExpired] = useState(false);
 
+  const [roomsNeeded, setRoomsNeeded] = useState(1);
+  const [collectedVouchers, setCollectedVouchers] = useState([]);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [newBookingId, setNewBookingId] = useState(null);
 
@@ -94,21 +96,34 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
   const [discountCode, setDiscountCode] = useState("");
   const [discountResult, setDiscountResult] = useState(null);
 
-  const [totalAmount, setTotalAmount] = useState(null);
-
+  const [totalAmount, setTotalAmount] = useState(0);
   const [selectedServices, setSelectedServices] = useState([]);
   const [availableServices, setAvailableServices] = useState([]);
 
-  const [roomsNeeded, setRoomsNeeded] = useState(1);
+  // Fetch collected vouchers
+  useEffect(() => {
+    const fetchVouchers = async () => {
+      try {
+        const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+        if (!userInfo || !userInfo.token) return;
 
-
+        const config = {
+          headers: { Authorization: `Bearer ${userInfo.token}` },
+        };
+        const { data } = await axios.get("/api/discounts/my-vouchers", config);
+        setCollectedVouchers(data);
+      } catch (error) {
+        console.error("Lỗi khi lấy danh sách voucher:", error);
+      }
+    };
+    fetchVouchers();
+  }, []);
 
   // Lấy festival từ location hoặc localStorage (giữ y nguyên)
   const festival =
     location?.state?.festival ||
     JSON.parse(localStorage.getItem("festival")) ||
     null;
-
 
   // ---------- Helpers ----------
   const handleServiceChange = (serviceId) => {
@@ -140,7 +155,6 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
       return { available: false, message: "Lỗi kiểm tra phòng trống" };
     }
   };
-
 
   const calculateServiceCost = () => {
     return selectedServices.reduce((total, serviceId) => {
@@ -235,6 +249,10 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
 
       const { data } = await axios.post("/api/rooms/getroombyid", { roomid });
 
+      if (data.hotel) {
+        data.hotelId = data.hotel._id;
+      }
+
       // 👇 BỔ SUNG ĐOẠN NÀY ĐỂ FE NHẬN ĐÚNG hotel.imageurls
       if (data.hotel && data.hotel.imageurls) {
         data.hotel.imageurls = data.hotel.imageurls.map((url) =>
@@ -255,7 +273,8 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
       const isApplicableFestival =
         festival &&
         Array.isArray(festival.applicableHotels) &&
-        festival.applicableHotels.includes(data.hotelId);
+        festival.applicableHotels.map(id => id.toString()).includes(data.hotelId.toString());
+
 
       // Nếu festival KHÔNG áp dụng cho khách sạn này → xoá khỏi localStorage
       if (festival && !isApplicableFestival) {
@@ -345,49 +364,78 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
   // ---------- Apply discount code ----------
   const applyDiscountCode = async () => {
     try {
-      setLoading(true);
-      setBookingStatus(null);
+      if (!discountCode) {
+        toast.error("Vui lòng nhập mã giảm giá");
+        return;
+      }
 
       const userInfo = JSON.parse(localStorage.getItem("userInfo"));
-      const bookingData = {
-        roomid,
-        checkin: new Date(document.getElementById("checkin").value),
-        checkout: new Date(document.getElementById("checkout").value),
-        userId: userInfo?.id,
-      };
-      const identifiers = [discountCode];
+      if (!userInfo?.token) {
+        toast.error("Bạn cần đăng nhập để áp dụng mã giảm giá");
+        return;
+      }
 
-      // Để tính toán chính xác, cần gửi giá trị đặt phòng (base price sau festival)
-      const days = Math.ceil((new Date(document.getElementById("checkout").value) - new Date(document.getElementById("checkin").value)) / (1000 * 60 * 60 * 24)) || 1;
-      const roomsBooked = Number(getValues("roomsBooked")) || 1;
+      const checkin = getValues("checkin");
+      const checkout = getValues("checkout");
+      const roomsBooked = Number(getValues("roomsBooked") || 1);
+
+      if (!checkin || !checkout) {
+        toast.error("Vui lòng chọn ngày nhận phòng & trả phòng trước khi áp mã");
+        return;
+      }
+
+      // Tính số ngày
+      const days = Math.ceil(
+        (new Date(checkout) - new Date(checkin)) / (1000 * 60 * 60 * 24)
+      ) || 1;
+
+      // Giá gốc + Festival
       const originalDailyRate = room.originalRentperday || room.rentperday;
-      const festivalDiscountTotal = (room.festivalDiscountPerDay || 0) * days * roomsBooked;
-      const priceAfterFestival = Math.max(0, (originalDailyRate * days * roomsBooked) - festivalDiscountTotal);
+      const festivalDiscountTotal =
+        (room.festivalDiscountPerDay || 0) * days * roomsBooked;
 
-      const response = await axios.post("/api/discounts/apply", {
-        bookingData,
-        identifiers,
-        bookingValue: priceAfterFestival, // Truyền giá trị đã giảm sau festival để tính voucher
-        hotelId: room.hotelId // Thêm hotelId để check applicableHotels
-      });
+      const bookingValue = Math.max(
+        0,
+        originalDailyRate * days * roomsBooked - festivalDiscountTotal
+      );
 
-      setDiscountResult(response.data);
-      // Cập nhật TotalAmount: Giá sau Festival - Voucher + Dịch vụ
-      const finalAmount = Math.max(0, priceAfterFestival - response.data.totalDiscountAmount) + calculateServiceCost();
-      setTotalAmount(finalAmount);
+      // Gọi API có token
+      const { data } = await axios.post(
+        "/api/discounts/apply",
+        {
+          discountCodes: [discountCode],
+          bookingValue,
+          hotelId: room.hotelId || room?.hotel?._id,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${userInfo.token}`,
+          },
+        }
+      );
 
-      toast.success(`Áp dụng mã giảm giá thành công! Tổng giảm: ${response.data.totalDiscountAmount.toLocaleString()} VND`);
+      setDiscountResult(data);
 
+      // Tính tổng mới sau voucher + dịch vụ
+      const finalTotal =
+        Math.max(0, bookingValue - data.totalDiscountAmount) +
+        calculateServiceCost();
+
+      setTotalAmount(finalTotal);
+
+      toast.success(
+        `Áp mã thành công! Giảm ${data.totalDiscountAmount.toLocaleString()} VND`
+      );
     } catch (err) {
+      console.error("Lỗi áp mã:", err);
+      toast.error(
+        err.response?.data?.message ||
+        "Không áp dụng được mã giảm giá. Vui lòng thử lại."
+      );
       setDiscountResult(null);
-      setBookingStatus({
-        type: "error",
-        message: err.response?.data?.message || "Lỗi khi áp dụng mã giảm giá. Vui lòng kiểm tra lại mã.",
-      });
-    } finally {
-      setLoading(false);
     }
   };
+
 
   // ---------- Submit booking ----------
   const onSubmit = async (data) => {
@@ -445,7 +493,7 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
         if (totalGuests > totalCapacity) {
           toast.error(
             `Combo phòng chứa tối đa ${totalCapacity} khách. 
-      Bạn đang có ${totalGuests} khách nên không thể đặt combo này.`,
+        Bạn đang có ${totalGuests} khách nên không thể đặt combo này.`,
             { duration: 3500 }
           );
           setLoading(false);
@@ -460,7 +508,7 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
           setRoomsNeeded(calculatedRoomsNeeded);
           toast.error(
             `Phòng tối đa ${room.maxcount} người/phòng. 
-      Bạn có ${totalGuests} khách → cần tối thiểu ${calculatedRoomsNeeded} phòng.`,
+        Bạn có ${totalGuests} khách → cần tối thiểu ${calculatedRoomsNeeded} phòng.`,
             { duration: 3500 }
           );
           setLoading(false);
@@ -1043,19 +1091,6 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
 
     totalAmount,
     setTotalAmount,
-
-    selectedServices,
-    setSelectedServices,
-    availableServices,
-
-    roomsNeeded,
-    setRoomsNeeded,
-
-    // handlers
-    handleServiceChange,
-    calculateServiceCost,
-    applyDiscountCode,
-    onSubmit,
     handleSimulatePayment,
     handleCheckPaymentStatus,
 
@@ -1063,5 +1098,20 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
     formatDate,
     fetchRoomData,
     checkAvailability,
+    collectedVouchers,
+
+    // services
+    selectedServices,
+    availableServices,
+    handleServiceChange,
+    calculateServiceCost,
+
+    // discount
+    applyDiscountCode,
+
+    // booking
+    onSubmit,
+    roomsNeeded,
+    setRoomsNeeded,
   };
 }
