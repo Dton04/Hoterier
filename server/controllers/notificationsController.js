@@ -81,15 +81,25 @@ const sendNotification = async (req, res) => {
 const getUserNotifications = async (req, res) => {
   try {
     const now = new Date();
-    // Cập nhật trạng thái outdated cho các thông báo đã hết hạn
-    await Notification.updateMany({ endsAt: { $ne: null, $lt: now }, isOutdated: { $ne: true } }, { $set: { isOutdated: true } });
+    const toExpire = await Notification.find({ endsAt: { $ne: null, $lt: now }, isOutdated: { $ne: true } }).select('_id audience');
+    if (toExpire.length) {
+      await Notification.updateMany({ _id: { $in: toExpire.map(n => n._id) } }, { $set: { isOutdated: true } });
+      if (global.io) {
+        toExpire.forEach(n => {
+          const payload = { _id: n._id };
+          global.io.to('role:user').emit('notification:expired', payload);
+          global.io.to('role:admin').emit('notification:expired', payload);
+          global.io.to('role:staff').emit('notification:expired', payload);
+        });
+      }
+    }
 
     const notifications = await Notification.find({
       $and: [
         {
           $or: [
             { audience: 'all' },
-            { audience: req.user.role },
+            { $and: [ { audience: req.user.role }, { $or: [ { targetUserId: { $exists: false } }, { targetUserId: null } ] } ] },
             { targetUserId: req.user._id }
           ]
         },
@@ -163,6 +173,22 @@ module.exports = {
   sendNotification,
   getUserNotifications,
   getLatestPublicNotification,
+  hideNotification: async (req, res) => {
+    try {
+      const id = req.params.id;
+      const updated = await Notification.findByIdAndUpdate(id, { $set: { isOutdated: true, endsAt: new Date() } }, { new: true });
+      if (!updated) return res.status(404).json({ success: false, message: 'Không tìm thấy thông báo' });
+      if (global.io) {
+        const payload = { _id: updated._id };
+        global.io.to('role:user').emit('notification:expired', payload);
+        global.io.to('role:admin').emit('notification:expired', payload);
+        global.io.to('role:staff').emit('notification:expired', payload);
+      }
+      res.status(200).json({ success: true, notification: updated });
+    } catch (error) {
+      res.status(500).json({ success: false, message: 'Lỗi ẩn thông báo', error: error.message });
+    }
+  },
   markNotificationsSeen: async (req, res) => {
     try {
       req.user.lastNotificationSeenAt = new Date();

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { io } from "socket.io-client";
+import { connectSocket } from "../utils/chatApi";
 import { FiBell } from "react-icons/fi";
 
 function Navbar() {
@@ -16,6 +16,7 @@ function Navbar() {
   const [hasNewNotif, setHasNewNotif] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [socketRef, setSocketRef] = useState(null);
+  const expiryTimersRef = useRef({});
 
   //Kiểm tra đăng nhập
   const checkLoginStatus = async () => {
@@ -67,7 +68,18 @@ function Navbar() {
         return null;
       }
     };
-    const isSystemNotif = (n) => n?.isSystem || n?.category === "system";
+    const hasRecipient = (n) => {
+      const rid = n?.recipientId || n?.recipient_id || n?.userId || n?.user_id || n?.targetUserId || n?.target_user_id || n?.user;
+      return !!rid;
+    };
+    const isSystemNotif = (n) => {
+      // Chỉ coi là hệ thống chung khi audience='all' hoặc không có người nhận cụ thể
+      if (n?.audience === 'all') return true;
+      if (n?.isSystem || n?.category === 'system') {
+        return !hasRecipient(n);
+      }
+      return false;
+    };
     const extractRecipientId = (n) => n?.recipientId || n?.recipient_id || n?.userId || n?.user_id || n?.targetUserId || n?.target_user_id || n?.user || null;
     const shouldKeepNotif = (n, uid) => {
       if (isSystemNotif(n)) return true;
@@ -85,6 +97,27 @@ function Navbar() {
       }
     };
 
+    const scheduleExpiry = (n) => {
+      try {
+        const id = n?._id || `${n.message}-${n.createdAt}`;
+        if (!id) return;
+        if (expiryTimersRef.current[id]) return;
+        const endsAtTs = n?.endsAt ? new Date(n.endsAt).getTime() : null;
+        const nowTs = Date.now();
+        if (!endsAtTs || endsAtTs <= nowTs) return;
+        const delay = endsAtTs - nowTs;
+        const timer = setTimeout(() => {
+          setNotifications((prev) => {
+            const next = prev.filter((x) => (x?._id || `${x.message}-${x.createdAt}`) !== id);
+            try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch {}
+            return next;
+          });
+          delete expiryTimersRef.current[id];
+        }, delay);
+        expiryTimersRef.current[id] = timer;
+      } catch {}
+    };
+
     const fetchFeed = async () => {
       try {
         if (token) {
@@ -100,6 +133,7 @@ function Navbar() {
           const uid = resolveUserId();
           const filtered = base.filter(n => shouldKeepNotif(n, uid));
           setNotifications(filtered);
+          filtered.forEach(scheduleExpiry);
           updateHasNewFromList(filtered);
           try { localStorage.setItem("notif_cache", JSON.stringify(filtered)); } catch {}
         } else {
@@ -112,6 +146,7 @@ function Navbar() {
             !n.isOutdated
           ));
           setNotifications(filtered);
+          filtered.forEach(scheduleExpiry);
           updateHasNewFromList(filtered);
           try { localStorage.setItem("notif_cache", JSON.stringify(filtered)); } catch {}
         }
@@ -132,7 +167,24 @@ function Navbar() {
     fetchFeed();
 
     if (token) {
-      const s = io("http://localhost:5000", { transports: ["websocket"], auth: { token } });
+      const s = connectSocket(token);
+      s.on("connect_error", (err) => { console.error("Socket connect_error", err?.message || err); });
+      s.on("disconnect", (reason) => { console.warn("Socket disconnected", reason); });
+      s.on("notification:expired", (payload) => {
+        const id = payload?._id || payload?.id || null;
+        setNotifications((prev) => {
+          const next = prev.filter((x) => (x?._id || x?.id) !== id);
+          try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch {}
+          return next;
+        });
+        if (id) {
+          const t = expiryTimersRef.current[id];
+          if (t) {
+            clearTimeout(t);
+            delete expiryTimersRef.current[id];
+          }
+        }
+      });
       s.on("notification:new", (payload) => {
         const uid = resolveUserId();
         if (!shouldKeepNotif(payload, uid)) return;
@@ -150,6 +202,7 @@ function Navbar() {
                 return next;
               });
               setHasNewNotif(true);
+              scheduleExpiry(payload);
             }, delay);
           }
           return;
@@ -159,10 +212,13 @@ function Navbar() {
           try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch {}
           return next;
         });
+        scheduleExpiry(payload);
         setHasNewNotif(true);
       });
       setSocketRef(s);
       return () => {
+        Object.values(expiryTimersRef.current).forEach((t) => clearTimeout(t));
+        expiryTimersRef.current = {};
         s.disconnect();
       };
     }
