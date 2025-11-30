@@ -56,6 +56,26 @@ function Navbar() {
     const userInfo = storedUserInfo ? JSON.parse(storedUserInfo) : null;
     const token = userInfo?.user?.token || userInfo?.token;
     const lastSeenKey = "notif_last_seen";
+    const resolveUserId = () => {
+      try {
+        const raw = localStorage.getItem("userInfo");
+        if (!raw) return null;
+        const info = JSON.parse(raw);
+        const u = info?.user || info;
+        return u?._id || u?.id || null;
+      } catch {
+        return null;
+      }
+    };
+    const isSystemNotif = (n) => n?.isSystem || n?.category === "system";
+    const extractRecipientId = (n) => n?.recipientId || n?.recipient_id || n?.userId || n?.user_id || n?.targetUserId || n?.target_user_id || n?.user || null;
+    const shouldKeepNotif = (n, uid) => {
+      if (isSystemNotif(n)) return true;
+      if (!uid) return false;
+      const rid = extractRecipientId(n);
+      if (!rid) return false;
+      return String(rid) === String(uid);
+    };
 
     const updateHasNewFromList = (list) => {
       const lastSeen = localStorage.getItem(lastSeenKey);
@@ -72,11 +92,13 @@ function Navbar() {
           const res = await axios.get("/api/notifications/feed", config);
           const list = Array.isArray(res.data) ? res.data : res.data?.notifications || [];
           const now = Date.now();
-          const filtered = list.filter(n => (
+          const base = list.filter(n => (
             (!n.startsAt || new Date(n.startsAt).getTime() <= now) &&
             (!n.endsAt || new Date(n.endsAt).getTime() >= now) &&
             !n.isOutdated
           ));
+          const uid = resolveUserId();
+          const filtered = base.filter(n => shouldKeepNotif(n, uid));
           setNotifications(filtered);
           updateHasNewFromList(filtered);
           try { localStorage.setItem("notif_cache", JSON.stringify(filtered)); } catch {}
@@ -100,8 +122,10 @@ function Navbar() {
       const cachedRaw = localStorage.getItem("notif_cache");
       const cached = cachedRaw ? JSON.parse(cachedRaw) : null;
       if (Array.isArray(cached) && cached.length) {
-        setNotifications(cached);
-        updateHasNewFromList(cached);
+        const uid = resolveUserId();
+        const filtered = cached.filter(n => shouldKeepNotif(n, uid));
+        setNotifications(filtered);
+        updateHasNewFromList(filtered);
       }
     } catch {}
 
@@ -110,6 +134,8 @@ function Navbar() {
     if (token) {
       const s = io("http://localhost:5000", { transports: ["websocket"], auth: { token } });
       s.on("notification:new", (payload) => {
+        const uid = resolveUserId();
+        if (!shouldKeepNotif(payload, uid)) return;
         const now = Date.now();
         const startOk = !payload.startsAt || new Date(payload.startsAt).getTime() <= now;
         const endOk = !payload.endsAt || new Date(payload.endsAt).getTime() >= now;
