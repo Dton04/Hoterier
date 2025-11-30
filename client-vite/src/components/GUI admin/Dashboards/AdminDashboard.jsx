@@ -21,7 +21,7 @@ ChartJS.register(
   CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Title, Tooltip, Legend, Filler
 );
 
-// --- CÁC COMPONENT CON (Giữ nguyên) ---
+// --- CÁC COMPONENT CON ---
 const StatCard = ({ icon, title, value, change, changeType }) => {
   const isIncrease = changeType === 'increase';
   const changeColor = isIncrease ? 'text-green-500' : 'text-red-500';
@@ -33,12 +33,12 @@ const StatCard = ({ icon, title, value, change, changeType }) => {
       <div>
         <p className="text-sm font-medium text-gray-500">{title}</p>
         <div className="flex items-baseline gap-2">
-            <h3 className="text-2xl font-bold text-gray-800">{value}</h3>
-            {change && (
-                <span className={`text-sm font-semibold ${changeColor} flex items-center`}>
-                    {arrow} {change}%
-                </span>
-            )}
+          <h3 className="text-2xl font-bold text-gray-800">{value}</h3>
+          {change && (
+            <span className={`text-sm font-semibold ${changeColor} flex items-center`}>
+              {arrow} {change}%
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -46,22 +46,21 @@ const StatCard = ({ icon, title, value, change, changeType }) => {
 };
 
 const ChartCard = ({ title, subtitle, children, headerContent, menu = true, colSpan = 'lg:col-span-8' }) => (
-    <div className={`bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 w-full ${colSpan}`}>
-        <div className="flex justify-between items-start mb-4">
-            <div>
-                <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-                {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
-            </div>
-            {headerContent ? headerContent : (
-              menu && <button className="text-gray-400 hover:text-gray-600"><BsThreeDotsVertical size={20} /></button>
-            )}
-        </div>
-        <div>{children}</div>
+  <div className={`bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 w-full ${colSpan}`}>
+    <div className="flex justify-between items-start mb-4">
+      <div>
+        <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
+        {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
+      </div>
+      {headerContent ? headerContent : (
+        menu && <button className="text-gray-400 hover:text-gray-600"><BsThreeDotsVertical size={20} /></button>
+      )}
     </div>
+    <div>{children}</div>
+  </div>
 );
 
 const StatisticsChart = () => {
-  // ... (code của StatisticsChart giữ nguyên)
   const labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const data = {
     labels,
@@ -107,7 +106,6 @@ const StatisticsChart = () => {
   return <Line options={options} data={data} />;
 };
 
-
 // --- COMPONENT DASHBOARD CHÍNH ---
 const AdminDashboard = () => {
   const [overview, setOverview] = useState({ totalBookings: 0, totalRevenue: 0, totalReviews: 0 });
@@ -123,9 +121,14 @@ const AdminDashboard = () => {
   const [cityRevenueData, setCityRevenueData] = useState(null);
   const [cityRevenueLoading, setCityRevenueLoading] = useState(false);
 
+  // Top Hotels State - THÊM MỚI
+  const [topHotels, setTopHotels] = useState([]);
+  const [topHotelsChartData, setTopHotelsChartData] = useState(null);
+  const [topHotelsLoading, setTopHotelsLoading] = useState(false);
+  const [topHotelsLimit, setTopHotelsLimit] = useState(5); // MẶC ĐỊNH TOP 5
+
   // Bộ lọc Ngày/Tháng/Năm
   const [groupBy, setGroupBy] = useState('month');
-  // thêm state chọn năm cho biểu đồ Monthly Sales
   const [selectedBarYear, setSelectedBarYear] = useState(new Date().getFullYear());
   const [dateStart, setDateStart] = useState(new Date().toISOString().slice(0, 10));
   const [dateEnd, setDateEnd] = useState(new Date().toISOString().slice(0, 10));
@@ -133,23 +136,25 @@ const AdminDashboard = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const yearsOptions = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
 
-  // Nhãn hiển thị theo groupBy
   const groupLabelText =
     groupBy === 'day'
       ? (dateStart === dateEnd ? `ngày ${dateStart}` : `từ ${dateStart} đến ${dateEnd}`)
       : groupBy === 'month'
-      ? `tháng ${selectedMonth}/${selectedYear}`
-      : `năm ${selectedYear}`;
+        ? `tháng ${selectedMonth}/${selectedYear}`
+        : `năm ${selectedYear}`;
+
+  // FETCH DỮ LIỆU BAN ĐẦU
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
         const token = JSON.parse(localStorage.getItem("userInfo"))?.token;
         const config = { headers: { Authorization: `Bearer ${token}` } };
+        
         const [overviewRes, monthlyRes, regionsRes] = await Promise.all([
           axios.get("/api/dashboard/overview", config),
           axios.get("/api/dashboard/monthly", config),
-          axios.get("/api/regions", config), // Fetch regions
+          axios.get("/api/regions", config),
         ]);
 
         setOverview(overviewRes.data);
@@ -157,7 +162,7 @@ const AdminDashboard = () => {
 
         if (regionsRes.data && regionsRes.data.length > 0) {
           setRegions(regionsRes.data);
-          setSelectedRegion(regionsRes.data[0].name); // Set default region
+          setSelectedRegion(regionsRes.data[0].name);
         }
 
       } catch (err) {
@@ -170,15 +175,40 @@ const AdminDashboard = () => {
     fetchDashboardData();
   }, []);
 
+  // FETCH TOP HOTELS KHI topHotelsLimit THAY ĐỔI
+  useEffect(() => {
+    const fetchTopHotels = async () => {
+      setTopHotelsLoading(true);
+      try {
+        const token = JSON.parse(localStorage.getItem("userInfo"))?.token;
+        const config = { headers: { Authorization: `Bearer ${token}` } };
+        
+        const limitParam = topHotelsLimit === 'all' ? 'all' : topHotelsLimit;
+        const { data } = await axios.get(`/api/bookings/top-hotels?limit=${limitParam}`, config);
+        
+        setTopHotels(data.topHotels || []);
+        setTopHotelsChartData(data.chartData || null);
+      } catch (err) {
+        console.error("Failed to fetch top hotels:", err);
+        setTopHotels([]);
+        setTopHotelsChartData(null);
+      } finally {
+        setTopHotelsLoading(false);
+      }
+    };
+
+    fetchTopHotels();
+  }, [topHotelsLimit]);
+
   // Update cities dropdown when region changes
   useEffect(() => {
     if (selectedRegion) {
       const region = regions.find(r => r.name === selectedRegion);
       setCities(region ? region.cities : []);
-      setSelectedCity(''); // Reset city selection
+      setSelectedCity('');
     }
   }, [selectedRegion, regions]);
-  
+
   // Fetch revenue by location when selection changes
   useEffect(() => {
     if (!selectedRegion) return;
@@ -225,23 +255,15 @@ const AdminDashboard = () => {
 
     fetchRevenueByLocation();
   }, [selectedRegion, selectedCity, groupBy, dateStart, dateEnd, selectedMonth, selectedYear]);
-  
-  // Chuẩn hóa dữ liệu theo tháng (đưa đúng vào vị trí 1..12)
+
+  // Chuẩn hóa dữ liệu theo tháng
   useEffect(() => {
     const keys = Object.keys(monthlyRevenue || {});
     if (keys.length) {
       const years = Array.from(new Set(keys.map(k => parseInt(k.split('-')[0], 10))));
       if (!years.includes(selectedBarYear)) {
-        setSelectedBarYear(Math.max(...years)); // mặc định chọn năm lớn nhất có dữ liệu
+        setSelectedBarYear(Math.max(...years));
       }
-    }
-  }, [monthlyRevenue]);
-
-  // cập nhật selectedBarYear khi có dữ liệu monthlyRevenue (chọn năm lớn nhất có dữ liệu)
-  useEffect(() => {
-    const years = Array.from(new Set(Object.keys(monthlyRevenue || {}).map(k => parseInt(k.split('-')[0], 10))));
-    if (years.length && !years.includes(selectedBarYear)) {
-      setSelectedBarYear(Math.max(...years));
     }
   }, [monthlyRevenue]);
 
@@ -249,7 +271,6 @@ const AdminDashboard = () => {
     .from(new Set(Object.keys(monthlyRevenue || {}).map(k => parseInt(k.split('-')[0], 10))))
     .sort((a, b) => b - a);
 
-  // đưa doanh thu vào đúng tháng (index = month - 1) theo selectedBarYear
   const twelveMonthsData = Array(12).fill(0);
   Object.entries(monthlyRevenue || {}).forEach(([ym, amount]) => {
     const [y, m] = ym.split('-');
@@ -270,12 +291,16 @@ const AdminDashboard = () => {
       barThickness: 15,
     }],
   };
+  
   const barChartOptions = {
-    responsive: true, plugins: { legend: { display: false } },
-    scales: { y: { grid: { display: false } }, x: { grid: { display: false } } },
+    responsive: true, 
+    plugins: { legend: { display: false } },
+    scales: { 
+      y: { grid: { display: false } }, 
+      x: { grid: { display: false } } 
+    },
   };
 
-  // combobox chọn năm cho card Monthly Sales
   const monthlyYearSelector = (
     <div className="flex items-center bg-slate-100 rounded-md p-1 text-sm">
       <span className="px-2 text-gray-600">Năm</span>
@@ -291,19 +316,57 @@ const AdminDashboard = () => {
     </div>
   );
 
-  if (loading) { 
+  // COMPONENT CHỌN TOP HOTELS
+  const TopHotelsSelector = (
+    <div className="flex items-center gap-2 bg-slate-100 rounded-md p-1 text-sm">
+      <span className="px-2 text-gray-600 font-medium">Hiển thị:</span>
+      <button
+        onClick={() => setTopHotelsLimit(5)}
+        className={`px-3 py-1 rounded-md transition-all ${
+          topHotelsLimit === 5 
+            ? 'bg-blue-500 text-white shadow-sm' 
+            : 'bg-white text-gray-700 hover:bg-gray-50'
+        }`}
+      >
+        Top 5
+      </button>
+      <button
+        onClick={() => setTopHotelsLimit(10)}
+        className={`px-3 py-1 rounded-md transition-all ${
+          topHotelsLimit === 10 
+            ? 'bg-blue-500 text-white shadow-sm' 
+            : 'bg-white text-gray-700 hover:bg-gray-50'
+        }`}
+      >
+        Top 10
+      </button>
+      <button
+        onClick={() => setTopHotelsLimit('all')}
+        className={`px-3 py-1 rounded-md transition-all ${
+          topHotelsLimit === 'all' 
+            ? 'bg-blue-500 text-white shadow-sm' 
+            : 'bg-white text-gray-700 hover:bg-gray-50'
+        }`}
+      >
+        Tất cả
+      </button>
+    </div>
+  );
+
+  if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="animate-spin h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full"></div>
       </div>
-    ); 
+    );
   }
-  if (error) { 
+  
+  if (error) {
     return (
       <div className="p-6">
         <div className="bg-red-100 text-red-700 text-center p-4 rounded-lg">{error}</div>
       </div>
-    ); 
+    );
   }
 
   const StatisticsFilterButtons = (
@@ -319,17 +382,22 @@ const AdminDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-9 gap-6">
 
         {/* Hàng 1: Thống kê */}
-        <div className="md:col-span-1 lg:col-span-3"><StatCard icon={<FiBox size={24} className="text-blue-500" />} title="Bookings" value={(overview.totalBookings || 0).toLocaleString()} change={9.05} changeType="decrease" /></div>
-        <div className="md:col-span-1 lg:col-span-3"><StatCard icon={<FiDollarSign size={24} className="text-green-500" />} title="Revenue" value={`${((overview.totalRevenue || 0) / 1000000).toFixed(2)}tr`} change={5.5} changeType="increase" /></div>
-        <div className="md:col-span-1 lg:col-span-3"><StatCard icon={<FiMessageSquare size={24} className="text-orange-500" />} title="Total Reviews" value={(overview.totalReviews || 0).toLocaleString()} change={2.8} changeType="increase" /></div>
+        <div className="md:col-span-1 lg:col-span-3">
+          <StatCard icon={<FiBox size={24} className="text-blue-500" />} title="Bookings" value={(overview.totalBookings || 0).toLocaleString()} change={9.05} changeType="decrease" />
+        </div>
+        <div className="md:col-span-1 lg:col-span-3">
+          <StatCard icon={<FiDollarSign size={24} className="text-green-500" />} title="Revenue" value={`${((overview.totalRevenue || 0) / 1000000).toFixed(2)}tr`} change={5.5} changeType="increase" />
+        </div>
+        <div className="md:col-span-1 lg:col-span-3">
+          <StatCard icon={<FiMessageSquare size={24} className="text-orange-500" />} title="Total Reviews" value={(overview.totalReviews || 0).toLocaleString()} change={2.8} changeType="increase" />
+        </div>
 
         {/* Hàng 2: Biểu đồ */}
         <ChartCard title="Doanh thu theo từng tháng của Web" colSpan="lg:col-span-6" headerContent={monthlyYearSelector}>
           <Bar data={barChartData} options={barChartOptions} />
         </ChartCard>
-        
+
         <ChartCard title="Doanh thu theo Khu vực" colSpan="lg:col-span-3" menu={false}>
-          {/* Dropdown khu vực/quận */}
           <div className="flex gap-2 mb-4">
             <select
               value={selectedRegion}
@@ -350,7 +418,6 @@ const AdminDashboard = () => {
             </select>
           </div>
 
-          {/* Tabs Ngày/Tháng/Năm */}
           <div className="flex gap-2 mb-2">
             <button onClick={() => setGroupBy('day')} className={`px-3 py-1 rounded-md text-sm ${groupBy === 'day' ? 'bg-blue-50 text-blue-600 border border-blue-300' : 'bg-gray-50 text-gray-700'}`}>Ngày</button>
             <button onClick={() => setGroupBy('month')} className={`px-3 py-1 rounded-md text-sm ${groupBy === 'month' ? 'bg-blue-50 text-blue-600 border border-blue-300' : 'bg-gray-50 text-gray-700'}`}>Tháng</button>
@@ -359,37 +426,19 @@ const AdminDashboard = () => {
 
           {groupBy === 'day' && (
             <div className="flex gap-2 mb-4">
-              <input
-                type="date"
-                value={dateStart}
-                onChange={(e) => setDateStart(e.target.value)}
-                className="w-1/2 p-2 border rounded-md bg-gray-50 text-sm"
-              />
-              <input
-                type="date"
-                value={dateEnd}
-                onChange={(e) => setDateEnd(e.target.value)}
-                className="w-1/2 p-2 border rounded-md bg-gray-50 text-sm"
-              />
+              <input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} className="w-1/2 p-2 border rounded-md bg-gray-50 text-sm" />
+              <input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} className="w-1/2 p-2 border rounded-md bg-gray-50 text-sm" />
             </div>
           )}
 
           {groupBy === 'month' && (
             <div className="flex gap-2 mb-4">
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                className="w-1/2 p-2 border rounded-md bg-gray-50 text-sm"
-              >
+              <select value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))} className="w-1/2 p-2 border rounded-md bg-gray-50 text-sm">
                 {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
                   <option key={m} value={m}>Tháng {m}</option>
                 ))}
               </select>
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="w-1/2 p-2 border rounded-md bg-gray-50 text-sm"
-              >
+              <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))} className="w-1/2 p-2 border rounded-md bg-gray-50 text-sm">
                 {yearsOptions.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
@@ -397,17 +446,12 @@ const AdminDashboard = () => {
 
           {groupBy === 'year' && (
             <div className="flex gap-2 mb-4">
-              <select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="w-full p-2 border rounded-md bg-gray-50 text-sm"
-              >
+              <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))} className="w-full p-2 border rounded-md bg-gray-50 text-sm">
                 {yearsOptions.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
           )}
 
-          {/* Revenue Display */}
           <div className="relative flex flex-col items-center justify-center h-36">
             {cityRevenueLoading ? (
               <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
@@ -425,12 +469,107 @@ const AdminDashboard = () => {
           </div>
 
           <p className="text-center text-sm text-gray-500 mt-4">Dữ liệu doanh thu {groupLabelText}.</p>
-          {/* Đã xóa block Target/Revenue/Today hard-code */}
+        </ChartCard>
+
+        {/* Hàng 4: Top Khách sạn - CẢI TIẾN */}
+        <ChartCard 
+          title={`Top ${topHotelsLimit === 'all' ? 'Tất cả' : topHotelsLimit} Khách sạn Tiêu biểu`}
+          colSpan="lg:col-span-9" 
+          menu={false}
+          headerContent={TopHotelsSelector}
+        >
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Cột trái: Danh sách */}
+            <div className="lg:col-span-1 space-y-3 max-h-[500px] overflow-y-auto pr-2">
+              {topHotelsLoading ? (
+                <div className="flex justify-center p-4">
+                  <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+                </div>
+              ) : topHotels.length > 0 ? (
+                topHotels.map((hotel, index) => (
+                  <div key={hotel.hotelId} className="flex items-center gap-4 p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
+                    <div className="flex-shrink-0 relative">
+                      <span className={`absolute -top-2 -left-2 w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold text-white ${
+                        index === 0 ? 'bg-yellow-500' : 
+                        index === 1 ? 'bg-gray-400' : 
+                        index === 2 ? 'bg-orange-400' : 
+                        'bg-blue-400'
+                      }`}>
+                        {index + 1}
+                      </span>
+                      <img
+                        src={hotel.image || "https://via.placeholder.com/150"}
+                        alt={hotel.name}
+                        className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{hotel.name}</p>
+                      <p className="text-xs text-gray-500">Doanh thu: {hotel.totalRevenue.toLocaleString()} đ</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-center text-gray-500 py-4">Chưa có dữ liệu</p>
+              )}
+            </div>
+
+            {/* Cột phải: Biểu đồ */}
+            <div className="lg:col-span-2">
+              {topHotelsLoading ? (
+                <div className="flex justify-center items-center h-64">
+                  <div className="animate-spin h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+                </div>
+              ) : topHotelsChartData && topHotelsChartData.datasets.length > 0 ? (
+                <Line
+                  data={topHotelsChartData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { 
+                      legend: { 
+                        position: 'bottom',
+                        labels: {
+                          boxWidth: 12,
+                          padding: 10,
+                          font: { size: 11 }
+                        }
+                      },
+                      tooltip: {
+                        callbacks: {
+                          label: function(context) {
+                            return `${context.dataset.label}: ${context.parsed.y.toLocaleString()} đ`;
+                          }
+                        }
+                      }
+                    },
+                    scales: {
+                      y: { 
+                        beginAtZero: true, 
+                        grid: { color: 'rgba(0,0,0,0.05)' },
+                        ticks: {
+                          callback: function(value) {
+                            return (value / 1000000).toFixed(1) + 'tr';
+                          }
+                        }
+                      },
+                      x: { grid: { display: false } }
+                    }
+                  }}
+                />
+              ) : (
+                <div className="flex justify-center items-center h-64 text-gray-500">
+                  <p>Không có dữ liệu biểu đồ</p>
+                </div>
+              )}
+            </div>
+          </div>
         </ChartCard>
 
         {/* Hàng 3: Biểu đồ Statistics */}
-        <ChartCard 
-          title="Statistics" 
+        <ChartCard
+          title="Statistics"
           subtitle="Target you've set for each month"
           colSpan="lg:col-span-9"
           menu={false}
@@ -438,7 +577,7 @@ const AdminDashboard = () => {
         >
           <StatisticsChart />
         </ChartCard>
-        
+
       </div>
     </div>
   );

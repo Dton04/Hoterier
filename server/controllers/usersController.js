@@ -661,6 +661,29 @@ exports.updateUserProfile = async (req, res) => {
       name: req.body.name || user.name,
       phone: req.body.phone || user.phone,
     };
+
+    // Handle complex fields (parse JSON if sent as string via FormData)
+    if (req.body.companions) {
+      try {
+        updates.companions = typeof req.body.companions === 'string' ? JSON.parse(req.body.companions) : req.body.companions;
+      } catch (e) { console.error("Error parsing companions", e); }
+    }
+    if (req.body.settings) {
+      try {
+        updates.settings = typeof req.body.settings === 'string' ? JSON.parse(req.body.settings) : req.body.settings;
+      } catch (e) { console.error("Error parsing settings", e); }
+    }
+    if (req.body.paymentMethods) {
+      try {
+        updates.paymentMethods = typeof req.body.paymentMethods === 'string' ? JSON.parse(req.body.paymentMethods) : req.body.paymentMethods;
+      } catch (e) { console.error("Error parsing paymentMethods", e); }
+    }
+    if (req.body.privacySettings) {
+      try {
+        updates.privacySettings = typeof req.body.privacySettings === 'string' ? JSON.parse(req.body.privacySettings) : req.body.privacySettings;
+      } catch (e) { console.error("Error parsing privacySettings", e); }
+    }
+
     if (req.file) {
       updates.avatar = req.file.path.replace(/\\/g, "/");
     }

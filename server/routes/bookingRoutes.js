@@ -2,7 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-const bookingController = require("../controllers/bookingController"); 
+const bookingController = require("../controllers/bookingController");
 
 // POST /api/bookings/apply-promotions - Áp dụng khuyến mãi
 router.post("/apply-promotions", bookingController.applyPromotions);
@@ -37,6 +37,9 @@ router.get("/stats/daily", bookingController.getDailyStats);
 // GET /api/bookings/stats/monthly - Thống kê doanh thu theo tháng
 router.get("/stats/monthly", bookingController.getMonthlyStats);
 
+// GET /api/bookings/top-hotels - Lấy top khách sạn doanh thu cao nhất
+router.get("/top-hotels", bookingController.getTopHotels);
+
 // PATCH /api/bookings/:id/note - Cập nhật ghi chú
 router.patch("/:id/note", bookingController.updateNote);
 
@@ -50,7 +53,7 @@ router.patch("/:id/extend", bookingController.extendStay);
 router.post("/cancel-reason", bookingController.sendCancelReason);
 
 //Lấy lý do hủy
-router.get("/cancel-reason",bookingController.getCancelReason);
+router.get("/cancel-reason", bookingController.getCancelReason);
 
 // PATCH /api/bookings/:id/payment-method - Cập nhật phương thức thanh toán
 router.patch("/:id/payment-method", bookingController.updatePaymentMethod);
