@@ -7,6 +7,21 @@ const fs = require('fs');
 const path = require('path');
 const Amenity = require("../models/amenity");
 
+// Hàm khởi tạo tồn kho theo ngày (5 phòng/ngày mặc định)
+function getOrInitInventory(room, dayStr) {
+    let daily = room.dailyInventory.find(d => d.date === dayStr);
+
+    // Nếu chưa có tồn kho ngày → tạo mới với quantity gốc của phòng
+    if (!daily) {
+        daily = { date: dayStr, quantity: room.quantity };
+        room.dailyInventory.push(daily);
+    }
+
+    return daily;
+}
+
+
+
 // GET /api/rooms/getallrooms - Lấy tất cả phòng
 exports.getAllRooms = async (req, res) => {
   try {
@@ -49,6 +64,8 @@ exports.getRoomById = async (req, res) => {
     }
 
     room.availabilityStatus = room.quantity > 0 ? "available" : "unavailable";
+    room.dailyInventory = room.dailyInventory || [];
+
     // Đưa hotelId thành field "hotel" để FE dễ dùng
     if (room.hotelId) {
       room.hotel = {
@@ -388,16 +405,16 @@ exports.removeAmenityFromRoom = async (req, res) => {
   }
 };
 
-
 exports.checkAvailability = async (req, res) => {
   try {
-    const { roomid, checkin, checkout, roomsNeeded } = req.body;
+    const { roomid, checkin, checkout, roomsNeeded = 1 } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(roomid)) {
       return res.status(400).json({ message: "ID phòng không hợp lệ" });
     }
 
-    const room = await Room.findById(roomid).lean();
+    // Lấy cả dailyInventory từ DB
+    const room = await Room.findById(roomid);
     if (!room) {
       return res.status(404).json({ message: "Không tìm thấy phòng" });
     }
@@ -409,38 +426,47 @@ exports.checkAvailability = async (req, res) => {
       return res.status(400).json({ message: "Ngày nhận/trả phòng không hợp lệ" });
     }
 
+    const dailyInventory = room.dailyInventory || [];
+    let minAvailable = Infinity;
+
     // KIỂM TRA MỖI NGÀY
     for (let d = new Date(checkinDate); d < checkoutDate; d.setDate(d.getDate() + 1)) {
-      let bookedToday = 0;
+      const dayStr = d.toISOString().split("T")[0];
 
-      room.currentbookings.forEach(b => {
+      // Số phòng đã book theo currentbookings (nếu còn dùng)
+      let bookedToday = 0;
+      (room.currentbookings || []).forEach(b => {
         if (d >= new Date(b.checkin) && d < new Date(b.checkout)) {
           bookedToday += b.roomsBooked || 1;
         }
       });
 
-      const dayStr = d.toISOString().split("T")[0];
-      const daily = getOrInitInventory(room, dayStr, room.quantity);
-      const availableToday = daily.quantity - bookedToday;
+      // Tồn kho theo ngày (nếu chưa có -> dùng room.quantity)
+      const daily = dailyInventory.find(di => di.date === dayStr);
+      const baseQty = daily ? daily.quantity : room.quantity;
 
+      const availableToday = baseQty - bookedToday;
+      if (availableToday < minAvailable) minAvailable = availableToday;
 
       if (availableToday < roomsNeeded) {
         return res.status(200).json({
           available: false,
-          availableRooms: availableToday,
-          message: `Chỉ còn ${availableToday} phòng trống vào ngày ${d.toISOString().split("T")[0]}`,
+          availableRooms: availableToday < 0 ? 0 : availableToday,
+          message: `Chỉ còn ${availableToday < 0 ? 0 : availableToday} phòng trống vào ngày ${dayStr}`,
         });
       }
     }
 
+    if (minAvailable === Infinity) minAvailable = room.quantity;
+
     return res.status(200).json({
       available: true,
-      availableRooms: room.quantity,
-      message: "Phòng còn trống cho toàn bộ khoảng thời gian!",
+      availableRooms: minAvailable < 0 ? 0 : minAvailable,
+      message: "Phòng còn trống cho toàn bộ khoảng thời gian trong ngày!",
     });
 
   } catch (err) {
+    console.error("Lỗi checkAvailability:", err);
     res.status(500).json({ message: "Lỗi kiểm tra phòng trống", error: err.message });
   }
 };
-

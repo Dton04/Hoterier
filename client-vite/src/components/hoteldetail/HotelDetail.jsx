@@ -43,7 +43,7 @@ export default function HotelDetail() {
   const festivalId = searchParams.get("festivalId");
 
 
-  
+
   const autoAllocateRooms = (rooms, totalGuests) => {
     if (!rooms?.length) return null;
 
@@ -225,14 +225,15 @@ export default function HotelDetail() {
         {/* BookingForm (Desktop & Tablet) */}
         <div
           className="
-          hidden sm:block
-          absolute left-1/2 -translate-x-1/2 bottom-[-30px] 
-          w-full max-w-6xl px-4 sm:px-6
-          z-30
-        "
+  hidden sm:block
+  absolute left-1/2 -translate-x-1/2 bottom-[-30px] 
+  w-full max-w-6xl px-4 sm:px-6
+  z-[60]
+"
         >
           <BookingForm />
         </div>
+
       </div>
       <div className="p-5">
         <HeaderTab hotel={hotel} />

@@ -70,8 +70,8 @@ async function callGeminiChatbot(messages) {
 
     return reply || "Xin lỗi, tôi chưa hiểu ý bạn nói (lỗi phản hồi AI).";
   } catch (err) {
-    console.error("⚠️ Lỗi gọi Gemini API (Status):", err.response?.status);
-    console.error("⚠️ Lỗi gọi Gemini API (Data):", err.response?.data);
+    console.error(" Lỗi gọi Gemini API (Status):", err.response?.status);
+    console.error(" Lỗi gọi Gemini API (Data):", err.response?.data);
     return "API Gemini hiện đang gặp sự cố, bạn thử lại sau nhé!";
   }
 }

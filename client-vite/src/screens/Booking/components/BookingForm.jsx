@@ -21,6 +21,7 @@ export default function BookingForm({
   selectedRooms,
   watch,
   checkAvailability,
+  collectedVouchers,
 }) {
 
   const [roomWarning, setRoomWarning] = useState(null);
@@ -129,7 +130,7 @@ export default function BookingForm({
         )}
       </div>
 
-     
+
 
       {/* Số người & trẻ em */}
       {/* Số khách (hiển thị, không cho chỉnh) */}
@@ -198,6 +199,50 @@ export default function BookingForm({
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Mã giảm giá
+        </label>
+
+        {/* Dropdown chọn voucher đã thu thập */}
+        {collectedVouchers && collectedVouchers.length > 0 && (
+          <div className="mb-3">
+            <label className="block text-xs text-gray-600 mb-1">
+              💳 Voucher của bạn
+            </label>
+            <select
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-[#003580]"
+              onChange={(e) => {
+                if (e.target.value) {
+                  setDiscountCode(e.target.value);
+                }
+              }}
+              defaultValue=""
+            >
+              <option value="" disabled>-- Chọn voucher của bạn --</option>
+              {collectedVouchers.map((v) => {
+                const discountName = v.discountId?.name || v.voucherCode || 'Voucher';
+                const discountType = v.discountId?.discountType;
+                const discountValue = v.discountId?.discountValue;
+
+                let discountDisplay = '';
+                if (discountType === 'percentage' && discountValue) {
+                  discountDisplay = `Giảm ${discountValue}%`;
+                } else if (discountType === 'fixed' && discountValue) {
+                  discountDisplay = `Giảm ${discountValue.toLocaleString()} VND`;
+                } else {
+                  discountDisplay = 'Mã giảm giá';
+                }
+
+                return (
+                  <option key={v._id} value={v.voucherCode}>
+                    {discountName} - {discountDisplay}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+        )}
+
+        <label className="block text-xs text-gray-600 mb-1">
+          Hoặc nhập mã giảm giá
         </label>
         <div className="flex gap-2">
           <input
