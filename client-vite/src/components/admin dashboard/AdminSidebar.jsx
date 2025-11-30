@@ -34,6 +34,8 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
 
   const menuItemsStaff = [
     { label: "Dashboard", icon: <FiGrid />, path: `${basePath}/dashboard` },
+    { label: "Khách sạn", icon: <FiHome />, path: `${basePath}/hotels` },
+    { label: "Đặt phòng", icon: <FiFileText />, path: `${basePath}/bookings` },
   ];
 
   const menuItems = role === 'admin' ? menuItemsAdmin : menuItemsStaff;
