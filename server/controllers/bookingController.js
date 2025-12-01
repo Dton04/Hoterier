@@ -32,6 +32,15 @@ function getOrInitInventory(room, dayStr) {
   return daily;
 }
 
+// ===== HELPER: Format ngày theo LOCAL timezone (giống roomController) =====
+function formatLocalDate(date) {
+  const d = new Date(date);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 // Chuẩn hóa checkin/checkout về 14:00 / 12:00 (UTC để tránh lệch múi giờ)
 function normalizeCheckin(dateStr) {
   const d = new Date(dateStr);
@@ -356,16 +365,16 @@ exports.createBooking = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy phòng" });
     }
 
-    // Kiểm tra tồn kho theo từng ngày (sử dụng UTC để tránh lệch ngày)
-    const checkinDateOnly = new Date(Date.UTC(checkinISO.getUTCFullYear(), checkinISO.getUTCMonth(), checkinISO.getUTCDate()));
-    const checkoutDateOnly = new Date(Date.UTC(checkoutISO.getUTCFullYear(), checkoutISO.getUTCMonth(), checkoutISO.getUTCDate()));
+    // ✅ Kiểm tra tồn kho theo từng ngày (sử dụng LOCAL timezone)
+    const checkinDateOnly = new Date(checkinISO.getFullYear(), checkinISO.getMonth(), checkinISO.getDate());
+    const checkoutDateOnly = new Date(checkoutISO.getFullYear(), checkoutISO.getMonth(), checkoutISO.getDate());
 
     for (
       let d = new Date(checkinDateOnly);
       d < checkoutDateOnly;
-      d.setUTCDate(d.getUTCDate() + 1)
+      d.setDate(d.getDate() + 1)
     ) {
-      const dayStr = d.toISOString().split("T")[0];
+      const dayStr = formatLocalDate(d);
       const daily = getOrInitInventory(room, dayStr);
 
       if (daily.quantity < roomsBooked) {
@@ -500,16 +509,16 @@ exports.bookRoom = async (req, res) => {
     }
 
     // ===== TRỪINVENTORY TRƯỚC KHI TẠO BOOKING =====
-    // Giảm tồn kho theo từng ngày (sử dụng UTC để tránh lệch ngày)
-    const checkinDateOnly = new Date(Date.UTC(checkinISO.getUTCFullYear(), checkinISO.getUTCMonth(), checkinISO.getUTCDate()));
-    const checkoutDateOnly = new Date(Date.UTC(checkoutISO.getUTCFullYear(), checkoutISO.getUTCMonth(), checkoutISO.getUTCDate()));
+    // ✅ Giảm tồn kho theo từng ngày (sử dụng LOCAL timezone)
+    const checkinDateOnly = new Date(checkinISO.getFullYear(), checkinISO.getMonth(), checkinISO.getDate());
+    const checkoutDateOnly = new Date(checkoutISO.getFullYear(), checkoutISO.getMonth(), checkoutISO.getDate());
 
     for (
       let d = new Date(checkinDateOnly);
       d < checkoutDateOnly;
-      d.setUTCDate(d.getUTCDate() + 1)
+      d.setDate(d.getDate() + 1)
     ) {
-      const dayStr = d.toISOString().split("T")[0];
+      const dayStr = formatLocalDate(d);
       const daily = getOrInitInventory(room, dayStr);
 
       if (daily.quantity < roomsBooked) {
@@ -757,17 +766,17 @@ exports.bookMulti = async (req, res) => {
       let roomCheckin = normalizeCheckin(roomItem.checkin);
       let roomCheckout = normalizeCheckout(roomItem.checkout);
 
-      // Sử dụng UTC để tránh lệch ngày khi lưu vào dailyInventory
-      const checkinDateOnly = new Date(Date.UTC(roomCheckin.getUTCFullYear(), roomCheckin.getUTCMonth(), roomCheckin.getUTCDate()));
-      const checkoutDateOnly = new Date(Date.UTC(roomCheckout.getUTCFullYear(), roomCheckout.getUTCMonth(), roomCheckout.getUTCDate()));
+      // ✅ Sử dụng LOCAL timezone để tránh lệch ngày khi lưu vào dailyInventory
+      const checkinDateOnly = new Date(roomCheckin.getFullYear(), roomCheckin.getMonth(), roomCheckin.getDate());
+      const checkoutDateOnly = new Date(roomCheckout.getFullYear(), roomCheckout.getMonth(), roomCheckout.getDate());
 
       // Giảm tồn kho từng ngày cho roomItem
       for (
         let d = new Date(checkinDateOnly);
         d < checkoutDateOnly;
-        d.setUTCDate(d.getUTCDate() + 1)
+        d.setDate(d.getDate() + 1)
       ) {
-        const dayStr = d.toISOString().split("T")[0];
+        const dayStr = formatLocalDate(d);
         const daily = getOrInitInventory(room, dayStr);
 
         if (daily.quantity < roomItem.roomsBooked) {

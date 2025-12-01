@@ -13,25 +13,25 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { label: "Đặt phòng", icon: <FiFileText />, path: "/admin/bookings" },
     { label: "Người dùng & NV", icon: <FiUsers />, path: "/admin/users" },
     { label: "Khách sạn", icon: <FiHome />, path: "/admin/hotels" },
-     { label: "Dịch vụ khách sạn (chung)", icon: <FiServer />, path: "/admin/hotel-services" },
+    { label: "Dịch vụ khách sạn (chung)", icon: <FiServer />, path: "/admin/hotel-services" },
     { label: "Dịch vụ khách sạn", icon: <FiServer />, path: "/admin/services" },
     { label: "Tiện nghi phòng", icon: <FiRotateCcw />, path: "/admin/amenities" },
     { label: "Giảm giá", icon: <FiTag />, path: "/admin/discounts" },
     { label: "Đánh giá", icon: <FiStar />, path: "/admin/reviews" },
     { label: "Khu vực", icon: <FiMapPin />, path: "/admin/regions" }, // Thay thế "Tables"
     { label: "Thông báo", icon: <FiBell />, path: "/admin/notifications" }, // Thêm mục thông báo
+    { label: "Lịch sử ChatBot", icon: <FiFileText />, path: "/admin/chat-history" },
   ];
 
   return (
     <aside
-      className={`absolute left-0 top-0 z-50 flex h-screen w-64 flex-col overflow-y-hidden bg-white border-r border-gray-200 duration-300 ease-linear lg:static lg:translate-x-0 ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}
+      className={`absolute left-0 top-0 z-50 flex h-screen w-64 flex-col overflow-y-hidden bg-white border-r border-gray-200 duration-300 ease-linear lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
     >
       {/* LOGO */}
       <div className="flex items-center justify-between gap-2 px-6 h-[68px] border-b border-gray-200">
         <NavLink to="/home">
-           <h1 className="text-2xl font-bold text-slate-800">HOTELIER</h1>
+          <h1 className="text-2xl font-bold text-slate-800">HOTELIER</h1>
         </NavLink>
         <button
           onClick={() => setSidebarOpen(false)}
@@ -55,7 +55,7 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
                     className={`group relative flex items-center gap-3 rounded-md py-2 px-4 font-medium text-gray-600 duration-300 ease-in-out hover:bg-gray-100 ${
                       // Logic active link đúng hơn
                       (pathname === item.path || (item.path !== '/admin/dashboard' && pathname.startsWith(item.path))) && 'bg-blue-50 text-blue-600'
-                    }`}
+                      }`}
                   >
                     {item.icon}
                     {item.label}

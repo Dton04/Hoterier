@@ -121,7 +121,7 @@ export default function ChatWindow({
         embedded
           ? "w-full h-full bg-white flex flex-col min-h-0"
           : // Nâng cửa sổ lên và tránh chồng lên chatbot (ở góc dưới phải)
-            "fixed bottom-28 right-6 md:right-10 z-[1000] bg-white shadow-2xl rounded-xl border border-slate-200 w-[92vw] max-w-[360px] md:max-w-[420px] h-[58vh] md:h-[62vh]"
+          "fixed bottom-28 right-6 md:right-10 z-[1000] bg-white shadow-2xl rounded-xl border border-slate-200 w-[92vw] max-w-[360px] md:max-w-[420px] h-[58vh] md:h-[62vh]"
       }
       role="dialog"
       aria-label="Cửa sổ chat hỗ trợ"
@@ -141,7 +141,7 @@ export default function ChatWindow({
               title="Đóng"
             >
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none">
-                <path d="M6 6l12 12M6 18L18 6" stroke="currentColor" strokeWidth="2"/>
+                <path d="M6 6l12 12M6 18L18 6" stroke="currentColor" strokeWidth="2" />
               </svg>
             </button>
           </div>
@@ -154,7 +154,7 @@ export default function ChatWindow({
         <div
           ref={listRef}
           // Sắp xếp thành 1 cột thẳng đứng, neo về đáy, khoảng cách đều
-          className="flex-1 min-h-0 overflow-y-auto p-3 bg-slate-50 flex flex-col justify-end space-y-3 pb-4"
+          className="flex-1 min-h-0 overflow-y-auto p-3 bg-slate-50 flex flex-col space-y-3 pb-4"
         >
           {loading ? (
             <div className="text-sm text-slate-500">Đang tải lịch sử…</div>
@@ -173,9 +173,8 @@ export default function ChatWindow({
                 // items-end đảm bảo bubble bám đáy hàng, không “lơ lửng”
                 <div key={m._id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} items-end`}>
                   <div
-                    className={`max-w-[80%] rounded-xl px-3 py-2 shadow ${
-                      isMe ? 'bg-blue-600 text-white' : 'bg-white text-slate-900 border'
-                    }`}
+                    className={`max-w-[80%] rounded-xl px-3 py-2 shadow ${isMe ? 'bg-blue-600 text-white' : 'bg-white text-slate-900 border'
+                      }`}
                   >
                     {m.type === 'image' ? (
                       <div className="space-y-1">
@@ -222,8 +221,8 @@ export default function ChatWindow({
             title="Gửi ảnh"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none">
-              <path d="M4 16l5-6 4 5 3-4 4 5" stroke="currentColor" strokeWidth="2"/>
-              <circle cx="8" cy="7" r="2" stroke="currentColor" strokeWidth="2"/>
+              <path d="M4 16l5-6 4 5 3-4 4 5" stroke="currentColor" strokeWidth="2" />
+              <circle cx="8" cy="7" r="2" stroke="currentColor" strokeWidth="2" />
             </svg>
           </button>
           <input

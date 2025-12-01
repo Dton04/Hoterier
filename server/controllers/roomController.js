@@ -7,17 +7,26 @@ const fs = require('fs');
 const path = require('path');
 const Amenity = require("../models/amenity");
 
+// ===== HELPER: Format ngày theo LOCAL timezone (không dùng UTC) =====
+function formatLocalDate(date) {
+  const d = new Date(date);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 // Hàm khởi tạo tồn kho theo ngày (5 phòng/ngày mặc định)
 function getOrInitInventory(room, dayStr) {
-    let daily = room.dailyInventory.find(d => d.date === dayStr);
+  let daily = room.dailyInventory.find(d => d.date === dayStr);
 
-    // Nếu chưa có tồn kho ngày → tạo mới với quantity gốc của phòng
-    if (!daily) {
-        daily = { date: dayStr, quantity: room.quantity };
-        room.dailyInventory.push(daily);
-    }
+  // Nếu chưa có tồn kho ngày → tạo mới với quantity gốc của phòng
+  if (!daily) {
+    daily = { date: dayStr, quantity: room.quantity };
+    room.dailyInventory.push(daily);
+  }
 
-    return daily;
+  return daily;
 }
 
 
@@ -429,9 +438,10 @@ exports.checkAvailability = async (req, res) => {
     const dailyInventory = room.dailyInventory || [];
     let minAvailable = Infinity;
 
-    // KIỂM TRA MỖI NGÀY
+    // KIỂM TRA MỖI NGÀY (sử dụng LOCAL timezone)
     for (let d = new Date(checkinDate); d < checkoutDate; d.setDate(d.getDate() + 1)) {
-      const dayStr = d.toISOString().split("T")[0];
+      // ✅ FIX: Dùng formatLocalDate thay vì toISOString để tránh lệch timezone
+      const dayStr = formatLocalDate(d);
 
       // Số phòng đã book theo currentbookings (nếu còn dùng)
       let bookedToday = 0;

@@ -58,6 +58,8 @@ import HotelServiceManagement from "./components/GUI admin/Hotels/HotelServiceMa
 import AdminNotifications from "./components/GUI admin/Notifications/AdminNotifications";
 import CreateRoomForm from "./components/CreateRoomForm";
 import EditRoomForm from "./components/EditRoomForm";
+import ChatHistoryAdmin from "./components/GUI admin/Chats/ChatHistoryAdmin";
+import MyChatHistory from "./components/Pages/MyChatHistory";
 
 
 
@@ -80,7 +82,7 @@ const UserRoute = ({ children }) => {
     const raw = localStorage.getItem("userInfo");
     const parsed = raw ? JSON.parse(raw) : null;
     userInfo = parsed?.user || parsed;
-  } catch {}
+  } catch { }
   return userInfo ? children : <Navigate to="/login" replace />;
 };
 
@@ -90,11 +92,11 @@ const UserRoute = ({ children }) => {
 
 // Layout riêng cho trang đặt phòng (không Navbar, Footer, ChatBot)
 const BookingLayout = () => (
-<>
+  <>
     <Navbar />
-  <main className="bg-gray-50 min-h-screen">
-    <Outlet />
-  </main>
+    <main className="bg-gray-50 min-h-screen">
+      <Outlet />
+    </main>
   </>
 );
 
@@ -106,14 +108,14 @@ const UserLayout = () => (
     {/* Outlet là nơi các trang con của người dùng sẽ hiển thị */}
     <main className="pt-[70px] bg-gray-50 min-h-screen">
 
-       <ChatBot />
-      <UnifiedChat/>
+      <ChatBot />
+      <UnifiedChat />
 
       <Outlet />
     </main>
     <Footer />
     {/* Mount ChatBubble dùng Portal */}
-    
+
   </>
 );
 
@@ -129,9 +131,9 @@ const AdminLayoutWrapper = () => (
 
 function App() {
   return (
-    
+
     <Provider store={store}>
-       <Toaster
+      <Toaster
         position="top-center"
         reverseOrder={false}
         toastOptions={{
@@ -173,6 +175,7 @@ function App() {
             <Route path="/points" element={<UserRoute><PointsPage /></UserRoute>} />
             <Route path="/favorites" element={<UserRoute><Favorites /></UserRoute>} />
             <Route path="/reviews" element={<UserRoute><Review /></UserRoute>} />
+            <Route path="/my-chat-history" element={<UserRoute><MyChatHistory /></UserRoute>} />
           </Route>
 
 
@@ -194,6 +197,7 @@ function App() {
             <Route path="regions" element={<AdminRegions />} />
             <Route path="amenities" element={<AmenityManagement />} />
             <Route path="notifications" element={<AdminNotifications />} />
+            <Route path="chat-history" element={<ChatHistoryAdmin />} />
             {/* Đã gỡ 2 route cũ ngoài Admin */}
             {/* <Route path="createroom" element={<CreateRoomForm />} /> */}
             {/* <Route path="editroom/:id" element={<EditRoomForm />} /> */}

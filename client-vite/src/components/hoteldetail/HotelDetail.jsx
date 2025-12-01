@@ -152,7 +152,6 @@ export default function HotelDetail() {
           axios.get(`/api/hotels/${id}`, {
             params: { festivalId },
           }),
-
           axios.get(`/api/amenities`),
           axios.get(`/api/services/hotel/${id}`),
           axios.get(`/api/reviews?hotelId=${id}`),
@@ -160,10 +159,29 @@ export default function HotelDetail() {
           axios.get(`/api/discounts`),
         ]);
 
-        setHotel(hotelRes.data.hotel || hotelRes.data);
-        setRooms(hotelRes.data.rooms || []);
+        // 1️⃣ Lưu thông tin khách sạn
+        const hotelData = hotelRes.data.hotel || hotelRes.data;
+        setHotel(hotelData);
+
+        // 2️⃣ Lấy FULL danh sách phòng (có dailyInventory, currentbookings,…)
+        const allRoomsRes = await axios.get("/api/rooms/getallrooms");
+
+        // 3️⃣ Lọc những phòng thuộc khách sạn hiện tại
+        const fullRooms = allRoomsRes.data.filter((r) => {
+          const hotelIdStr =
+            typeof r.hotelId === "object" && r.hotelId !== null
+              ? r.hotelId._id
+              : r.hotelId;
+          return String(hotelIdStr) === String(id);
+        });
+
+        setRooms(fullRooms);
+
+        // 4️⃣ Các dữ liệu khác giữ nguyên
         const amenityNames = Array.isArray(amenityRes.data)
-          ? amenityRes.data.map((a) => (typeof a === "string" ? a : a?.name)).filter(Boolean)
+          ? amenityRes.data
+            .map((a) => (typeof a === "string" ? a : a?.name))
+            .filter(Boolean)
           : [];
         setAmenities(amenityNames);
         setServices(serviceRes.data);
@@ -172,13 +190,14 @@ export default function HotelDetail() {
         setDiscounts(discountRes.data);
       } catch (err) {
         console.error("Lỗi khi tải dữ liệu:", err);
-
       } finally {
         setLoading(false);
       }
     }
+
     fetchData();
-  }, [id]);
+  }, [id, festivalId]);
+
 
   if (loading) {
     return <Loader message="Đang tải dữ liệu.." />

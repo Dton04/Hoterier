@@ -2,6 +2,7 @@ const Hotel = require("../models/hotel");
 const Region = require("../models/region");
 const Room = require("../models/room");
 const Booking = require("../models/booking");
+const ChatHistory = require("../models/chatHistory");
 const axios = require("axios");
 require("dotenv").config();
 
@@ -25,18 +26,47 @@ function getLowestPrice(hotel) {
   return prices.length ? Math.min(...prices) : null;
 }
 
-
 function calculateRoomsNeeded(people, maxcount) {
   if (!people || !maxcount) return 1;
   return Math.ceil(people / maxcount);
 }
 
+/** Lưu lịch sử chat */
+async function saveChat(userId, sender, text, context = {}, intent = null) {
+  if (!userId) return;
 
-
+  try {
+    await ChatHistory.findOneAndUpdate(
+      { userId },
+      {
+        $push: {
+          messages: {
+            sender,
+            text,
+            intent,
+            timestamp: new Date(),
+            region: context.region || null,
+            people: context.people || null,
+            checkin: context.checkin || null,
+            checkout: context.checkout || null,
+            hotelId: context.hotelId || null,
+            roomId: context.roomId || null,
+          },
+        },
+      },
+      { upsert: true }
+    );
+  } catch (err) {
+    console.error("❌ Lỗi lưu lịch sử chat:", err.message);
+  }
+}
 
 /** Hàm gọi API chatbot**/
 async function callGeminiChatbot(messages) {
-  console.log("API Key Loaded:", process.env.GEMINI_API_KEY ? "Có" : "Không tìm thấy");
+  console.log(
+    "API Key Loaded:",
+    process.env.GEMINI_API_KEY ? "Có" : "Không tìm thấy"
+  );
   try {
     const userMessage = messages[messages.length - 1].content;
 
@@ -51,22 +81,22 @@ async function callGeminiChatbot(messages) {
     const contents = [
       {
         role: "user",
-        parts: [{ text: `${systemPrompt}\n\nNgười dùng nói: ${userMessage}` }]
-      }
+        parts: [{ text: `${systemPrompt}\n\nNgười dùng nói: ${userMessage}` }],
+      },
     ];
 
     const response = await axios.post(
       GEMINI_ENDPOINT,
       {
         contents: contents,
-        // *** ĐÃ LOẠI BỎ KHỐI CONFIG/SYSTEM INSTRUCTION GÂY LỖI 400 ***
       },
       {
         timeout: 45000,
       }
     );
 
-    const reply = response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    const reply =
+      response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
     return reply || "Xin lỗi, tôi chưa hiểu ý bạn nói (lỗi phản hồi AI).";
   } catch (err) {
@@ -76,16 +106,24 @@ async function callGeminiChatbot(messages) {
   }
 }
 
-
-
 /**  Nhận diện intent */
 async function detectIntent(msg) {
   const text = normalizeVietnamese(msg);
 
   // Các từ khóa ngoài lề
   const generalWords = [
-    "buon", "vui", "met", "hoc", "yeu", "cam xuc", "thoi tiet",
-    "cong nghe", "tam su", "ban la ai", "ke chuyen", "toi co nen"
+    "buon",
+    "vui",
+    "met",
+    "hoc",
+    "yeu",
+    "cam xuc",
+    "thoi tiet",
+    "cong nghe",
+    "tam su",
+    "ban la ai",
+    "ke chuyen",
+    "toi co nen",
   ];
   if (generalWords.some((w) => text.includes(w))) return "general";
 
@@ -94,7 +132,11 @@ async function detectIntent(msg) {
     return "booking";
 
   // Từ khóa khách sạn
-  if (text.includes("khach san") || text.includes("du lich") || text.includes("o dau"))
+  if (
+    text.includes("khach san") ||
+    text.includes("du lich") ||
+    text.includes("o dau")
+  )
     return "search";
 
   // Kiểm tra region trong DB
@@ -149,7 +191,7 @@ async function extractInfo(msg) {
     const [day, month] = dm.split(/[\/\-]/);
     if (!day || !month) return null;
     // Đảm bảo month/day có 2 chữ số (MM/DD)
-    return `${currentYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    return `${currentYear}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   };
 
   const checkin = formatDmToYyyyMmDd(checkinRaw);
@@ -166,9 +208,13 @@ exports.chatBotReply = async (req, res) => {
     if (!message) return res.status(400).json({ reply: "Thiếu tin nhắn" });
 
     console.log("USER:", message);
+    const userId = req.body.userId || null;
 
     let intent = await detectIntent(message); // Dùng let
     const prev = context || {};
+
+    // Lưu tin nhắn user sau khi biết intent + context hiện tại
+    await saveChat(userId, "user", message, prev, intent);
 
     // --- DUY TRÌ CONTEXTUAL INTENT ---
     if (prev.region && intent === "general") {
@@ -183,12 +229,16 @@ exports.chatBotReply = async (req, res) => {
         const aiReply = await callGeminiChatbot([
           { role: "user", content: message },
         ]);
+
+        await saveChat(userId, "bot", aiReply, prev, intent);
+
         return res.json({ reply: aiReply });
       } catch (err) {
         console.error("❌ Gemini error:", err.message);
-        return res.json({
-          reply: "Hệ thống AI đang hơi bận 😅, bạn thử hỏi lại sau vài giây nhé!",
-        });
+        const reply =
+          "Hệ thống AI đang hơi bận 😅, bạn thử hỏi lại sau vài giây nhé!";
+        await saveChat(userId, "bot", reply, prev, intent);
+        return res.json({ reply });
       }
     }
 
@@ -196,9 +246,15 @@ exports.chatBotReply = async (req, res) => {
 
     // Nếu đủ thông tin người dùng thì đặt phòng luôn
     if (
-      prev.hotelId && prev.roomId &&
-      prev.name && prev.email && prev.phone && prev.paymentMethod &&
-      prev.checkin && prev.checkout && prev.people
+      prev.hotelId &&
+      prev.roomId &&
+      prev.name &&
+      prev.email &&
+      prev.phone &&
+      prev.paymentMethod &&
+      prev.checkin &&
+      prev.checkout &&
+      prev.people
     ) {
       try {
         console.log("🤖 Chatbot đang tự động tạo booking...");
@@ -215,50 +271,70 @@ exports.chatBotReply = async (req, res) => {
         };
 
         const BASE_URL = process.env.BASE_URL || "http://localhost:5000";
-        const response = await axios.post(`${BASE_URL}/api/bookings/bookroom`, bookingData);
+        const response = await axios.post(
+          `${BASE_URL}/api/bookings/bookroom`,
+          bookingData
+        );
 
         if (response.data?.booking) {
+          const reply = `🎉 Đặt phòng thành công cho ${prev.name}!\nPhương thức thanh toán: ${prev.paymentMethod === "cash" ? "Tiền mặt" : "Trực tuyến"
+            }.\nEmail xác nhận đã gửi tới ${prev.email}.`;
+
+          await saveChat(userId, "bot", reply, prev, "booking");
+
           return res.json({
-            reply: `🎉 Đặt phòng thành công cho ${prev.name}!\nPhương thức thanh toán: ${prev.paymentMethod === "cash" ? "Tiền mặt" : "Trực tuyến"}.\nEmail xác nhận đã gửi tới ${prev.email}.`,
+            reply,
             context: {},
           });
         } else {
-          return res.json({
-            reply: "Không thể xác nhận đặt phòng, vui lòng thử lại hoặc đặt thủ công trên trang thanh toán.",
-          });
+          const reply =
+            "Không thể xác nhận đặt phòng, vui lòng thử lại hoặc đặt thủ công trên trang thanh toán.";
+          await saveChat(userId, "bot", reply, prev, "booking");
+          return res.json({ reply });
         }
       } catch (err) {
         console.error("❌ Lỗi tạo booking tự động:", err.message);
-        return res.json({
-          reply: " Xin lỗi, hệ thống chưa thể tạo booking tự động. Vui lòng thử lại hoặc đặt thủ công trên trang thanh toán.",
-        });
+        const reply =
+          "Xin lỗi, hệ thống chưa thể tạo booking tự động. Vui lòng thử lại hoặc đặt thủ công trên trang thanh toán.";
+        await saveChat(userId, "bot", reply, prev, "booking");
+        return res.json({ reply });
       }
     }
 
     // Hỏi thêm thông tin nếu thiếu
-    if (prev.hotelId && prev.roomId && (!prev.name || !prev.email || !prev.phone || !prev.paymentMethod)) {
+    if (
+      prev.hotelId &&
+      prev.roomId &&
+      (!prev.name || !prev.email || !prev.phone || !prev.paymentMethod)
+    ) {
+      const reply =
+        "💬 Tôi cần thêm một vài thông tin:\n- Họ tên\n- Email\n- Số điện thoại\n- Phương thức thanh toán (cash, bank_transfer, momo, vnpay)";
+      await saveChat(userId, "bot", reply, prev, "booking");
       return res.json({
-        reply: "💬 Tôi cần thêm một vài thông tin:\n- Họ tên\n- Email\n- Số điện thoại\n- Phương thức thanh toán (cash, bank_transfer, momo, vnpay)",
+        reply,
         context: prev,
       });
     }
-
-
 
     // 2b. FLOW: Xử lý khi người dùng CHỌN KHÁCH SẠN (tìm phòng)
     if (prev.hotelId && !prev.roomId) {
       console.log("FLOW: Đã chọn khách sạn, đang tìm phòng...");
 
-      const hotel = await Hotel.findById(prev.hotelId).populate("rooms").lean();
+      const hotel = await Hotel.findById(prev.hotelId)
+        .populate("rooms")
+        .lean();
 
-      if (!hotel)
+      if (!hotel) {
+        const reply = "Khách sạn không hợp lệ.";
+        await saveChat(userId, "bot", reply, prev, "search");
         return res.json({
-          reply: "Khách sạn không hợp lệ.",
-          context: { region: prev.region, people: prev.people }
+          reply,
+          context: { region: prev.region, people: prev.people },
         });
+      }
 
       const roomsList = hotel.rooms
-        .filter(r => r.maxcount >= 1)
+        .filter((r) => r.maxcount >= 1)
         .slice(0, 5)
         .map((r, i) => {
           const price = r.discountedPrice ?? r.rentperday;
@@ -271,14 +347,21 @@ exports.chatBotReply = async (req, res) => {
         })
         .join("\n\n");
 
-      if (!roomsList)
+      if (!roomsList) {
+        const reply = `Xin lỗi, khách sạn ${hotel.name} hiện không còn phòng trống.`;
+        await saveChat(userId, "bot", reply, prev, "search");
         return res.json({
-          reply: `Xin lỗi, khách sạn ${hotel.name} hiện không còn phòng trống.`,
-          context: { region: prev.region, people: prev.people }
+          reply,
+          context: { region: prev.region, people: prev.people },
         });
+      }
+
+      const reply = `Tuyệt vời! Tại **${hotel.name}**, chúng tôi có những phòng sau (tối đa 5 phòng):\n\n${roomsList}\n\nVui lòng chọn phòng để tiếp tục.`;
+
+      await saveChat(userId, "bot", reply, prev, "search");
 
       return res.json({
-        reply: `Tuyệt vời! Tại **${hotel.name}**, chúng tôi có những phòng sau (tối đa 5 phòng):\n\n${roomsList}\n\nVui lòng chọn phòng để tiếp tục.`,
+        reply,
         suggest: hotel.rooms.slice(0, 5).map((r) => ({
           id: r._id,
           name: r.name,
@@ -289,7 +372,6 @@ exports.chatBotReply = async (req, res) => {
         context: prev,
       });
     }
-
 
     // --- 3. XỬ LÝ LUỒNG TÌM KIẾM/HỎI THÔNG TIN (SEARCH/BOOKING) ---
     if (intent === "search" || intent === "booking") {
@@ -307,8 +389,11 @@ exports.chatBotReply = async (req, res) => {
 
       // 3a. Kiểm tra và hỏi khu vực
       if (!updatedContext.region) {
+        const reply =
+          "Bạn muốn tìm khách sạn ở khu vực nào ạ? (VD: Đà Lạt, Hà Nội...)";
+        await saveChat(userId, "bot", reply, updatedContext, intent);
         return res.json({
-          reply: "Bạn muốn tìm khách sạn ở khu vực nào ạ? (VD: Đà Lạt, Hà Nội...)",
+          reply,
           expect: "region",
           context: updatedContext,
         });
@@ -316,8 +401,11 @@ exports.chatBotReply = async (req, res) => {
 
       // 3b. Kiểm tra và hỏi số người (chỉ hỏi nếu chưa có)
       if (!updatedContext.people) {
+        const reply = `Bạn đi mấy người${region ? ` đến ${region.name}` : ""
+          } vậy ạ?`;
+        await saveChat(userId, "bot", reply, updatedContext, intent);
         return res.json({
-          reply: `Bạn đi mấy người${region ? ` đến ${region.name}` : ""} vậy ạ?`,
+          reply,
           expect: "people",
           context: updatedContext,
         });
@@ -325,47 +413,71 @@ exports.chatBotReply = async (req, res) => {
 
       // 3c. Kiểm tra và hỏi ngày
       if (!updatedContext.checkin || !updatedContext.checkout) {
+        const reply =
+          "Bạn muốn nhận và trả phòng ngày nào ạ? (VD: 1/10 - 3/10)";
+        await saveChat(userId, "bot", reply, updatedContext, intent);
         return res.json({
-          reply: "Bạn muốn nhận và trả phòng ngày nào ạ? (VD: 1/10 - 3/10)",
+          reply,
           expect: "date",
           context: updatedContext,
         });
       }
 
       // 3d. Truy vấn và hiển thị khách sạn (Đã đủ thông tin)
-      const regionObj = await Region.findOne({ name: updatedContext.region }).lean();
-      if (!regionObj)
-        return res.json({ reply: `Mình không tìm thấy khu vực ${updatedContext.region} rồi 😢` });
+      const regionObj = await Region.findOne({
+        name: updatedContext.region,
+      }).lean();
+      if (!regionObj) {
+        const reply = `Mình không tìm thấy khu vực ${updatedContext.region} rồi 😢`;
+        await saveChat(userId, "bot", reply, updatedContext, intent);
+        return res.json({ reply });
+      }
 
-      const hotels = await Hotel.find({ region: regionObj._id }).populate("rooms").lean();
+      const hotels = await Hotel.find({ region: regionObj._id })
+        .populate("rooms")
+        .lean();
 
-      if (!hotels.length)
-        return res.json({ reply: `Hiện chưa có khách sạn nào ở ${regionObj.name}.` });
+      if (!hotels.length) {
+        const reply = `Hiện chưa có khách sạn nào ở ${regionObj.name}.`;
+        await saveChat(userId, "bot", reply, updatedContext, intent);
+        return res.json({ reply });
+      }
 
       const list = hotels
         .slice(0, 5)
         .map(
           (h, i) =>
-            `${i + 1}. ${h.name} (${h.starRating || 3}⭐) - giá từ ${getLowestPrice(h)?.toLocaleString() || "N/A"}₫`
+            `${i + 1}. ${h.name} (${h.starRating || 3}⭐) - giá từ ${getLowestPrice(h)?.toLocaleString() || "N/A"
+            }₫`
         )
         .join("\n");
 
+      const reply = `Dưới đây là một số khách sạn ở ${regionObj.name} phù hợp cho ${updatedContext.people} người:\n${list}\n\nBạn muốn xem khách sạn nào ạ?`;
+
+      await saveChat(userId, "bot", reply, updatedContext, intent);
+
       return res.json({
-        reply: `Dưới đây là một số khách sạn ở ${regionObj.name} phù hợp cho ${updatedContext.people} người:\n${list}\n\nBạn muốn xem khách sạn nào ạ?`,
+        reply,
         suggest: hotels.map((h) => ({ id: h._id, name: h.name })),
         context: updatedContext,
       });
     }
 
     // --- 4. FALLBACK ---
+    const fallbackReply =
+      "Tôi chưa hiểu rõ lắm. Bạn muốn tìm khách sạn, đặt phòng hay hỏi điều gì khác ạ?";
+    await saveChat(userId, "bot", fallbackReply, context || {}, intent);
     return res.json({
-      reply:
-        "Tôi chưa hiểu rõ lắm. Bạn muốn tìm khách sạn, đặt phòng hay hỏi điều gì khác ạ?",
+      reply: fallbackReply,
     });
   } catch (err) {
     console.error("❌ Chatbot error:", err.message);
-    res.status(500).json({
-      reply: "Xin lỗi, hệ thống đang bận. Vui lòng thử lại sau.",
-    });
+    const reply = "Xin lỗi, hệ thống đang bận. Vui lòng thử lại sau.";
+    // Trong trường hợp lỗi lớn vẫn cố gắng log lại
+    try {
+      const userId = req?.body?.userId || null;
+      await saveChat(userId, "bot", reply, req?.body?.context || {}, "error");
+    } catch (_) { }
+    res.status(500).json({ reply });
   }
 };
