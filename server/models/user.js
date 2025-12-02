@@ -73,6 +73,31 @@ const userSchema = mongoose.Schema({
       ref: 'UserVoucher',
     },
   ],
+  // 🟢 New fields for Profile Management
+  companions: [
+    {
+      name: String,
+      surname: String,
+      dob: Date,
+      gender: String,
+    }
+  ],
+  settings: {
+    currency: { type: String, default: 'VND' },
+    language: { type: String, default: 'vi' },
+  },
+  paymentMethods: [
+    {
+      cardType: String,
+      cardNumber: String, // Store only last 4 digits or masked
+      cardHolder: String,
+      expiryDate: String,
+    }
+  ],
+  privacySettings: {
+    showProfile: { type: Boolean, default: true },
+    marketingEmails: { type: Boolean, default: true },
+  },
 }, {
   timestamps: true,
 });

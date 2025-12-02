@@ -163,13 +163,22 @@ export default function ProfileManagement() {
         <div className="space-y-4">
           <div className="bg-white  rounded-xl shadow-lg p-5 flex flex-col justify-between">
             <div>
-              <p className="font-semibold">
-                Bạn còn 5 đơn đặt để lên <br /> Genius Cấp 2
+              <p className="font-semibold text-gray-900">
+                Genius Cấp {reward?.membershipLevel || "Bronze"} · {reward?.points?.toLocaleString() || 0} điểm
               </p>
+              {reward?.nextLevel && reward?.nextLevel !== 'Max' ? (
+                <p className="text-gray-600 text-sm mt-1">
+                  Còn {reward?.pointsToNext?.toLocaleString()} điểm để đạt cấp {reward?.nextLevel}
+                </p>
+              ) : (
+                <p className="text-gray-600 text-sm mt-1">
+                  Bạn đã đạt cấp độ cao nhất!
+                </p>
+              )}
             </div>
-            <button className="mt-3 text-[#febb02] text-sm font-medium underline hover:text-yellow-300">
+            <Link to="/points" className="mt-3 text-[#febb02] text-sm font-medium underline hover:text-yellow-300 inline-block">
               Kiểm tra tiến độ của bạn
-            </button>
+            </Link>
           </div>
 
           <div className="bg-white rounded-xl shadow-md p-5 border border-gray-100">
@@ -188,24 +197,24 @@ export default function ProfileManagement() {
           {
             title: "Thông tin thanh toán",
             items: [
-              { icon: <Wallet className="w-4 h-4 text-[#003580]" />, text: "Tặng thưởng & Ví" },
-              { icon: <CreditCard className="w-4 h-4 text-[#003580]" />, text: "Phương thức thanh toán" },
-              { icon: <Receipt className="w-4 h-4 text-[#003580]" />, text: "Giao dịch" },
+              { icon: <Wallet className="w-4 h-4 text-[#003580]" />, text: "Tặng thưởng & Ví", link: "/points" },
+              { icon: <CreditCard className="w-4 h-4 text-[#003580]" />, text: "Phương thức thanh toán", link: "/profile/details?tab=payment" },
+              { icon: <Receipt className="w-4 h-4 text-[#003580]" />, text: "Giao dịch", link: "/points" },
             ],
           },
           {
             title: "Quản lý tài khoản",
             items: [
-              { icon: <User className="w-4 h-4 text-[#003580]" />, text: "Thông tin cá nhân", link: "/profile/details" },
-              { icon: <Lock className="w-4 h-4 text-[#003580]" />, text: "Cài đặt bảo mật" },
-              { icon: <Briefcase className="w-4 h-4 text-[#003580]" />, text: "Người đi cùng" },
+              { icon: <User className="w-4 h-4 text-[#003580]" />, text: "Thông tin cá nhân", link: "/profile/details?tab=personal" },
+              { icon: <Lock className="w-4 h-4 text-[#003580]" />, text: "Cài đặt bảo mật", link: "/profile/details?tab=security" },
+              { icon: <Briefcase className="w-4 h-4 text-[#003580]" />, text: "Người đi cùng", link: "/profile/details?tab=companions" },
             ],
           },
           {
             title: "Cài đặt",
             items: [
-              { icon: <Settings className="w-4 h-4 text-[#003580]" />, text: "Cài đặt chung" },
-              { icon: <Mail className="w-4 h-4 text-[#003580]" />, text: "Cài đặt email" },
+              { icon: <Settings className="w-4 h-4 text-[#003580]" />, text: "Cài đặt chung", link: "/profile/details?tab=settings" },
+              { icon: <Mail className="w-4 h-4 text-[#003580]" />, text: "Cài đặt email", link: "/profile/details?tab=settings" },
             ],
           },
           {
@@ -213,7 +222,7 @@ export default function ProfileManagement() {
             items: [
               { icon: <Compass className="w-4 h-4 text-[#003580]" />, text: "Chuyến đi & đơn đặt", link: "/bookings" },
               { icon: <Heart className="w-4 h-4 text-[#003580]" />, text: "Danh sách đã lưu", link: "/favorites" },
-              { icon: <MessageSquare className="w-4 h-4 text-[#003580]" />, text: "Đánh giá của tôi" },
+              { icon: <MessageSquare className="w-4 h-4 text-[#003580]" />, text: "Đánh giá của tôi", link: "/reviews" },
             ],
           },
           {
@@ -227,7 +236,7 @@ export default function ProfileManagement() {
           {
             title: "Pháp lý & Quyền riêng tư",
             items: [
-              { icon: <FileText className="w-4 h-4 text-[#003580]" />, text: "Quản lý quyền riêng tư" },
+              { icon: <FileText className="w-4 h-4 text-[#003580]" />, text: "Quản lý quyền riêng tư", link: "/profile/details?tab=privacy" },
               { icon: <BookOpen className="w-4 h-4 text-[#003580]" />, text: "Hướng dẫn nội dung" },
             ],
           },

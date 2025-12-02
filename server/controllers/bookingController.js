@@ -1735,3 +1735,137 @@ exports.sendBookingConfirmationEmail = async (req, res) => {
     res.status(500).json({ message: "Không thể gửi email xác nhận", error: err.message });
   }
 };
+// Thêm vào bookingController.js
+// Thay thế hàm exports.getTopHotels hiện tại bằng code này:
+
+exports.getTopHotels = async (req, res) => {
+  try {
+    // Lấy tham số limit từ query, mặc định là 5
+    const limit = req.query.limit && req.query.limit.toLowerCase() === 'all' 
+      ? null 
+      : parseInt(req.query.limit) || 5;
+
+    const currentYear = new Date().getFullYear();
+    const startOfYear = new Date(currentYear, 0, 1);
+    const endOfYear = new Date(currentYear, 11, 31, 23, 59, 59);
+
+    // 1. Tìm top khách sạn có doanh thu cao nhất trong năm nay
+    const topHotelsAggPipeline = [
+      {
+        $match: {
+          paymentStatus: 'paid',
+          createdAt: { $gte: startOfYear, $lte: endOfYear }
+        }
+      },
+      {
+        $group: {
+          _id: "$hotelId",
+          totalRevenue: { $sum: "$totalAmount" }
+        }
+      },
+      { $sort: { totalRevenue: -1 } }
+    ];
+
+    // Thêm limit nếu không phải "all"
+    if (limit !== null) {
+      topHotelsAggPipeline.push({ $limit: limit });
+    }
+
+    const topHotelsAgg = await Booking.aggregate(topHotelsAggPipeline);
+
+    if (!topHotelsAgg.length) {
+      return res.status(200).json({ 
+        topHotels: [], 
+        chartData: { labels: [], datasets: [] },
+        totalCount: 0
+      });
+    }
+
+    // Lấy thông tin chi tiết của các khách sạn này
+    const hotelIds = topHotelsAgg.map(h => h._id);
+    const hotelsInfo = await Hotel.find({ _id: { $in: hotelIds } }).select('name imageurls');
+
+    // Map thông tin khách sạn vào kết quả aggregate
+    const topHotels = topHotelsAgg.map(item => {
+      const info = hotelsInfo.find(h => h._id.equals(item._id));
+      return {
+        hotelId: item._id,
+        name: info ? info.name : 'Unknown Hotel',
+        image: info && info.imageurls && info.imageurls.length > 0 ? info.imageurls[0] : null,
+        totalRevenue: item.totalRevenue
+      };
+    });
+
+    // 2. Lấy dữ liệu doanh thu theo tháng cho các khách sạn này
+    const monthlyStats = await Booking.aggregate([
+      {
+        $match: {
+          paymentStatus: 'paid',
+          hotelId: { $in: hotelIds },
+          createdAt: { $gte: startOfYear, $lte: endOfYear }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            hotelId: "$hotelId",
+            month: { $month: "$createdAt" }
+          },
+          revenue: { $sum: "$totalAmount" }
+        }
+      }
+    ]);
+
+    // Chuẩn bị dữ liệu biểu đồ
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    // Tạo palette màu đẹp cho nhiều khách sạn
+    const colorPalette = [
+      'rgb(255, 99, 132)',   // Đỏ
+      'rgb(54, 162, 235)',   // Xanh dương
+      'rgb(255, 206, 86)',   // Vàng
+      'rgb(75, 192, 192)',   // Xanh lá
+      'rgb(153, 102, 255)',  // Tím
+      'rgb(255, 159, 64)',   // Cam
+      'rgb(199, 199, 199)',  // Xám
+      'rgb(83, 102, 255)',   // Xanh đậm
+      'rgb(255, 99, 255)',   // Hồng
+      'rgb(99, 255, 132)',   // Xanh lá nhạt
+    ];
+
+    const datasets = topHotels.map((hotel, index) => {
+      const data = Array(12).fill(0);
+
+      // Fill data từ monthlyStats
+      monthlyStats.forEach(stat => {
+        if (stat._id.hotelId.equals(hotel.hotelId)) {
+          data[stat._id.month - 1] = stat.revenue;
+        }
+      });
+
+      // Sử dụng màu từ palette, lặp lại nếu vượt quá số màu
+      const colorIndex = index % colorPalette.length;
+
+      return {
+        label: hotel.name,
+        data: data,
+        borderColor: colorPalette[colorIndex],
+        backgroundColor: colorPalette[colorIndex],
+        tension: 0.4
+      };
+    });
+
+    res.status(200).json({
+      topHotels,
+      chartData: {
+        labels: months,
+        datasets
+      },
+      totalCount: topHotels.length
+    });
+
+  } catch (error) {
+    console.error("Lỗi khi lấy top hotels:", error);
+    res.status(500).json({ message: "Lỗi server khi lấy dữ liệu top hotels" });
+  }
+};

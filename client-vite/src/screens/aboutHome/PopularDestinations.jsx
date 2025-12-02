@@ -7,6 +7,7 @@ export default function PopularDestinations() {
   const [activeTab, setActiveTab] = useState("city"); // 'city' | 'stay' | 'area'
   const [regions, setRegions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   /** 🧭 Gọi API lấy danh sách khu vực từ BE */
   useEffect(() => {
@@ -48,12 +49,14 @@ export default function PopularDestinations() {
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`pb-2 px-4 text-[15px] font-semibold transition ${
-                activeTab === tab.id
+              onClick={() => {
+                setActiveTab(tab.id);
+                setExpanded(false); // Reset expanded khi đổi tab
+              }}
+              className={`pb-2 px-4 text-[15px] font-semibold transition ${activeTab === tab.id
                   ? "text-[#003580] border-b-2 border-[#003580]"
                   : "text-gray-500 hover:text-[#003580]"
-              }`}
+                }`}
             >
               {tab.label}
             </button>
@@ -62,35 +65,38 @@ export default function PopularDestinations() {
 
         {/* --- Thành phố trong nước --- */}
         {activeTab === "city" && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-y-2 text-[13px] text-gray-700 mb-8 animate-fadeIn">
-            {regions
-              ?.filter((r) =>
-                [
-                  "Hà Nội",
-                  "Hồ Chí Minh",
-                  "Đà Nẵng",
-                  "Khánh Hòa",
-                  "Đồng Nai",
-                  "Huế",
-                  "Phú Quốc",
-                  "Cần Thơ",
-                  "Quy Nhơn",
-                  "Lâm Đồng",
-                  "Hạ Long",
-                ].includes(r.name)
-              )
-              .map((region) => (
-                <button
-                  key={region._id}
-                  onClick={() =>
-                    navigate(`/hotel-results?destination=${region._id}`)
-                  }
-                  className="text-left text-gray-700 hover:text-[#0071c2] transition"
-                >
-                  Khách sạn {region.name}
-                </button>
-              ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-y-2 text-[13px] text-gray-700 mb-8 animate-fadeIn">
+              {regions
+                ?.filter((r) =>
+                  [
+                    "Hà Nội",
+                    "Hồ Chí Minh",
+                    "Đà Nẵng",
+                    "Khánh Hòa",
+                    "Đồng Nai",
+                    "Huế",
+                    "Phú Quốc",
+                    "Cần Thơ",
+                    "Quy Nhơn",
+                    "Lâm Đồng",
+                    "Hạ Long",
+                  ].includes(r.name)
+                )
+                .slice(0, expanded ? undefined : 10)
+                .map((region) => (
+                  <button
+                    key={region._id}
+                    onClick={() =>
+                      navigate(`/hotel-results?destination=${region._id}`)
+                    }
+                    className="text-left text-gray-700 hover:text-[#0071c2] transition"
+                  >
+                    Khách sạn {region.name}
+                  </button>
+                ))}
+            </div>
+          </>
         )}
 
         {/* --- Chỗ nghỉ --- */}
@@ -114,50 +120,73 @@ export default function PopularDestinations() {
               "Các hostel",
               "Các ryokan",
               "Nhà nghỉ B&B",
-            ].map((type, index) => (
-              <p
-                key={index}
-                className="text-gray-700 hover:text-[#0071c2] cursor-pointer transition"
-              >
-                {type}
-              </p>
-            ))}
+            ]
+              .slice(0, expanded ? undefined : 10)
+              .map((type, index) => (
+                <p
+                  key={index}
+                  className="text-gray-700 hover:text-[#0071c2] cursor-pointer transition"
+                >
+                  {type}
+                </p>
+              ))}
           </div>
         )}
 
         {/* --- Khu vực --- */}
         {activeTab === "area" && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-y-3 text-[13px] text-gray-700 mb-8 animate-fadeIn">
-            {regions.map((region) => (
-              <button
-                key={region._id}
-                onClick={() =>
-                  navigate(`/hotel-results?region=${region._id}`)
-                }
-                className="flex items-center gap-2 text-left text-gray-700 hover:text-[#0071c2] transition"
-              >
-                {region.imageUrl && (
-                  <img
-                    src={region.imageUrl}
-                    alt={region.name}
-                    className="w-6 h-6 object-cover rounded"
-                  />
-                )}
-                {region.name}
-              </button>
-            ))}
+            {regions
+              .slice(0, expanded ? undefined : 10)
+              .map((region) => (
+                <button
+                  key={region._id}
+                  onClick={() =>
+                    navigate(`/hotel-results?region=${region._id}`)
+                  }
+                  className="flex items-center gap-2 text-left text-gray-700 hover:text-[#0071c2] transition"
+                >
+                  {region.imageUrl && (
+                    <img
+                      src={region.imageUrl}
+                      alt={region.name}
+                      className="w-6 h-6 object-cover rounded"
+                    />
+                  )}
+                  {region.name}
+                </button>
+              ))}
           </div>
         )}
 
         {/* Nút hiển thị thêm */}
-        <div className="mt-4">
-          <button
-            onClick={() => navigate("/regions")}
-            className="flex items-center text-[#0071c2] hover:underline text-sm font-medium"
-          >
-            <span className="mr-2 text-lg">＋</span> Hiển thị thêm
-          </button>
-        </div>
+        {((activeTab === "city" && regions?.filter((r) =>
+            [
+              "Hà Nội",
+              "Hồ Chí Minh",
+              "Đà Nẵng",
+              "Khánh Hòa",
+              "Đồng Nai",
+              "Huế",
+              "Phú Quốc",
+              "Cần Thơ",
+              "Quy Nhơn",
+              "Lâm Đồng",
+              "Hạ Long",
+            ].includes(r.name)
+          ).length > 10) ||
+          (activeTab === "stay" && 17 > 10) ||
+          (activeTab === "area" && regions.length > 10)) && (
+          <div className="mt-4">
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="flex items-center text-[#0071c2] hover:underline text-sm font-medium"
+            >
+              <span className="mr-2 text-lg">{expanded ? "−" : "+"}</span> 
+              {expanded ? "Thu gọn" : "Hiển thị thêm"}
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );
