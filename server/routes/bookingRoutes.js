@@ -20,10 +20,10 @@ router.post("/bookroom", bookingController.bookRoom);
 router.post("/book-multi", bookingController.bookMulti);
 
 // DELETE /api/bookings/:id - Hủy đặt phòng
-router.delete("/:id", bookingController.cancelBooking);
+router.delete("/:id", protect, require("../middleware/auth").adminOrStaff, require("../middleware/auth").restrictBookingApproval, bookingController.cancelBooking);
 
 // PUT /api/bookings/:id/confirm - Xác nhận đặt phòng
-router.put("/:id/confirm", bookingController.confirmBooking);
+router.put("/:id/confirm", protect, require("../middleware/auth").adminOrStaff, require("../middleware/auth").restrictBookingApproval, bookingController.confirmBooking);
 
 // GET /api/bookings - Lấy danh sách đặt phòng
 router.get("/", bookingController.getBookings);

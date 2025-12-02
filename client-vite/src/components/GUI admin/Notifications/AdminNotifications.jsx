@@ -9,9 +9,10 @@ const AdminNotifications = () => {
   const [message, setMessage] = useState('');
   const [type, setType] = useState('info');
   const [sendResult, setSendResult] = useState(null);
-  const [scheduleMode, setScheduleMode] = useState('none'); // none | 15m | custom
+  const [scheduleMode, setScheduleMode] = useState('none');
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
+  const [hiding, setHiding] = useState({});
 
   // Helper function để lấy token từ localStorage
   const getAuthToken = () => {
@@ -48,6 +49,21 @@ const AdminNotifications = () => {
   useEffect(() => {
     fetchNotifications();
   }, []);
+
+  const hideOne = async (notif) => {
+    try {
+      const token = getAuthToken();
+      if (!token || !notif?._id) return;
+      setHiding((prev) => ({ ...prev, [notif._id]: true }));
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const res = await axios.patch(`/api/notifications/admin/hide/${notif._id}`, {}, config);
+      const updated = res.data?.notification || null;
+      setNotifications((prev) => prev.map((n) => n._id === notif._id ? { ...n, isOutdated: true, endsAt: updated?.endsAt || new Date().toISOString() } : n));
+    } catch (e) {
+    } finally {
+      setHiding((prev) => ({ ...prev, [notif._id]: false }));
+    }
+  };
 
   // Gửi thông báo mới
   const submitNotification = async (e) => {
@@ -248,6 +264,15 @@ const AdminNotifications = () => {
                       {notif.isOutdated && (
                         <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-700">Đã hết hạn</span>
                       )}
+                    </div>
+                    <div className="ml-4">
+                      <button
+                        disabled={!!hiding[notif._id] || !!notif.isOutdated}
+                        onClick={() => hideOne(notif)}
+                        className={`text-xs px-3 py-1 rounded border ${notif.isOutdated ? 'bg-gray-200 text-gray-500 border-gray-300' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+                      >
+                        {notif.isOutdated ? 'Đã ẩn' : (hiding[notif._id] ? 'Đang ẩn...' : 'Ẩn')}
+                      </button>
                     </div>
                   </div>
                 </div>

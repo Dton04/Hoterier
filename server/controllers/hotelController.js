@@ -275,9 +275,9 @@ exports.createHotel = async (req, res) => {
       return res.status(503).json({ message: 'Kết nối cơ sở dữ liệu chưa sẵn sàng' });
     }
 
-    if (!name || !address || !region || !contactNumber || !email) {
+    if (!name || !address || !region || !contactNumber) {
       return res.status(400).json({
-        message: 'Vui lòng cung cấp đầy đủ các trường bắt buộc: name, address, region, contactNumber, email',
+        message: 'Vui lòng cung cấp đầy đủ các trường bắt buộc: name, address, region, contactNumber',
       });
     }
 
@@ -362,11 +362,13 @@ exports.updateHotel = async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy khách sạn' });
     }
 
-    hotel.name = name;
-    hotel.address = address;
-    hotel.region = region;
-    hotel.contactNumber = contactNumber;
-    hotel.email = email;
+    hotel.name = name ?? hotel.name;
+    hotel.address = address ?? hotel.address;
+    hotel.region = region ?? hotel.region;
+    hotel.contactNumber = contactNumber ?? hotel.contactNumber;
+    if (req.allowUpdateEmail) {
+      hotel.email = email ?? hotel.email;
+    }
     hotel.description = description || hotel.description;
     hotel.rooms = rooms || hotel.rooms;
     hotel.district = district || hotel.district;

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { io } from "socket.io-client";
+import { connectSocket } from "../utils/chatApi";
 import { FiBell } from "react-icons/fi";
 
 function Navbar() {
@@ -16,6 +16,7 @@ function Navbar() {
   const [hasNewNotif, setHasNewNotif] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [socketRef, setSocketRef] = useState(null);
+  const expiryTimersRef = useRef({});
 
   //Kiểm tra đăng nhập
   const checkLoginStatus = async () => {
@@ -56,6 +57,37 @@ function Navbar() {
     const userInfo = storedUserInfo ? JSON.parse(storedUserInfo) : null;
     const token = userInfo?.user?.token || userInfo?.token;
     const lastSeenKey = "notif_last_seen";
+    const resolveUserId = () => {
+      try {
+        const raw = localStorage.getItem("userInfo");
+        if (!raw) return null;
+        const info = JSON.parse(raw);
+        const u = info?.user || info;
+        return u?._id || u?.id || null;
+      } catch {
+        return null;
+      }
+    };
+    const hasRecipient = (n) => {
+      const rid = n?.recipientId || n?.recipient_id || n?.userId || n?.user_id || n?.targetUserId || n?.target_user_id || n?.user;
+      return !!rid;
+    };
+    const isSystemNotif = (n) => {
+      // Chỉ coi là hệ thống chung khi audience='all' hoặc không có người nhận cụ thể
+      if (n?.audience === 'all') return true;
+      if (n?.isSystem || n?.category === 'system') {
+        return !hasRecipient(n);
+      }
+      return false;
+    };
+    const extractRecipientId = (n) => n?.recipientId || n?.recipient_id || n?.userId || n?.user_id || n?.targetUserId || n?.target_user_id || n?.user || null;
+    const shouldKeepNotif = (n, uid) => {
+      if (isSystemNotif(n)) return true;
+      if (!uid) return false;
+      const rid = extractRecipientId(n);
+      if (!rid) return false;
+      return String(rid) === String(uid);
+    };
 
     const updateHasNewFromList = (list) => {
       const lastSeen = localStorage.getItem(lastSeenKey);
@@ -65,6 +97,27 @@ function Navbar() {
       }
     };
 
+    const scheduleExpiry = (n) => {
+      try {
+        const id = n?._id || `${n.message}-${n.createdAt}`;
+        if (!id) return;
+        if (expiryTimersRef.current[id]) return;
+        const endsAtTs = n?.endsAt ? new Date(n.endsAt).getTime() : null;
+        const nowTs = Date.now();
+        if (!endsAtTs || endsAtTs <= nowTs) return;
+        const delay = endsAtTs - nowTs;
+        const timer = setTimeout(() => {
+          setNotifications((prev) => {
+            const next = prev.filter((x) => (x?._id || `${x.message}-${x.createdAt}`) !== id);
+            try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch {}
+            return next;
+          });
+          delete expiryTimersRef.current[id];
+        }, delay);
+        expiryTimersRef.current[id] = timer;
+      } catch {}
+    };
+
     const fetchFeed = async () => {
       try {
         if (token) {
@@ -72,12 +125,15 @@ function Navbar() {
           const res = await axios.get("/api/notifications/feed", config);
           const list = Array.isArray(res.data) ? res.data : res.data?.notifications || [];
           const now = Date.now();
-          const filtered = list.filter(n => (
+          const base = list.filter(n => (
             (!n.startsAt || new Date(n.startsAt).getTime() <= now) &&
             (!n.endsAt || new Date(n.endsAt).getTime() >= now) &&
             !n.isOutdated
           ));
+          const uid = resolveUserId();
+          const filtered = base.filter(n => shouldKeepNotif(n, uid));
           setNotifications(filtered);
+          filtered.forEach(scheduleExpiry);
           updateHasNewFromList(filtered);
           try { localStorage.setItem("notif_cache", JSON.stringify(filtered)); } catch {}
         } else {
@@ -90,6 +146,7 @@ function Navbar() {
             !n.isOutdated
           ));
           setNotifications(filtered);
+          filtered.forEach(scheduleExpiry);
           updateHasNewFromList(filtered);
           try { localStorage.setItem("notif_cache", JSON.stringify(filtered)); } catch {}
         }
@@ -100,16 +157,37 @@ function Navbar() {
       const cachedRaw = localStorage.getItem("notif_cache");
       const cached = cachedRaw ? JSON.parse(cachedRaw) : null;
       if (Array.isArray(cached) && cached.length) {
-        setNotifications(cached);
-        updateHasNewFromList(cached);
+        const uid = resolveUserId();
+        const filtered = cached.filter(n => shouldKeepNotif(n, uid));
+        setNotifications(filtered);
+        updateHasNewFromList(filtered);
       }
     } catch {}
 
     fetchFeed();
 
     if (token) {
-      const s = io("http://localhost:5000", { transports: ["websocket"], auth: { token } });
+      const s = connectSocket(token);
+      s.on("connect_error", (err) => { console.error("Socket connect_error", err?.message || err); });
+      s.on("disconnect", (reason) => { console.warn("Socket disconnected", reason); });
+      s.on("notification:expired", (payload) => {
+        const id = payload?._id || payload?.id || null;
+        setNotifications((prev) => {
+          const next = prev.filter((x) => (x?._id || x?.id) !== id);
+          try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch {}
+          return next;
+        });
+        if (id) {
+          const t = expiryTimersRef.current[id];
+          if (t) {
+            clearTimeout(t);
+            delete expiryTimersRef.current[id];
+          }
+        }
+      });
       s.on("notification:new", (payload) => {
+        const uid = resolveUserId();
+        if (!shouldKeepNotif(payload, uid)) return;
         const now = Date.now();
         const startOk = !payload.startsAt || new Date(payload.startsAt).getTime() <= now;
         const endOk = !payload.endsAt || new Date(payload.endsAt).getTime() >= now;
@@ -124,6 +202,7 @@ function Navbar() {
                 return next;
               });
               setHasNewNotif(true);
+              scheduleExpiry(payload);
             }, delay);
           }
           return;
@@ -133,10 +212,13 @@ function Navbar() {
           try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch {}
           return next;
         });
+        scheduleExpiry(payload);
         setHasNewNotif(true);
       });
       setSocketRef(s);
       return () => {
+        Object.values(expiryTimersRef.current).forEach((t) => clearTimeout(t));
+        expiryTimersRef.current = {};
         s.disconnect();
       };
     }
@@ -323,6 +405,27 @@ function Navbar() {
                         </button>
                       </li>
                     </>
+                  ) : user.role === "staff" ? (
+                    <>
+                      <li>
+                        <Link
+                          to="/staff/dashboard"
+                          onClick={closeNav}
+                          className="block px-4 py-2 hover:bg-gray-100"
+                        >
+                          <i className="fas fa-tachometer-alt mr-2 text-blue-600"></i>
+                          Staff Dashboard
+                        </Link>
+                      </li>
+                      <li>
+                        <button
+                          onClick={handleLogout}
+                          className="w-full text-left block px-4 py-2 text-red-600 hover:bg-gray-100"
+                        >
+                          <i className="fas fa-sign-out-alt mr-2"></i> Đăng xuất
+                        </button>
+                      </li>
+                    </>
                   ) : (
                     <>
                       <li>
@@ -424,12 +527,12 @@ function Navbar() {
               ></span>
             </div>
           </button>
-        </div>
-      </div>
+                </div>
+              </div>
 
-      {/* 📱 Mobile Menu Overlay - Giống Booking.com */}
-      {isNavOpen && (
-        <div className="fixed inset-0 bg-white text-gray-800 z-[9999] overflow-y-auto animate-fadeIn">
+              {/* 📱 Mobile Menu Overlay - Giống Booking.com */}
+              {isNavOpen && (
+                <div className="fixed inset-0 bg-white text-gray-800 z-[9999] overflow-y-auto animate-fadeIn">
           {/* Header */}
           <div className="flex justify-between items-center p-5 border-b border-gray-200 sticky top-0 bg-white">
             <h2 className="text-lg font-semibold text-[#003580]">Khác</h2>
@@ -521,24 +624,27 @@ function Navbar() {
               </ul>
             </div>
 
-            {/* Đăng nhập / Tài khoản */}
-            <div className="border-t border-gray-200 pt-5">
-              {isLoggedIn ? (
-                <>
-                  <h3 className="font-semibold mb-2 text-[#003580]">Tài khoản của tôi</h3>
-                  <ul className="space-y-2 text-gray-700">
-                    <li><Link to="/profile" onClick={closeNav}>Hồ sơ cá nhân</Link></li>
-                    <li><Link to="/bookings" onClick={closeNav}>Đặt phòng của tôi</Link></li>
-                    <li><Link to="/favorites" onClick={closeNav}>Danh sách yêu thích</Link></li>
-                    <li><Link to="/reviews" onClick={closeNav}>Đánh giá của tôi</Link></li>
-                    <li>
-                      <button onClick={handleLogout} className="text-red-600">
-                        Đăng xuất
-                      </button>
-                    </li>
-                  </ul>
-                </>
-              ) : (
+                {/* Đăng nhập / Tài khoản */}
+                <div className="border-t border-gray-200 pt-5">
+                  {isLoggedIn ? (
+                    <>
+                      <h3 className="font-semibold mb-2 text-[#003580]">Tài khoản của tôi</h3>
+                      <ul className="space-y-2 text-gray-700">
+                        <li><Link to="/profile" onClick={closeNav}>Hồ sơ cá nhân</Link></li>
+                        <li><Link to="/bookings" onClick={closeNav}>Đặt phòng của tôi</Link></li>
+                        <li><Link to="/favorites" onClick={closeNav}>Danh sách yêu thích</Link></li>
+                        <li><Link to="/reviews" onClick={closeNav}>Đánh giá của tôi</Link></li>
+                        {user?.role === 'staff' && (
+                          <li><Link to="/staff/dashboard" onClick={closeNav}>Staff Dashboard</Link></li>
+                        )}
+                        <li>
+                          <button onClick={handleLogout} className="text-red-600">
+                            Đăng xuất
+                          </button>
+                        </li>
+                      </ul>
+                    </>
+                  ) : (
                 <>
                   <Link
                     to="/login"

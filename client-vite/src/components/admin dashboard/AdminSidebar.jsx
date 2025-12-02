@@ -7,8 +7,18 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const location = useLocation();
   const { pathname } = location;
 
+  let role = 'user';
+  try {
+    const raw = localStorage.getItem('userInfo');
+    const parsed = raw ? JSON.parse(raw) : null;
+    const u = parsed?.user || parsed;
+    role = u?.isAdmin ? 'admin' : (u?.role || 'user');
+  } catch { }
+
+  const basePath = pathname.startsWith('/staff') ? '/staff' : '/admin';
+
   // ✅ ĐÃ CẬP NHẬT MẢNG MENU
-  const menuItems = [
+  const menuItemsAdmin = [
     { label: "Dashboard", icon: <FiGrid />, path: "/admin/dashboard" },
     { label: "Đặt phòng", icon: <FiFileText />, path: "/admin/bookings" },
     { label: "Người dùng & NV", icon: <FiUsers />, path: "/admin/users" },
@@ -22,6 +32,14 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { label: "Thông báo", icon: <FiBell />, path: "/admin/notifications" }, // Thêm mục thông báo
     { label: "Lịch sử ChatBot", icon: <FiFileText />, path: "/admin/chat-history" },
   ];
+
+  const menuItemsStaff = [
+    { label: "Dashboard", icon: <FiGrid />, path: `${basePath}/dashboard` },
+    { label: "Khách sạn", icon: <FiHome />, path: `${basePath}/hotels` },
+    { label: "Đặt phòng", icon: <FiFileText />, path: `${basePath}/bookings` },
+  ];
+
+  const menuItems = role === 'admin' ? menuItemsAdmin : menuItemsStaff;
 
   return (
     <aside

@@ -1163,25 +1163,37 @@ exports.confirmBooking = async (req, res) => {
 
 // GET /api/bookings - Lấy danh sách đặt phòng
 exports.getBookings = async (req, res) => {
-  const { status, email } = req.query;
+  const { status, email, ownerEmail } = req.query;
 
   try {
     if (mongoose.connection.readyState !== 1) {
       return res.status(503).json({ message: "Kết nối cơ sở dữ liệu chưa sẵn sàng" });
     }
 
-    const query = {};
-    if (status && ["pending", "confirmed", "canceled"].includes(status)) {
-      query.status = status;
-    }
-    if (email) {
-      query.email = email.toLowerCase();
-    }
+      const query = {};
+      if (status && ["pending", "confirmed", "canceled"].includes(status)) {
+        query.status = status;
+      }
+      if (email) {
+        query.email = email.toLowerCase();
+      }
 
-    const bookings = await Booking.find(query)
-      .populate("roomid")
-      .populate("hotelId", "name address")
-      .lean();
+      // Lọc theo khách sạn thuộc ownerEmail (staff)
+      if (ownerEmail) {
+        const emailNorm = String(ownerEmail).toLowerCase();
+        const hotels = await require('../models/hotel').find({ email: emailNorm }).select('_id');
+        const hotelIds = hotels.map(h => h._id);
+        if (hotelIds.length) {
+          query.hotelId = { $in: hotelIds };
+        } else {
+          return res.status(200).json([]);
+        }
+      }
+
+      const bookings = await Booking.find(query)
+         .populate("roomid")
+         .populate("hotelId", "name address email")
+         .lean();
 
     res.status(200).json(bookings);
   } catch (error) {

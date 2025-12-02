@@ -311,7 +311,7 @@ exports.getRevenueByLocation = async (req, res) => {
 };
 
 exports.getRevenueByRegionCity = async (req, res) => {
-  const { regionId, regionName, startDate, endDate, groupBy = "month", cityName } = req.query;
+  const { regionId, regionName, startDate, endDate, groupBy = "month", cityName, ownerEmail } = req.query;
 
   try {
     if (mongoose.connection.readyState !== 1) {
@@ -373,6 +373,9 @@ exports.getRevenueByRegionCity = async (req, res) => {
     const revenueByCity = {};
     const cityHotelMap = {}; // hotelId -> cityName
 
+    // Nếu có ownerEmail, chuẩn hóa dạng thường
+    const emailFilter = ownerEmail ? String(ownerEmail).toLowerCase() : null;
+
     for (const city of targetCities) {
       const cityNameRaw = city.name;
       let hotelIds = (city.hotels || []).map((h) => h.toString());
@@ -387,6 +390,12 @@ exports.getRevenueByRegionCity = async (req, res) => {
           ],
         }).select("_id");
         hotelIds = fallbackHotels.map((h) => h._id.toString());
+      }
+
+      // Nếu có ownerEmail, chỉ giữ các khách sạn thuộc email đó
+      if (emailFilter && hotelIds.length) {
+        const ownerHotels = await Hotel.find({ _id: { $in: hotelIds }, email: emailFilter }).select("_id");
+        hotelIds = ownerHotels.map(h => h._id.toString());
       }
 
       // Khởi tạo nhóm city
@@ -454,5 +463,76 @@ exports.getRevenueByRegionCity = async (req, res) => {
   } catch (error) {
     console.error("Lỗi khi lấy doanh thu theo city của region:", error.message, error.stack);
     res.status(500).json({ message: "Lỗi khi lấy doanh thu theo city của region", error: error.message });
+  }
+};
+
+// @desc    Get revenue grouped by staff-owned hotels and by time (day/month/year)
+// @route   GET /api/stats/revenue/by-owner-hotels
+// @access  Private/Admin/Staff
+exports.getRevenueByOwnerHotels = async (req, res) => {
+  const { ownerEmail, startDate, endDate, groupBy = "month", hotelId } = req.query;
+
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ message: "Kết nối cơ sở dữ liệu chưa sẵn sàng" });
+    }
+
+    if (!ownerEmail) {
+      return res.status(400).json({ message: "Vui lòng cung cấp ownerEmail" });
+    }
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: "Vui lòng cung cấp startDate và endDate" });
+    }
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) {
+      return res.status(400).json({ message: "Ngày bắt đầu hoặc kết thúc không hợp lệ" });
+    }
+    if (!["day", "month", "year"].includes(groupBy)) {
+      return res.status(400).json({ message: "groupBy phải là 'day', 'month' hoặc 'year'" });
+    }
+
+    const email = String(ownerEmail).toLowerCase();
+    const hotels = await Hotel.find({ email }).select("_id name");
+    if (!hotels.length) {
+      return res.status(200).json({ ownerEmail: email, groupBy, startDate, endDate, totalHotels: 0, revenueByHotel: {} });
+    }
+
+    let hotelIds = hotels.map(h => h._id.toString());
+    const hotelNameMap = hotels.reduce((acc, h) => { acc[h._id.toString()] = h.name; return acc; }, {});
+    if (hotelId && mongoose.Types.ObjectId.isValid(hotelId)) {
+      hotelIds = hotelIds.filter(id => id === String(hotelId));
+    }
+
+    const bookings = await Booking.find({
+      status: "confirmed",
+      checkin: { $gte: start, $lte: end },
+      hotelId: { $in: hotelIds },
+    }).populate({ path: "roomid", select: "rentperday" });
+
+    const revenueByHotel = {};
+    let totalRevenue = 0;
+    for (const booking of bookings) {
+      const hId = booking.hotelId?.toString();
+      const hotelKey = hotelNameMap[hId] || "Khách sạn";
+      const checkinDate = new Date(booking.checkin);
+      const checkoutDate = new Date(booking.checkout);
+      const days = Math.ceil((checkoutDate - checkinDate) / (1000 * 60 * 60 * 24));
+      const amount = Math.max((booking.roomid?.rentperday || 0) * (days > 0 ? days : 0) - (booking.voucherDiscount || 0), 0);
+      totalRevenue += amount;
+
+      let timeKey;
+      if (groupBy === "day") timeKey = checkinDate.toISOString().split("T")[0];
+      else if (groupBy === "month") timeKey = `${checkinDate.getFullYear()}-${String(checkinDate.getMonth() + 1).padStart(2, "0")}`;
+      else timeKey = checkinDate.getFullYear().toString();
+
+      if (!revenueByHotel[hotelKey]) revenueByHotel[hotelKey] = {};
+      revenueByHotel[hotelKey][timeKey] = (revenueByHotel[hotelKey][timeKey] || 0) + amount;
+    }
+
+    return res.status(200).json({ ownerEmail: email, groupBy, startDate, endDate, totalHotels: hotelIds.length, totalRevenue, revenueByHotel });
+  } catch (error) {
+    console.error("Lỗi khi thống kê doanh thu theo khách sạn của staff:", error.message, error.stack);
+    res.status(500).json({ message: "Lỗi khi thống kê doanh thu theo khách sạn của staff", error: error.message });
   }
 };

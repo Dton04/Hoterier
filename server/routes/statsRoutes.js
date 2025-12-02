@@ -23,4 +23,9 @@ router.get("/review-stats", protect, adminOrStaff, statsController.getReviewStat
 // @access  Private/Admin/Staff
 router.get("/revenue/by-region-city", protect, adminOrStaff, statsController.getRevenueByRegionCity);
 
+// @desc    Get revenue grouped by staff-owned hotels
+// @route   GET /api/stats/revenue/by-owner-hotels
+// @access  Private/Admin/Staff
+router.get("/revenue/by-owner-hotels", protect, adminOrStaff, statsController.getRevenueByOwnerHotels);
+
 module.exports = router;

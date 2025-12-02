@@ -5,6 +5,7 @@ import { FiSearch } from "react-icons/fi";
 // ✅ BƯỚC 1: Import Select và Option từ Ant Design
 import { Select } from 'antd';
 import defaultAvatar from "../../../assets/images/default-avatar.jpg";
+import { FiCheck, FiX } from "react-icons/fi";
 
 const { Option } = Select; // Lấy Option từ Select
 
@@ -206,16 +207,18 @@ const AdminBookings = () => {
                     {getStatusBadge(booking.status)}
                   </td>
                   <td className="border-b border-gray-200 py-5 px-4">
-                    <div className="flex items-center space-x-3.5">
-                      {booking.status === "pending" && (
+                    <div className="flex items-center space-x-3.5 justify-center">
+                      {booking.status === "pending" ? (
                         <>
-                          <button onClick={() => handleConfirm(booking._id)} className="text-sm font-medium text-green-600 hover:text-green-800">
-                            Xác nhận
+                          <button onClick={() => handleConfirm(booking._id)} className="p-2 rounded-lg text-green-600 hover:bg-green-50" title="Duyệt">
+                            <FiCheck size={18} />
                           </button>
-                          <button onClick={() => handleCancel(booking._id)} className="text-sm font-medium text-red-600 hover:text-red-800">
-                            Hủy
+                          <button onClick={() => handleCancel(booking._id)} className="p-2 rounded-lg text-red-600 hover:bg-red-50" title="Không duyệt">
+                            <FiX size={18} />
                           </button>
                         </>
+                      ) : (
+                        <span className="text-xs text-gray-400">—</span>
                       )}
                     </div>
                   </td>

@@ -43,6 +43,10 @@ import FestivalHotels from "./screens/FestivalHotels";
 
 // Import Admin Screens
 import AdminDashboard from "./components/GUI admin/Dashboards/AdminDashboard";
+import StaffDashboard from "./components/GUI staff/StaffDashboard";
+import StaffHotelManagement from "./components/GUI staff/StaffHotelManagement";
+import StaffHotelRoomManagement from "./components/GUI staff/StaffHotelRoomManagement";
+import StaffBookings from "./components/GUI staff/StaffBookings";
 import UserStaffManagement from "./components/GUI admin/Users/UserStaffManagement";
 
 import AdminBookings from "./components/GUI admin/Bookings/AdminBookings";
@@ -201,6 +205,21 @@ function App() {
             {/* Đã gỡ 2 route cũ ngoài Admin */}
             {/* <Route path="createroom" element={<CreateRoomForm />} /> */}
             {/* <Route path="editroom/:id" element={<EditRoomForm />} /> */}
+          </Route>
+
+          {/* === CÁC ROUTE CỦA STAFF (tái sử dụng AdminLayout) === */}
+          <Route path="/staff" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <Outlet />
+              </AdminLayout>
+            </ProtectedRoute>
+          }>
+            <Route index element={<StaffDashboard />} />
+            <Route path="dashboard" element={<StaffDashboard />} />
+            <Route path="hotels" element={<StaffHotelManagement />} />
+            <Route path="hotel/:hotelId/rooms" element={<StaffHotelRoomManagement />} />
+            <Route path="bookings" element={<StaffBookings />} />
           </Route>
 
 
