@@ -1,7 +1,8 @@
 const https = require('https');
 const crypto = require('crypto');
 const mongoose = require('mongoose');
-const Booking = require('../models/booking'); // Giả định đây là đường dẫn đến model Booking
+const Booking = require('../models/booking');
+const Room = require('../models/room');
 
 // MoMo configuration (Test environment)
 const config = {
@@ -48,10 +49,33 @@ const createMomoPayment = async (req, res) => {
             return res.status(400).json({ message: 'Đặt phòng không ở trạng thái chờ thanh toán' });
         }
 
-        // Chuyển đổi amount thành số
-        const parsedAmount = parseInt(amount, 10);
+        // Luôn dùng số tiền từ booking để tránh sai lệch phía client
+        let parsedAmount = Math.round(Number(booking.totalAmount || 0));
+        try {
+            if (Array.isArray(booking.rooms) && booking.rooms.length > 0) {
+                const totalByRooms = booking.rooms.reduce((sum, r) => {
+                    const nights = Math.max(1, Math.ceil((new Date(r.checkout) - new Date(r.checkin)) / (1000 * 60 * 60 * 24)));
+                    return sum + (Number(r.rentperday || 0) * nights * Number(r.roomsBooked || 1));
+                }, 0);
+                const adjusted = Math.max(0, totalByRooms - (booking.voucherDiscount || 0) - (booking.discount?.amountReduced || 0));
+                if (!parsedAmount || Math.abs(parsedAmount - adjusted) >= 1) parsedAmount = Math.round(adjusted);
+            } else if (booking.roomid) {
+                const room = await Room.findById(booking.roomid).lean();
+                if (room) {
+                    const nights = Math.max(1, Math.ceil((new Date(booking.checkout) - new Date(booking.checkin)) / (1000 * 60 * 60 * 24)));
+                    const expected = room.rentperday * nights * Number(booking.roomsBooked || 1);
+                    const adjusted = Math.max(0, expected - (booking.voucherDiscount || 0) - (booking.discount?.amountReduced || 0));
+                    if (!parsedAmount || Math.abs(parsedAmount - adjusted) >= 1) parsedAmount = Math.round(adjusted);
+                }
+            }
+        } catch (e) { }
+
+        // Đồng bộ lại DB nếu lệch
+        if (Math.abs((booking.totalAmount || 0) - parsedAmount) >= 1) {
+            await Booking.findByIdAndUpdate(bookingId, { totalAmount: parsedAmount });
+        }
         if (isNaN(parsedAmount) || parsedAmount <= 0) {
-            return res.status(400).json({ message: 'Số tiền không hợp lệ' });
+            return res.status(400).json({ message: 'Số tiền không hợp lệ từ đặt phòng' });
         }
 
         const requestId = orderId;

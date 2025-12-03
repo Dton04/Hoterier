@@ -522,7 +522,7 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
       const checkinDate = new Date(`${data.checkin}T14:00:00`);
       const checkoutDate = new Date(`${data.checkout}T12:00:00`);
 
-      const days = Math.floor((checkoutDate - checkinDate) / (1000 * 60 * 60 * 24)) || 1;
+      const days = Math.ceil((checkoutDate - checkinDate) / (1000 * 60 * 60 * 24)) || 1;
 
       if (days <= 0) {
         toast.error("Ngày trả phòng phải sau ngày nhận phòng.");
@@ -694,13 +694,9 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
           }
         } else if (paymentMethod === "bank_transfer") {
           setPaymentStatus("pending");
-          setBankInfo({
-            accountNumber: "0123456789",
-            accountName: "Bodo Hotel",
-            bankName: "Vietcombank",
-            amount: bookingResponse.data.booking.totalAmount,
-            reference: bookingResponse.data.booking._id,
-          });
+          if (bookingResponse.data.paymentResult?.bankInfo) {
+            setBankInfo(bookingResponse.data.paymentResult.bankInfo);
+          }
           toast.success(" Đặt phòng thành công! Vui lòng chuyển khoản theo thông tin hiển thị.");
         } else if (paymentMethod === "cash") {
           setPaymentStatus("paid");
@@ -777,7 +773,7 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
           }
 
           const momoResponse = await axios.post("/api/momo/create-payment", {
-            amount: finalAmount,
+            amount: bookingResponse.data.booking.totalAmount,
             orderId,
             orderInfo: `Thanh toán đặt phòng ${room.name}`,
             bookingId: bookingId,
@@ -806,7 +802,7 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
           }
 
           const vnpayResponse = await axios.post("/api/vnpay/create-payment", {
-            amount: finalAmount,
+            amount: bookingResponse.data.booking.totalAmount,
             orderId,
             orderInfo: `Thanh toán đặt phòng ${room.name}`,
             bookingId: bookingId,
@@ -845,20 +841,14 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
         setPaymentStatus(bookingResponse.data.booking.paymentStatus);
 
         if (data.paymentMethod === "bank_transfer" && bookingResponse.data.paymentResult?.bankInfo) {
-          setBankInfo({
-            ...bookingResponse.data.paymentResult.bankInfo,
-            amount: (discountResult?.totalAmount || room.rentperday || 50000) + servicesCost,
-          });
+          setBankInfo(bookingResponse.data.paymentResult.bankInfo);
         }
       }
 
 
       // Bank transfer: hiện thông tin ngân hàng
       if (data.paymentMethod === "bank_transfer" && bookingResponse.data.paymentResult?.bankInfo) {
-        setBankInfo({
-          ...bookingResponse.data.paymentResult.bankInfo,
-          amount: (discountResult?.totalAmount || room.rentperday || 50000) + servicesCost,
-        });
+        setBankInfo(bookingResponse.data.paymentResult.bankInfo);
       }
 
       // Tự động tích điểm khi đã paid (không phải bank)

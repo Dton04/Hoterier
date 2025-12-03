@@ -9,7 +9,6 @@ const Transaction = require('../models/transaction');
 const User = require("../models/user");
 const Service = require("../models/service");
 const UserVoucher = require("../models/userVouchers");
-// const discount = require("../models/discount"); // thừa, có thể bỏ
 const nodemailer = require("nodemailer");
 
 // ===============================
@@ -150,14 +149,10 @@ exports.applyPromotions = async (req, res) => {
       return res.status(404).json({ message: "Không tìm thấy phòng" });
     }
 
-    // Tính số ngày
-    const days = Math.floor((checkoutDate - checkinDate) / (1000 * 60 * 60 * 24));
-    let totalAmount;
-    if (days < 1) {
-      totalAmount = room.rentperday;
-    } else {
-      totalAmount = room.rentperday * days;
-    }
+    // Tính số đêm theo chuẩn (ceil) và nhân số phòng
+    const days = Math.ceil((checkoutDate - checkinDate) / (1000 * 60 * 60 * 24));
+    const roomsBooked = Number(booking.roomsBooked) || 1;
+    const totalAmount = room.rentperday * Math.max(1, days) * roomsBooked;
 
     // Lấy danh sách voucher
     const discounts = await Discount.find({
@@ -432,7 +427,7 @@ exports.createBooking = async (req, res) => {
           type: 'info',
           category: 'system',
           isSystem: true,
-          message: `Đã thanh toán thành công cho đơn đặt phòng tại ${hotelName}`,
+          message: `Đặt phòng thành công tại ${hotelName}`,
           hotelName,
           checkin: checkinISO,
           checkout: checkoutISO,
@@ -477,7 +472,6 @@ exports.bookRoom = async (req, res) => {
     phone,
     paymentMethod,
     roomsBooked,
-    totalAmount,
     diningServices = [],
     appliedVouchers = [],
     voucherDiscount = 0
@@ -548,18 +542,20 @@ exports.bookRoom = async (req, res) => {
       }, null);
     }
 
-    let finalAmount = totalAmount;
+    const nights = Math.max(1, Math.ceil((checkoutISO - checkinISO) / (1000 * 60 * 60 * 24)));
+    const baseAmount = room.rentperday * nights * Number(roomsBooked || 1);
+    let finalAmount = baseAmount;
     let discountApplied = null;
 
     if (activeDiscount) {
       let reduced = 0;
       if (activeDiscount.discountType === "percentage") {
-        reduced = (totalAmount * activeDiscount.discountValue) / 100;
+        reduced = (baseAmount * activeDiscount.discountValue) / 100;
       } else if (activeDiscount.discountType === "fixed") {
         reduced = activeDiscount.discountValue;
       }
 
-      finalAmount = Math.max(totalAmount - reduced, 0);
+      finalAmount = Math.max(baseAmount - reduced, 0);
 
       discountApplied = {
         id: activeDiscount._id,
@@ -568,6 +564,13 @@ exports.bookRoom = async (req, res) => {
         discountValue: activeDiscount.discountValue,
         amountReduced: reduced,
       };
+    }
+
+    // Tính chi phí dịch vụ (nếu có)
+    let serviceCost = 0;
+    if (diningServices && diningServices.length > 0) {
+      const services = await Service.find({ _id: { $in: diningServices } }).session(session);
+      serviceCost = services.reduce((sum, s) => sum + (s.price || 0), 0);
     }
 
     // Tạo booking
@@ -583,7 +586,7 @@ exports.bookRoom = async (req, res) => {
       email: email.toLowerCase(),
       phone,
       paymentMethod,
-      totalAmount: finalAmount,
+      totalAmount: Math.max(finalAmount + serviceCost - Number(voucherDiscount || 0), 0),
       status: "pending",
       paymentStatus: "pending",
       roomsBooked: Number(roomsBooked),
@@ -680,7 +683,7 @@ exports.bookRoom = async (req, res) => {
           type: 'info',
           category: 'system',
           isSystem: true,
-          message: `Đã thanh toán thành công cho đơn đặt phòng tại ${hotelName}`,
+          message: `Đặt phòng thành công tại ${hotelName}`,
           hotelName,
           checkin: checkinISO,
           checkout: checkoutISO,
@@ -787,7 +790,7 @@ exports.bookMulti = async (req, res) => {
       }
 
       // Tính tiền
-      const days = Math.max(1, Math.floor((roomCheckout - roomCheckin) / 86400000));
+      const days = Math.max(1, Math.ceil((roomCheckout - roomCheckin) / 86400000));
       const roomPrice = room.rentperday * roomItem.roomsBooked * days;
       totalPrice += roomPrice;
 
@@ -877,6 +880,36 @@ exports.bookMulti = async (req, res) => {
         if (current.discountType === "fixed" && (!best || current.discountValue > best.discountValue)) return current;
         return best;
       }, null);
+    }
+
+    // Áp dụng giảm giá lễ hội (nếu có) cho tổng đơn và lưu vào booking
+    if (appliedDiscount) {
+      let reduced = 0;
+      if (appliedDiscount.discountType === "percentage") {
+        reduced = (finalAmount * appliedDiscount.discountValue) / 100;
+        if (appliedDiscount.maxDiscount && reduced > appliedDiscount.maxDiscount) {
+          reduced = appliedDiscount.maxDiscount;
+        }
+      } else if (appliedDiscount.discountType === "fixed") {
+        reduced = appliedDiscount.discountValue;
+      }
+
+      finalAmount = Math.max(finalAmount - reduced, 0);
+
+      await Booking.findByIdAndUpdate(
+        booking._id,
+        {
+          totalAmount: finalAmount,
+          discount: {
+            id: appliedDiscount._id,
+            name: appliedDiscount.name,
+            discountType: appliedDiscount.discountType,
+            discountValue: appliedDiscount.discountValue,
+            amountReduced: reduced,
+          },
+        },
+        { session }
+      );
     }
 
     // Xử lý thanh toán

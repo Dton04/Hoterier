@@ -30,7 +30,6 @@ import FacebookCallBack from "./screens/Auth/FacebookCallBack";
 import Membership from "./components/Membership";
 import HotelResults from "./components/HotelResult/HotelResults";
 import Rewards from "./components/Rewards";
-import VNPaySuccess from "./components/VNPaySuccess";
 import VerifyOTP from "./screens/Auth/VerifyOTP";
 import PointsPage from './components/PointsPage';
 import Favorites from './components/Favorites';
@@ -60,8 +59,6 @@ import AdminRegions from "./components/GUI admin/Regions/AdminRegions";
 import AmenityManagement from "./components/GUI admin/Hotels/AmenityManagement";
 import HotelServiceManagement from "./components/GUI admin/Hotels/HotelServiceManagement";
 import AdminNotifications from "./components/GUI admin/Notifications/AdminNotifications";
-import CreateRoomForm from "./components/CreateRoomForm";
-import EditRoomForm from "./components/EditRoomForm";
 import ChatHistoryAdmin from "./components/GUI admin/Chats/ChatHistoryAdmin";
 import MyChatHistory from "./components/Pages/MyChatHistory";
 
@@ -163,7 +160,6 @@ function App() {
             <Route path="/register" element={<Registerscreen />} />
             <Route path="/auth/google/callback" element={<GoogleCallBack />} />
             <Route path="/auth/facebook/callback" element={<FacebookCallBack />} />
-            <Route path="/booking-success" element={<VNPaySuccess />} />
             <Route path="/hotel/:id" element={<HotelDetail />} />
             <Route path="/festival/:id" element={<FestivalHotels />} />
             <Route path="/discounts" element={<DiscountsPage />} />
@@ -202,9 +198,6 @@ function App() {
             <Route path="amenities" element={<AmenityManagement />} />
             <Route path="notifications" element={<AdminNotifications />} />
             <Route path="chat-history" element={<ChatHistoryAdmin />} />
-            {/* Đã gỡ 2 route cũ ngoài Admin */}
-            {/* <Route path="createroom" element={<CreateRoomForm />} /> */}
-            {/* <Route path="editroom/:id" element={<EditRoomForm />} /> */}
           </Route>
 
           {/* === CÁC ROUTE CỦA STAFF (tái sử dụng AdminLayout) === */}
