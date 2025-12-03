@@ -183,9 +183,9 @@ export default function ProfileManagement() {
 
           <div className="bg-white rounded-xl shadow-md p-5 border border-gray-100">
             <p className="font-semibold text-[#003580]">Chưa có Tín dụng hay voucher</p>
-            <p className="text-sm text-blue-600 mt-1 cursor-pointer hover:underline">
+            <Link to="/profile/details?tab=vouchers" className="text-sm text-blue-600 mt-1 cursor-pointer hover:underline inline-block">
               Xem chi tiết
-            </p>
+            </Link>
           </div>
         </div>
       </div>

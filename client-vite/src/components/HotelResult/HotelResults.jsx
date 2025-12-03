@@ -176,46 +176,76 @@ const HotelResults = () => {
         const { data } = await axios.get(`/api/discounts/${festival}/festival-hotels`);
         setFestivalInfo(data.festival);
 
-        let filtered = data.hotels;
-        if (regionParam) {
-          const isIdLike = /^[0-9a-fA-F]{24}$/.test(regionParam);
-          if (isIdLike) {
-            filtered = filtered.filter(
-              (h) =>
-                h.region &&
-                (h.region._id?.toString() === regionParam || h.region === regionParam)
-            );
-          } else {
-            filtered = filtered.filter(
-              (h) =>
-                h.regionName === regionParam || h.region?.name === regionParam
-            );
-          }
-        }
-        if (cityParam) filtered = filtered.filter((h) => h.city === cityParam);
+        // Lấy full detail cho từng khách sạn (có áp dụng giảm giá)
+        const fullHotels = await Promise.all(
+          data.hotels.map(async (h) => {
+            const detail = await axios.get(`/api/hotels/${h._id}`, {
+              params: { festivalId: festival },
+            });
+            return detail.data;
+          })
+        );
 
-        hotelsWithExtras = filtered.map((hotel) => {
-          const lowestPrice = Math.min(...hotel.rooms.map((r) => r.discountedPrice || r.rentperday));
-          return { ...hotel, lowestPrice };
-        });
+        let filtered = fullHotels;
+
+        // filter region + city nếu có
+        if (regionParam) {
+          filtered = filtered.filter(
+            (h) =>
+              h.region?.name?.toLowerCase() === regionParam.toLowerCase() ||
+              h.region?._id === regionParam
+          );
+        }
+        if (cityParam) {
+          filtered = filtered.filter((h) =>
+            h.district?.toLowerCase().includes(cityParam.toLowerCase())
+          );
+        }
+
+        // Add lowestPrice giống khách sạn thường
+        hotelsWithExtras = await Promise.all(
+          filtered.map(async (hotel) => {
+            const lowestPrice = Math.min(
+              ...hotel.rooms.map((r) => r.discountedPrice || r.rentperday)
+            );
+
+            const servicesRes = await axios.get(
+              `/api/services?hotelId=${hotel._id}&isAvailable=true`
+            );
+            const services = servicesRes.data || [];
+
+            return { ...hotel, lowestPrice, services };
+          })
+        );
       } else {
         setFestivalInfo(null);
-        // Gọi API BE có query region + city (region may be id or name)
+
+        // Gọi API khách sạn bình thường
         const { data } = await axios.get(`/api/hotels`, {
-          params: { region: regionParam || undefined, city: cityParam || undefined },
+          params: {
+            region: regionParam || undefined,
+            city: cityParam || undefined,
+          },
         });
 
+        // Lấy service + lowestPrice giống festival
         hotelsWithExtras = await Promise.all(
           data.map(async (hotel) => {
-            const servicesRes = await axios.get(`/api/services?hotelId=${hotel._id}&isAvailable=true`);
+            const servicesRes = await axios.get(
+              `/api/services?hotelId=${hotel._id}&isAvailable=true`
+            );
             const services = servicesRes.data || [];
+
             const lowestPrice = hotel.rooms?.length
               ? Math.min(...hotel.rooms.map((r) => r.rentperday))
               : 0;
+
             return { ...hotel, services, lowestPrice };
           })
         );
       }
+
+
 
 
       const adults = Number(searchParams.get("adults") || 1);

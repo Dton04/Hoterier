@@ -159,25 +159,37 @@ export default function HotelDetail() {
           axios.get(`/api/discounts`),
         ]);
 
-        // 1️⃣ Lưu thông tin khách sạn
+        //Lưu thông tin khách sạn
         const hotelData = hotelRes.data.hotel || hotelRes.data;
         setHotel(hotelData);
 
-        // 2️⃣ Lấy FULL danh sách phòng (có dailyInventory, currentbookings,…)
+        //Lấy FULL danh sách phòng (có dailyInventory, currentbookings,…)
         const allRoomsRes = await axios.get("/api/rooms/getallrooms");
 
-        // 3️⃣ Lọc những phòng thuộc khách sạn hiện tại
-        const fullRooms = allRoomsRes.data.filter((r) => {
-          const hotelIdStr =
-            typeof r.hotelId === "object" && r.hotelId !== null
-              ? r.hotelId._id
-              : r.hotelId;
-          return String(hotelIdStr) === String(id);
-        });
+        //Lọc những phòng thuộc khách sạn hiện tại
+        const fullRooms = allRoomsRes.data
+          .filter((r) => {
+            const hotelIdStr =
+              typeof r.hotelId === "object" && r.hotelId !== null
+                ? r.hotelId._id
+                : r.hotelId;
+            return String(hotelIdStr) === String(id);
+          })
+          .map((room) => {
+            // Tìm phòng tương ứng trong danh sách hotel.rooms đang có discountedPrice
+            const discountedRoom =
+              hotelData.rooms?.find((hRoom) => hRoom._id === room._id);
+
+            return {
+              ...room,
+              discountedPrice: discountedRoom?.discountedPrice ?? null,
+            };
+          });
 
         setRooms(fullRooms);
 
-        // 4️⃣ Các dữ liệu khác giữ nguyên
+
+        //Các dữ liệu khác giữ nguyên
         const amenityNames = Array.isArray(amenityRes.data)
           ? amenityRes.data
             .map((a) => (typeof a === "string" ? a : a?.name))

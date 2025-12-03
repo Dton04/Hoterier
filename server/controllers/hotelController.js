@@ -268,7 +268,7 @@ exports.deleteHotelImage = async (req, res) => {
 
 // POST /api/hotels - Tạo khách sạn mới
 exports.createHotel = async (req, res) => {
-  const { name, address, region, district, contactNumber, email, description, rooms } = req.body;
+  const { name, address, region, district, contactNumber, email, description, rooms, starRating } = req.body;
 
   try {
     if (mongoose.connection.readyState !== 1) {
@@ -311,6 +311,7 @@ exports.createHotel = async (req, res) => {
       description,
       rooms: rooms || [],
       district: district || null,
+      starRating: starRating || 3,
     });
 
     const savedHotel = await hotel.save();
@@ -324,7 +325,7 @@ exports.createHotel = async (req, res) => {
 // PUT /api/hotels/:id - Cập nhật thông tin khách sạn
 exports.updateHotel = async (req, res) => {
   const { id } = req.params;
-  const { name, address, region, district, contactNumber, email, description, rooms } = req.body;
+  const { name, address, region, district, contactNumber, email, description, rooms, starRating } = req.body;
 
   try {
     if (mongoose.connection.readyState !== 1) {
@@ -372,6 +373,8 @@ exports.updateHotel = async (req, res) => {
     hotel.description = description || hotel.description;
     hotel.rooms = rooms || hotel.rooms;
     hotel.district = district || hotel.district;
+    hotel.starRating = starRating ?? hotel.starRating;
+
 
     const updatedHotel = await hotel.save();
     res.status(200).json({ message: 'Cập nhật khách sạn thành công', hotel: updatedHotel });

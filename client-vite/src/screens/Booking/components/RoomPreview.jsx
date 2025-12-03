@@ -15,12 +15,12 @@ export default function RoomPreview({ room, roomsNeeded, getValues, isMultiRoom,
   // Lấy giá gốc
   const originalDailyRate = room.originalRentperday || room.rentperday;
   const festivalDiscountPerDay = room.festivalDiscountPerDay || 0;
-  
+
   // Tính giá sau giảm
   const priceAfterFestival = Math.max(0, originalDailyRate - festivalDiscountPerDay);
   const totalBeforeVoucher = priceAfterFestival * days * roomsNeeded;
 
- 
+
 
   const hasDiscount = festivalDiscountPerDay > 0;
 
@@ -36,8 +36,8 @@ export default function RoomPreview({ room, roomsNeeded, getValues, isMultiRoom,
 
   return (
     <div className="mt-6 bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-  
-     
+
+
 
       {/* Content Section */}
       <div className="p-4 md:p-5">

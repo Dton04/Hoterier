@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { FaUser, FaLock, FaUsers, FaCog, FaCreditCard, FaShieldAlt } from "react-icons/fa";
+import { FaUser, FaLock, FaUsers, FaCog, FaCreditCard, FaShieldAlt, FaTicketAlt } from "react-icons/fa";
 
 // Import sub-components
 import SecuritySettings from "./Tabs/SecuritySettings";
@@ -9,6 +9,7 @@ import Companions from "./Tabs/Companions";
 import GeneralSettings from "./Tabs/GeneralSettings";
 import PaymentMethods from "./Tabs/PaymentMethods";
 import PrivacySettings from "./Tabs/PrivacySettings";
+import MyVouchers from "./Tabs/MyVouchers";
 
 export default function ProfileDetails() {
   const [profile, setProfile] = useState(null);
@@ -223,6 +224,7 @@ export default function ProfileDetails() {
               { id: "personal", label: "Thông tin cá nhân", icon: <FaUser className="text-gray-400" /> },
               { id: "security", label: "Cài đặt bảo mật", icon: <FaLock className="text-gray-400" /> },
               { id: "companions", label: "Người đi cùng", icon: <FaUsers className="text-gray-400" /> },
+              { id: "vouchers", label: "Voucher của tôi", icon: <FaTicketAlt className="text-gray-400" /> },
               { id: "settings", label: "Cài đặt chung", icon: <FaCog className="text-gray-400" /> },
               { id: "payment", label: "Phương thức thanh toán", icon: <FaCreditCard className="text-gray-400" /> },
               { id: "privacy", label: "Quyền riêng tư & dữ liệu", icon: <FaShieldAlt className="text-gray-400" /> },
@@ -291,6 +293,7 @@ export default function ProfileDetails() {
 
         {activeTab === "security" && <SecuritySettings profile={profile} updateProfile={updateProfile} />}
         {activeTab === "companions" && <Companions profile={profile} updateProfile={updateProfile} />}
+        {activeTab === "vouchers" && <MyVouchers profile={profile} />}
         {activeTab === "settings" && <GeneralSettings profile={profile} updateProfile={updateProfile} />}
         {activeTab === "payment" && <PaymentMethods profile={profile} updateProfile={updateProfile} />}
         {activeTab === "privacy" && <PrivacySettings profile={profile} updateProfile={updateProfile} />}
