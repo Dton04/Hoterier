@@ -120,10 +120,11 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
   }, []);
 
   // Lấy festival từ location hoặc localStorage (giữ y nguyên)
-  const festival =
+  let festival =
     location?.state?.festival ||
     JSON.parse(localStorage.getItem("festival")) ||
     null;
+
 
   // ---------- Helpers ----------
   const handleServiceChange = (serviceId) => {
@@ -279,7 +280,9 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
       // Nếu festival KHÔNG áp dụng cho khách sạn này → xoá khỏi localStorage
       if (festival && !isApplicableFestival) {
         localStorage.removeItem("festival");
+        festival = null;
       }
+
 
       // Chỉ áp dụng festival nếu đúng khách sạn
       if (isApplicableFestival) {

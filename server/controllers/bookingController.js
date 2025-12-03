@@ -820,7 +820,8 @@ exports.bookMulti = async (req, res) => {
     const voucherDiscount = customer.voucherDiscount || 0;
 
     // Tổng tiền cuối
-    const finalAmount = Math.max(0, totalPrice + serviceCost - voucherDiscount);
+    let finalAmount = Math.max(0, totalPrice + serviceCost - voucherDiscount);
+
 
     // Tạo booking
     const booking = new Booking({
@@ -1203,30 +1204,30 @@ exports.getBookings = async (req, res) => {
       return res.status(503).json({ message: "Kết nối cơ sở dữ liệu chưa sẵn sàng" });
     }
 
-      const query = {};
-      if (status && ["pending", "confirmed", "canceled"].includes(status)) {
-        query.status = status;
-      }
-      if (email) {
-        query.email = email.toLowerCase();
-      }
+    const query = {};
+    if (status && ["pending", "confirmed", "canceled"].includes(status)) {
+      query.status = status;
+    }
+    if (email) {
+      query.email = email.toLowerCase();
+    }
 
-      // Lọc theo khách sạn thuộc ownerEmail (staff)
-      if (ownerEmail) {
-        const emailNorm = String(ownerEmail).toLowerCase();
-        const hotels = await require('../models/hotel').find({ email: emailNorm }).select('_id');
-        const hotelIds = hotels.map(h => h._id);
-        if (hotelIds.length) {
-          query.hotelId = { $in: hotelIds };
-        } else {
-          return res.status(200).json([]);
-        }
+    // Lọc theo khách sạn thuộc ownerEmail (staff)
+    if (ownerEmail) {
+      const emailNorm = String(ownerEmail).toLowerCase();
+      const hotels = await require('../models/hotel').find({ email: emailNorm }).select('_id');
+      const hotelIds = hotels.map(h => h._id);
+      if (hotelIds.length) {
+        query.hotelId = { $in: hotelIds };
+      } else {
+        return res.status(200).json([]);
       }
+    }
 
-      const bookings = await Booking.find(query)
-         .populate("roomid")
-         .populate("hotelId", "name address email")
-         .lean();
+    const bookings = await Booking.find(query)
+      .populate("roomid")
+      .populate("hotelId", "name address email")
+      .lean();
 
     res.status(200).json(bookings);
   } catch (error) {
@@ -1774,8 +1775,8 @@ exports.sendBookingConfirmationEmail = async (req, res) => {
 exports.getTopHotels = async (req, res) => {
   try {
     // Lấy tham số limit từ query, mặc định là 5
-    const limit = req.query.limit && req.query.limit.toLowerCase() === 'all' 
-      ? null 
+    const limit = req.query.limit && req.query.limit.toLowerCase() === 'all'
+      ? null
       : parseInt(req.query.limit) || 5;
 
     const currentYear = new Date().getFullYear();
@@ -1807,8 +1808,8 @@ exports.getTopHotels = async (req, res) => {
     const topHotelsAgg = await Booking.aggregate(topHotelsAggPipeline);
 
     if (!topHotelsAgg.length) {
-      return res.status(200).json({ 
-        topHotels: [], 
+      return res.status(200).json({
+        topHotels: [],
         chartData: { labels: [], datasets: [] },
         totalCount: 0
       });
@@ -1851,7 +1852,7 @@ exports.getTopHotels = async (req, res) => {
 
     // Chuẩn bị dữ liệu biểu đồ
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    
+
     // Tạo palette màu đẹp cho nhiều khách sạn
     const colorPalette = [
       'rgb(255, 99, 132)',   // Đỏ
