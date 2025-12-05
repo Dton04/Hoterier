@@ -5,6 +5,7 @@ const Room = require('../models/room');
 const Region = require('../models/region');
 const Booking = require('../models/booking');
 const Discount = require('../models/discount');
+const Review = require('../models/review');
 
 const fs = require('fs');
 const path = require('path');
@@ -23,36 +24,27 @@ exports.getAllHotels = async (req, res) => {
     // Support both region id (ObjectId) or region name
     if (region) {
       if (mongoose.Types.ObjectId.isValid(region)) {
-        filter.region = region;
+        filter.region = new mongoose.Types.ObjectId(region);
       } else {
-        // try find region by name
-        const foundRegion = await Region.findOne({ name: region }).select('_id');
-        if (foundRegion) filter.region = foundRegion._id;
-        else {
-          // fallback: if hotel documents have regionName field (legacy), filter by that
-          filter.regionName = region;
+        // Tìm theo tên khu vực
+        const foundRegion = await Region.findOne({ name: { $regex: region, $options: "i" } }).select("_id");
+        if (foundRegion) {
+          filter.region = foundRegion._id;
         }
       }
     }
-    // 🏙️ Lọc theo district (ưu tiên nếu có)
+
     if (district || city) {
-      const target = district || city;
+      const keyword = district || city;
 
-      // Chuẩn hóa tiếng Việt cho việc tìm kiếm không phân biệt dấu
       const normalizeVietnamese = (str) =>
-        str
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/đ/g, "d")
-          .replace(/Đ/g, "D")
-          .toLowerCase();
+        str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").toLowerCase();
 
-      const normalized = normalizeVietnamese(target);
+      const normalizedKeyword = normalizeVietnamese(keyword);
 
-      // ⚡️ Lọc district không phân biệt dấu bằng $or + regex
       filter.$or = [
-        { district: { $regex: target, $options: "i" } }, // có dấu
-        { district: { $regex: normalized, $options: "i" } }, // không dấu
+        { district: { $regex: keyword, $options: "i" } }, // có dấu
+        { normalizedDistrict: { $regex: normalizedKeyword, $options: "i" } }, // không dấu
       ];
     }
 
@@ -144,6 +136,31 @@ exports.getHotelById = async (req, res) => {
     }
 
 
+    // ✅ Tính toán thống kê đánh giá từ database
+    const reviews = await Review.find({
+      hotelId: hotel._id,
+      isDeleted: false,
+      isVisible: true
+    });
+
+    let reviewScore = null;
+    let reviewCount = 0;
+    let reviewText = null;
+
+    if (reviews.length > 0) {
+      const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
+      reviewScore = (totalRating / reviews.length).toFixed(1);
+      reviewCount = reviews.length;
+
+      // Xác định text đánh giá dựa trên điểm
+      const score = parseFloat(reviewScore);
+      if (score >= 9) reviewText = "Tuyệt vời";
+      else if (score >= 8) reviewText = "Rất tốt";
+      else if (score >= 7) reviewText = "Tốt";
+      else if (score >= 6) reviewText = "Khá tốt";
+      else reviewText = "Trung bình";
+    }
+
     //Trả về dữ liệu hoàn chỉnh
     res.status(200).json({
       _id: hotel._id,
@@ -158,6 +175,9 @@ exports.getHotelById = async (req, res) => {
       rooms: hotel.rooms,
       amenities: hotel.amenities,
       festival: hotel.festival || null,
+      reviewScore,
+      reviewCount,
+      reviewText,
       createdAt: hotel.createdAt,
       updatedAt: hotel.updatedAt,
     });

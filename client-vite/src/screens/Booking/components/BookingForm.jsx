@@ -269,34 +269,70 @@ export default function BookingForm({
       </div>
 
       {/* Dịch vụ */}
+
       {availableServices.length > 0 && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Dịch vụ bổ sung
-          </label>
-          <div className="space-y-2">
-            {availableServices.map((service) => (
-              <label
-                key={service._id}
-                className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-blue-50 cursor-pointer transition"
-              >
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={selectedServices.includes(service._id)}
-                    onChange={() => handleServiceChange(service._id)}
-                    className="w-4 h-4 text-[#003580] rounded focus:ring-[#003580]"
-                  />
-                  <span className="text-gray-800">{service.name}</span>
+        <div className="mt-6">
+
+          {/* Danh sách dịch vụ muốn hiển thị giống Booking.com */}
+          {(() => {
+            const featuredNames = [
+              "Đưa đón sân bay",
+              "Thuê xe",
+              "Bữa sáng"
+            ];
+
+            // Lọc theo tên dịch vụ trong DB
+            const filteredServices = availableServices.filter((s) =>
+              featuredNames.includes(s.name)
+            );
+
+            return (
+              <>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                  Thêm vào kỳ nghỉ của bạn
+                </h3>
+
+                <div className="space-y-3">
+                  {filteredServices.map((service) => (
+                    <label
+                      key={service._id}
+                      className="flex items-center justify-between p-4 border border-gray-200 rounded-xl bg-white shadow-sm hover:shadow-md transition cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedServices.includes(service._id)}
+                          onChange={() => handleServiceChange(service._id)}
+                          className="w-5 h-5 text-[#003580] rounded focus:ring-[#003580]"
+                        />
+                        <div>
+                          <p className="text-gray-800 font-medium">{service.name}</p>
+                          <p className="text-sm text-gray-500">
+                            Dịch vụ thêm tùy chọn
+                          </p>
+                        </div>
+                      </div>
+
+                      <span className="text-gray-800 font-semibold">
+                        {service.price.toLocaleString()} VND
+                      </span>
+                    </label>
+                  ))}
+
+                  {filteredServices.length === 0 && (
+                    <p className="text-gray-500 text-sm">
+                      Khách sạn không có dịch vụ tùy chọn phù hợp.
+                    </p>
+                  )}
                 </div>
-                <span className="font-medium text-gray-700">
-                  {service.price.toLocaleString()} VND
-                </span>
-              </label>
-            ))}
-          </div>
+              </>
+            );
+          })()}
         </div>
       )}
+
+
+
 
       {/* Yêu cầu đặc biệt */}
       <div>

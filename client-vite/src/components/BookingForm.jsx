@@ -177,25 +177,52 @@ function BookingForm() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
     const checkinDate = formData.checkin ? new Date(formData.checkin) : "";
     const checkoutDate = formData.checkout ? new Date(formData.checkout) : "";
     if (checkinDate) checkinDate.setHours(14, 0, 0, 0);
     if (checkoutDate) checkoutDate.setHours(12, 0, 0, 0);
 
-    // 🔥 Tính tổng người đúng chuẩn Booking.com
     const { totalAdults, totalChildren } = calculateGuests(
       formData.adults,
       childrenAges
     );
 
+    // --- FIX: Tự động xác định TỈNH nếu user nhập QUẬN ---
+    let finalRegion = formData.destination;   // ID nếu chọn từ gợi ý
+    let finalDistrict = "";                   // district nếu user nhập quận/huyện
+
+    // Nếu user nhập quận mà không chọn tỉnh trong dropdown
+    if (!finalRegion && formData.destinationName) {
+      const typed = formData.destinationName.toLowerCase();
+
+      const foundRegion = regions.find((r) =>
+        r.cities?.some((c) => c.name.toLowerCase() === typed)
+      );
+
+      if (foundRegion) {
+        finalRegion = foundRegion._id;
+        finalDistrict = formData.destinationName;
+      }
+    }
+
+    // Nếu vẫn không tìm region → coi người dùng nhập tên của tỉnh
+    if (!finalDistrict && !finalRegion) {
+      const foundRegion = regions.find(
+        (r) => r.name.toLowerCase() === formData.destinationName.toLowerCase()
+      );
+      if (foundRegion) {
+        finalRegion = foundRegion._id;
+      }
+    }
+
     const submitData = {
-      destination: formData.destination,
+      region: finalRegion,
+      district: finalDistrict,
       checkin: checkinDate.toISOString(),
       checkout: checkoutDate.toISOString(),
-
       adults: totalAdults,
       children: totalChildren,
-
       rooms: formData.rooms,
       childrenAges: formData.children > 0 ? childrenAges : [],
     };
@@ -203,6 +230,9 @@ function BookingForm() {
     localStorage.setItem("bookingInfo", JSON.stringify(submitData));
     navigate(`/hotel-results?${new URLSearchParams(submitData).toString()}`);
   };
+
+
+
 
   // đóng dropdown + lịch khi click ra ngoài
   useEffect(() => {

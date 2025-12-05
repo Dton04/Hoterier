@@ -153,7 +153,7 @@ const getPublicDiscounts = async (req, res) => {
 // @access  Admin
 const getAllDiscountsAdmin = async (req, res) => {
   try {
-    const discounts = await Discount.find({}).populate('applicableHotels', 'name');
+    const discounts = await Discount.find({ isDeleted: false }).populate('applicableHotels', 'name');
     res.json(discounts);
   } catch (error) {
     res.status(500).json({

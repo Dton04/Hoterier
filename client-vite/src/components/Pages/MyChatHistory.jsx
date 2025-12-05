@@ -70,8 +70,8 @@ export default function MyChatHistory() {
                      <div
                         key={i}
                         className={`max-w-[70%] px-4 py-3 rounded-xl shadow-sm relative ${m.sender === "user"
-                              ? "bg-blue-600 text-white ml-auto"
-                              : "bg-gray-100 text-gray-800"
+                           ? "bg-blue-600 text-white ml-auto"
+                           : "bg-gray-100 text-gray-800"
                            }`}
                      >
                         <p className="leading-relaxed text-[14px]">{m.text}</p>

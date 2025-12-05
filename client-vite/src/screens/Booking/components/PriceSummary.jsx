@@ -15,25 +15,25 @@ export default function PriceSummary({
       ? Math.ceil((checkout - checkin) / (1000 * 60 * 60 * 24))
       : 1;
 
-  const roomsBookedCount = roomsNeeded || 1; 
+  const roomsBookedCount = roomsNeeded || 1;
 
   // 1. Lấy giá gốc
   // Sử dụng originalRentperday được set trong hook, fallback về rentperday (vốn là giá gốc nếu không có festival)
   const originalDailyRate = room?.originalRentperday || room?.rentperday || 0;
-  
+
   // 2. Tính giá cơ bản (luôn dùng giá gốc * số ngày * số phòng)
-  const basePrice = originalDailyRate * days * roomsBookedCount; 
-  
+  const basePrice = originalDailyRate * days * roomsBookedCount;
+
   // 3. Tính tổng giảm giá Festival
   const festivalDiscountTotal = (room?.festivalDiscountPerDay || 0) * days * roomsBookedCount;
 
   // 4. Tính tổng giảm giá Voucher
   const voucherDiscountTotal =
     discountResult?.appliedDiscounts?.reduce((sum, d) => sum + d.discount, 0) || 0;
-    
+
   // 5. Tổng tất cả giảm giá
   const totalDiscount = festivalDiscountTotal + voucherDiscountTotal;
-  
+
   // 6. Chi phí dịch vụ
   const serviceCost = calculateServiceCost();
 

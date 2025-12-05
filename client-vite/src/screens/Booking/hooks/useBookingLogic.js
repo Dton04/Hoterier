@@ -305,7 +305,28 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
 
       setRoom(adjustedRoom);
 
-      if (initialData.people && adjustedRoom.maxcount) {
+      // Apply initialData from chatbot to form fields
+      if (initialData?.checkin) {
+        const formattedCheckin = formatDate(initialData.checkin);
+        setValue("checkin", formattedCheckin);
+      }
+
+      if (initialData?.checkout) {
+        const formattedCheckout = formatDate(initialData.checkout);
+        setValue("checkout", formattedCheckout);
+      }
+
+      if (initialData?.people) {
+        const peopleCount = parseInt(initialData.people) || 2;
+        setValue("adults", peopleCount);
+        setValue("children", 0);
+
+        if (adjustedRoom.maxcount) {
+          const autoRooms = Math.ceil(peopleCount / adjustedRoom.maxcount);
+          setRoomsNeeded(autoRooms);
+          setValue("roomsBooked", autoRooms);
+        }
+      } else if (initialData.people && adjustedRoom.maxcount) {
         const autoRooms = Math.ceil(Number(initialData.people) / adjustedRoom.maxcount);
         setRoomsNeeded(autoRooms);
         setValue("roomsBooked", autoRooms);
@@ -633,7 +654,8 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
             // Get bookingId from response (support both single-room and multi-room)
             const bookingId = bookingResponse.data.booking?._id || bookingResponse.data.bookingId;
             const totalAmount = bookingResponse.data.totalAmount || bookingResponse.data.booking?.totalAmount;
-            const orderId = `BOOKING-${Date.now()}`;
+            const orderId = paymentResult.orderId;
+
 
             if (!bookingId) {
               throw new Error("Không có bookingId từ server");
@@ -644,10 +666,11 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
 
             const vnpayResponse = await axios.post("/api/vnpay/create-payment", {
               amount: totalAmount,
-              orderId: orderId,
+              orderId: paymentResult.orderId,
               orderInfo: `Thanh toán đặt phòng - ${bookingId}`,
               bookingId: bookingId,
             });
+
             if (vnpayResponse.data.payUrl) {
               window.location.href = vnpayResponse.data.payUrl;
             } else {
@@ -679,14 +702,20 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
 
             const momoResponse = await axios.post("/api/momo/create-payment", {
               amount: totalAmount,
-              orderId: orderId,
+              orderId: paymentResult.orderId,
               orderInfo: `Thanh toán đặt phòng - ${bookingId}`,
               bookingId: bookingId,
             });
+
             if (momoResponse.data.payUrl) {
               window.location.href = momoResponse.data.payUrl;
             } else {
-              throw new Error("Không nhận được URL thanh toán từ MoMo");
+              setBookingStatus({
+                type: "error",
+                message: momoResponse.data.message || "Không thể tạo hóa đơn MoMo"
+              });
+              return;
+
             }
           } catch (moErr) {
             console.error("Lỗi MoMo:", moErr);

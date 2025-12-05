@@ -136,12 +136,12 @@ export default function Bookingscreen() {
                            name: hotel?.name,
                            address: hotel?.address,
                            city: hotel?.region?.name,
-                           stars: 5, // có thể cập nhật thêm field sao trong DB nếu cần
+                           stars: hotel?.starRating || 5,
                            rating: hotel?.rating,
-                           reviewScore: hotel?.reviewScore || 9.5,
-                           reviewText: "Tuyệt vời",
-                           reviewCount: hotel?._id ? room?.totalReviews || 120 : 0,
-                           image: hotel?.imageurls?.[0],
+                           reviewScore: hotel?.reviewScore,
+                           reviewText: hotel?.reviewText,
+                           reviewCount: hotel?.reviewCount,
+                           imageurls: hotel?.imageurls,
                            wifi: hotel?.amenities?.includes("wifi"),
                            parking: hotel?.amenities?.includes("parking"),
                         }}
@@ -222,7 +222,7 @@ export default function Bookingscreen() {
                            isMultiRoom={isMultiRoom}
                            selectedRooms={selectedRooms}
                            watch={watch}
-
+                           initialData={initialData}
                            checkAvailability={checkAvailability}
                            collectedVouchers={collectedVouchers}
                         />

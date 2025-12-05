@@ -152,6 +152,18 @@ function ChatBot({ embedded = false }) {
 
         // Nếu chatbot đã biết đủ thông tin (checkin, checkout, people)
         if (context.checkin && context.checkout && context.people) {
+          // 💾 Lưu dữ liệu booking vào localStorage để BookingForm đọc được
+          const bookingInfo = {
+            checkin: context.checkin,
+            checkout: context.checkout,
+            adults: parseInt(context.people) || 2,
+            children: 0,
+            childrenAges: [],
+            rooms: item.roomsNeeded || 1,
+          };
+          localStorage.setItem("bookingInfo", JSON.stringify(bookingInfo));
+          localStorage.setItem("hotelIdForBooking", context.hotelId);
+
           const redirectUrl = `/book/${item.id}?hotelId=${context.hotelId}&checkin=${encodeURIComponent(context.checkin)}&checkout=${encodeURIComponent(context.checkout)}&people=${encodeURIComponent(context.people)}`;
 
           setMessages((prev) => [
