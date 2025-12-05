@@ -248,6 +248,67 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
         return;
       }
 
+      // ✅ If room data comes from navigation state (e.g., from RoomsTab), use it directly
+      // This preserves the festival discount that was already calculated
+      if (initialData?.room) {
+        const roomFromState = initialData.room;
+
+        // Ensure we have hotel data
+        if (!roomFromState.hotel && !roomFromState.hotelId) {
+          // Fetch minimal hotel info if needed
+          const { data } = await axios.post("/api/rooms/getroombyid", { roomid });
+          roomFromState.hotel = data.hotel;
+          roomFromState.hotelId = data.hotel?._id;
+        }
+
+        // Set originalRentperday if not already set
+        if (!roomFromState.originalRentperday) {
+          roomFromState.originalRentperday = roomFromState.rentperday;
+        }
+
+        setRoom(roomFromState);
+
+        // Apply initialData to form fields
+        if (initialData?.checkin) {
+          const formattedCheckin = formatDate(initialData.checkin);
+          setValue("checkin", formattedCheckin);
+        }
+
+        if (initialData?.checkout) {
+          const formattedCheckout = formatDate(initialData.checkout);
+          setValue("checkout", formattedCheckout);
+        }
+
+        if (initialData?.people) {
+          const peopleCount = parseInt(initialData.people) || 2;
+          setValue("adults", peopleCount);
+          setValue("children", 0);
+
+          if (roomFromState.maxcount) {
+            const autoRooms = Math.ceil(peopleCount / roomFromState.maxcount);
+            setRoomsNeeded(autoRooms);
+            setValue("roomsBooked", autoRooms);
+          }
+        }
+
+        setValue("roomType", roomFromState.type || "");
+
+        // Calculate initial total
+        const checkin = new Date(initialData.checkin || new Date());
+        const checkout = new Date(initialData.checkout || new Date());
+        const days = Math.ceil((checkout - checkin) / (1000 * 60 * 60 * 24)) || 1;
+
+        const discountedDailyRate = Math.max(
+          0,
+          roomFromState.originalRentperday - (roomFromState.festivalDiscountPerDay || 0)
+        );
+
+        setTotalAmount(discountedDailyRate * days * (roomFromState.roomsBooked || 1));
+
+        return; // ✅ Skip API fetch since we have all data from state
+      }
+
+      // ===== FALLBACK: Fetch from API if no room in initialData =====
       const { data } = await axios.post("/api/rooms/getroombyid", { roomid });
 
       if (data.hotel) {

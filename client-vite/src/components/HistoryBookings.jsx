@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
+import { Eye } from "lucide-react";
+import BookingDetailModal from "./BookingDetailModal";
 
 export default function HistoryBookings() {
   const [bookings, setBookings] = useState([]);
@@ -8,6 +10,8 @@ export default function HistoryBookings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("current"); // current | past | canceled
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const userInfo = JSON.parse(localStorage.getItem("userInfo"));
   const userEmail = userInfo?.email;
@@ -52,6 +56,27 @@ export default function HistoryBookings() {
     }
     setFilteredBookings(filtered);
   }, [activeTab, bookings]);
+
+  const handleViewDetails = async (bookingId) => {
+    try {
+      const { data } = await axios.get(`/api/bookings/${bookingId}`);
+      setSelectedBooking(data);
+      setIsModalOpen(true);
+    } catch (err) {
+      console.error("Error fetching booking details:", err);
+    }
+  };
+
+  const handleCancelSuccess = async () => {
+    // Refresh bookings list
+    try {
+      const { data } = await axios.get(`/api/bookings?email=${userEmail}`);
+      const userBookings = data.filter((b) => b.email === userEmail);
+      setBookings(userBookings);
+    } catch (err) {
+      console.error("Error refreshing bookings:", err);
+    }
+  };
 
   if (!userEmail) {
     return (
@@ -122,8 +147,8 @@ export default function HistoryBookings() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`pb-3 relative transition-all duration-300 ${activeTab === tab.id
-                    ? "text-[#003580] font-semibold"
-                    : "hover:text-[#003580]"
+                  ? "text-[#003580] font-semibold"
+                  : "hover:text-[#003580]"
                   }`}
               >
                 {tab.label}
@@ -184,10 +209,10 @@ export default function HistoryBookings() {
                   <div className="mt-3 md:mt-0">
                     <span
                       className={`px-3 py-1 rounded-full text-sm font-semibold ${booking.status === "confirmed"
-                          ? "bg-green-100 text-green-700"
-                          : booking.status === "pending"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : "bg-red-100 text-red-700"
+                        ? "bg-green-100 text-green-700"
+                        : booking.status === "pending"
+                          ? "bg-yellow-100 text-yellow-700"
+                          : "bg-red-100 text-red-700"
                         }`}
                     >
                       {booking.status === "confirmed"
@@ -221,10 +246,32 @@ export default function HistoryBookings() {
                     {booking.roomType || "Không xác định"}
                   </p>
                 </div>
+
+                {/* View Details Button */}
+                <div className="mt-4 flex justify-end">
+                  <button
+                    onClick={() => handleViewDetails(booking._id)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
+                  >
+                    <Eye className="w-4 h-4" />
+                    Xem chi tiết
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         )}
+
+        {/* Booking Detail Modal */}
+        <BookingDetailModal
+          booking={selectedBooking}
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedBooking(null);
+          }}
+          onCancelSuccess={handleCancelSuccess}
+        />
       </div>
     </div>
   );

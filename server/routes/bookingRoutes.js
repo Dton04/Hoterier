@@ -28,6 +28,12 @@ router.put("/:id/confirm", protect, require("../middleware/auth").adminOrStaff, 
 // GET /api/bookings - Lấy danh sách đặt phòng
 router.get("/", bookingController.getBookings);
 
+// GET /api/bookings/:id - Lấy chi tiết đặt phòng
+router.get("/:id", bookingController.getBookingById);
+
+// POST /api/bookings/:id/user-cancel - User tự hủy đặt phòng (trong 15 phút)
+router.post("/:id/user-cancel", bookingController.userCancelBooking);
+
 // GET /api/bookings/room/:roomId - Lấy danh sách đặt phòng theo phòng
 router.get("/room/:roomId", bookingController.getBookingsByRoom);
 

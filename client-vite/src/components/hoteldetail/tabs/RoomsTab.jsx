@@ -75,9 +75,22 @@ export default function RoomsTab({ rooms = [], onRoomSelected, hotel = {} }) {
     // Nếu chỉ chọn 1 phòng -> chuyển đến booking single-room (backward compatible)
     if (selectedRooms.length === 1 && selectedRooms[0].roomsBooked === 1) {
       const room = rooms.find((r) => r._id === selectedRooms[0].roomid);
+
+      // ✅ Include festival discount data
+      const roomWithDiscount = {
+        ...room,
+        discountedPrice: room.discountedPrice ?? room.rentperday,
+        festivalDiscountPerDay: room.rentperday - (room.discountedPrice ?? room.rentperday),
+      };
+
+      // ✅ Save hotelId for back navigation
+      if (hotel?._id) {
+        localStorage.setItem("hotelIdForBooking", hotel._id);
+      }
+
       navigate(`/book/${room._id}`, {
         state: {
-          room,
+          room: roomWithDiscount,  // ✅ Now includes discount data
           checkin: localStorage.getItem("checkin"),
           checkout: localStorage.getItem("checkout"),
           adults: localStorage.getItem("adults"),
@@ -88,6 +101,11 @@ export default function RoomsTab({ rooms = [], onRoomSelected, hotel = {} }) {
     }
 
     // Nếu chọn multiple rooms hoặc multiple quantity -> Multi-room flow
+    // ✅ Save hotelId for back navigation
+    if (hotel?._id) {
+      localStorage.setItem("hotelIdForBooking", hotel._id);
+    }
+
     navigate(`/book/multi-room`, {
       state: {
         isMultiRoom: true,

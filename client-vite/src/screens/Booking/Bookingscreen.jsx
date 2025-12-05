@@ -38,6 +38,7 @@ export default function Bookingscreen() {
       hotelId: queryParams.get('hotelId'),
       isMultiRoom: isMultiRoom,
       selectedRooms: selectedRooms,
+      room: location.state?.room || null,  // ✅ Include room data from navigation state
    };
 
    const {

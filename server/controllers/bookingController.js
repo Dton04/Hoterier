@@ -827,7 +827,10 @@ exports.bookMulti = async (req, res) => {
     const booking = new Booking({
       hotelId,
       rooms: roomDetails,
-      roomid: rooms[0].roomid,   // để tương thích schema
+      roomid: rooms[0].roomid,
+      roomType: roomDetails.length === 1
+        ? roomDetails[0].roomType
+        : "Nhiều loại phòng",
       name: customer.name,
       email: customer.email.toLowerCase(),
       phone: customer.phone,
@@ -1903,3 +1906,152 @@ exports.getTopHotels = async (req, res) => {
     res.status(500).json({ message: "Lỗi server khi lấy dữ liệu top hotels" });
   }
 };
+
+// ===============================
+// GET BOOKING BY ID
+// ===============================
+
+// GET /api/bookings/:id - Lấy chi tiết đặt phòng
+exports.getBookingById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "ID đặt phòng không hợp lệ" });
+    }
+
+    const booking = await Booking.findById(id)
+      .populate({
+        path: 'hotelId',
+        select: 'name address city imageurls'
+      })
+      .populate({
+        path: 'roomid',
+        select: 'name type rentperday imageurls'
+      })
+      .populate({
+        path: 'rooms.roomid',
+        select: 'name type rentperday imageurls'
+      });
+
+    if (!booking) {
+      return res.status(404).json({ message: "Không tìm thấy đặt phòng" });
+    }
+
+    res.status(200).json(booking);
+  } catch (error) {
+    console.error("Lỗi khi lấy chi tiết đặt phòng:", error);
+    res.status(500).json({ message: "Lỗi server khi lấy chi tiết đặt phòng" });
+  }
+};
+
+// ===============================
+// USER CANCEL BOOKING
+// ===============================
+
+// POST /api/bookings/:id/user-cancel - User tự hủy đặt phòng (trong 15 phút)
+exports.userCancelBooking = async (req, res) => {
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    const { id } = req.params;
+    const { email, reason } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "ID đặt phòng không hợp lệ" });
+    }
+
+    if (!email) {
+      return res.status(400).json({ message: "Email không được để trống" });
+    }
+
+    const booking = await Booking.findById(id).session(session);
+    if (!booking) {
+      return res.status(404).json({ message: "Không tìm thấy đặt phòng" });
+    }
+
+    // Kiểm tra email khớp
+    if (booking.email.toLowerCase() !== email.toLowerCase()) {
+      return res.status(403).json({ message: "Bạn không có quyền hủy đặt phòng này" });
+    }
+
+    // Kiểm tra trạng thái thanh toán
+    if (booking.paymentStatus !== "pending") {
+      return res.status(400).json({
+        message: "Không thể hủy đặt phòng đã thanh toán. Vui lòng liên hệ bộ phận hỗ trợ."
+      });
+    }
+
+    // Kiểm tra thời gian (15 phút)
+    const createdAt = new Date(booking.createdAt);
+    const now = new Date();
+    const minutesPassed = (now - createdAt) / (1000 * 60);
+
+    if (minutesPassed > 15) {
+      return res.status(400).json({
+        message: "Đã quá thời gian hủy miễn phí (15 phút). Vui lòng liên hệ bộ phận hỗ trợ."
+      });
+    }
+
+    // Hoàn trả tồn kho
+    const room = await Room.findById(booking.roomid).session(session);
+    if (room) {
+      const checkinDateOnly = new Date(booking.checkin.getFullYear(), booking.checkin.getMonth(), booking.checkin.getDate());
+      const checkoutDateOnly = new Date(booking.checkout.getFullYear(), booking.checkout.getMonth(), booking.checkout.getDate());
+
+      for (
+        let d = new Date(checkinDateOnly);
+        d < checkoutDateOnly;
+        d.setDate(d.getDate() + 1)
+      ) {
+        const dayStr = formatLocalDate(d);
+        const daily = getOrInitInventory(room, dayStr);
+        daily.quantity += booking.roomsBooked || 1;
+      }
+
+      // Xóa khỏi currentbookings
+      room.currentbookings = room.currentbookings.filter(
+        b => !b.bookingId.equals(booking._id)
+      );
+
+      await room.save({ session });
+    }
+
+    // Hoàn trả voucher (nếu có)
+    if (booking.appliedVouchers && booking.appliedVouchers.length > 0) {
+      const user = await User.findOne({ email: email.toLowerCase() });
+      if (user) {
+        for (const voucher of booking.appliedVouchers) {
+          const code = typeof voucher === 'string' ? voucher : voucher.code;
+          await UserVoucher.findOneAndUpdate(
+            { userId: user._id, voucherCode: code, isUsed: true, bookingId: booking._id },
+            { isUsed: false, usedAt: null, bookingId: null },
+            { session }
+          );
+        }
+      }
+    }
+
+    // Cập nhật trạng thái booking
+    booking.status = "canceled";
+    booking.cancelReason = reason || "Khách hàng hủy trong vòng 15 phút";
+    await booking.save({ session });
+
+    await session.commitTransaction();
+
+    res.status(200).json({
+      message: "Hủy đặt phòng thành công",
+      booking
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Lỗi khi hủy đặt phòng:", error);
+    res.status(500).json({ message: "Lỗi server khi hủy đặt phòng", error: error.message });
+  } finally {
+    session.endSession();
+  }
+};
+
