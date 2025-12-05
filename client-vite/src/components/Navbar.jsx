@@ -353,7 +353,7 @@ function Navbar() {
                   src={
                     user?.avatar
                       ? `http://localhost:5000/${user.avatar.replace(/^\/+/, "")}`
-                      : "https://cf.bstatic.com/static/img/avatar/booking_avatar_40x40/99e8e7b26f5de94b82e8be93d93cf5b5b7b33eea.png"
+                      : "http://localhost:5000/Uploads/default-avt.jpg"
                   }
                   alt="avatar"
                   className="w-8 h-8 rounded-full border border-gray-300 object-cover"
