@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { FiMenu, FiSearch, FiGrid, FiUser, FiLogOut } from 'react-icons/fi';
 import { BiChevronDown } from 'react-icons/bi';
-import defaultAvatar from '../../assets/images/default-avatar.jpg';
 
 const AdminHeader = ({ sidebarOpen, setSidebarOpen }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -87,7 +86,11 @@ const AdminHeader = ({ sidebarOpen, setSidebarOpen }) => {
               className="flex items-center gap-2 cursor-pointer"
             >
               <img
-                src={defaultAvatar}
+                src={
+                  user?.avatar
+                    ? `http://localhost:5000/${user.avatar.replace(/^\/+/, "")}`
+                    : "http://localhost:5000/Uploads/default-avt.jpg"
+                }
                 alt="User Avatar"
                 className="h-8 w-8 rounded-full border border-gray-300 object-cover"
               />
