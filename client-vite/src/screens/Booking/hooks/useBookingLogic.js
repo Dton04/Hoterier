@@ -248,11 +248,22 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
         return;
       }
 
-      // ✅ If room data comes from navigation state (e.g., from RoomsTab), use it directly
+      //If room data comes from navigation state (e.g., from RoomsTab), use it directly
       // This preserves the festival discount that was already calculated
       if (initialData?.room) {
         const roomFromState = initialData.room;
 
+        try {
+          const { data: realRoom } = await axios.post("/api/rooms/getroombyid", {
+            roomid: roomFromState._id || roomid
+          });
+
+          roomFromState.maxcount = realRoom.maxcount;
+          roomFromState.quantity = realRoom.quantity;
+          roomFromState.type = realRoom.type;
+        } catch (err) {
+          console.error("LỖI KHI LẤY MAXCOUNT:", err);
+        }
         // Ensure we have hotel data
         if (!roomFromState.hotel && !roomFromState.hotelId) {
           // Fetch minimal hotel info if needed
@@ -313,9 +324,10 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
 
       if (data.hotel) {
         data.hotelId = data.hotel._id;
+        data.hotel = data.hotel;
       }
 
-      // 👇 BỔ SUNG ĐOẠN NÀY ĐỂ FE NHẬN ĐÚNG hotel.imageurls
+
       if (data.hotel && data.hotel.imageurls) {
         data.hotel.imageurls = data.hotel.imageurls.map((url) =>
           url.startsWith("http")
@@ -323,6 +335,7 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
             : `${window.location.origin}/${url.replace(/^\/+/, "")}`
         );
       }
+      setRoom(data);
 
       // ------------------ FIX FESTIVAL DISCOUNT CHỈ ÁP DỤNG KHÁCH SẠN ĐÚNG ------------------
 
@@ -330,6 +343,7 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
       adjustedRoom.originalRentperday = data.rentperday; // luôn giữ giá gốc
       adjustedRoom.festivalDiscountPerDay = 0;
       adjustedRoom.discountApplied = null;
+      adjustedRoom.hotel = data.hotel;
 
       // Kiểm tra festival có hợp lệ & có áp cho hotel này không
       const isApplicableFestival =
@@ -567,23 +581,51 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
 
       const roomsBooked = Number(data.roomsBooked) || 1;
 
-      if (initialData?.isMultiRoom === true) {
+      // KIỂM TRA SỨC CHỨA AUTO – CHỐNG LỖI MAXCOUNT KHÔNG ĐÚNG
+      if (initialData?.isMultiRoom === true && initialData?.selectedRooms?.length > 0) {
 
-        // Tính tổng sức chứa thật sự của tất cả phòng
-        const totalCapacity = initialData.selectedRooms.reduce(
-          (sum, r) => sum + r.maxcount * r.roomsBooked,
-          0
+        const roomDetails = await Promise.all(
+          initialData.selectedRooms.map(async (r) => {
+            const { data } = await axios.post("/api/rooms/getroombyid", { roomid: r.roomid });
+            return { ...r, maxcount: data.maxcount };
+          })
         );
+
+        const totalCapacity = roomDetails.reduce((sum, r) => {
+          const cap = Number(r.maxcount) * Number(r.roomsBooked);
+          return sum + (isNaN(cap) ? 0 : cap);
+        }, 0);
 
         if (totalGuests > totalCapacity) {
           toast.error(
-            `Combo phòng chứa tối đa ${totalCapacity} khách. 
-        Bạn đang có ${totalGuests} khách nên không thể đặt combo này.`,
-            { duration: 3500 }
+            `❌ Số khách vượt quá sức chứa.\n` +
+            `• Sức chứa tối đa: ${totalCapacity}\n` +
+            `• Số khách bạn đang đặt: ${totalGuests}`,
+            { duration: 4000 }
           );
           setLoading(false);
           return;
         }
+      }
+
+
+      if (initialData?.isMultiRoom === true) {
+        const totalCapacity = initialData.selectedRooms.reduce((sum, r) => {
+          const cap = Number(r.maxcount) * Number(r.roomsBooked);
+          return sum + (isNaN(cap) ? 0 : cap);
+        }, 0);
+
+        if (totalGuests > totalCapacity) {
+          toast.error(
+            `❌ Số khách vượt quá sức chứa.\n` +
+            `• Sức chứa tối đa: ${totalCapacity}\n` +
+            `• Số khách bạn đang đặt: ${totalGuests}`,
+            { duration: 4000 }
+          );
+          setLoading(false);
+          return;
+        }
+
 
       } else {
         // =========================

@@ -42,7 +42,7 @@ export default function RoomsTab({ rooms = [], onRoomSelected, hotel = {} }) {
   };
 
 
-  // ===== HÀM MỚI: Xử lý đặt multi-room =====
+  // Xử lý đặt multi-room 
   const handleBookMultiRoom = () => {
     // Thu thập tất cả phòng được chọn (quantity > 0)
     const selectedRooms = rooms
@@ -64,6 +64,8 @@ export default function RoomsTab({ rooms = [], onRoomSelected, hotel = {} }) {
           room.rentperday - (room.discountedPrice ?? room.rentperday),
 
         imageurls: room.imageurls,
+        maxcount: room.maxcount,
+        capacity: room.maxcount,
       }));
 
 

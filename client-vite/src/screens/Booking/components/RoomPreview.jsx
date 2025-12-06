@@ -1,5 +1,4 @@
-// RoomPreview.jsx - Booking.com style with multi-room support
-import { Calendar, Moon, Users, Tag, TrendingDown, DollarSign } from "lucide-react";
+import { Calendar, Moon, Users, Tag, TrendingDown, DollarSign, Info, } from "lucide-react";
 
 export default function RoomPreview({ room, roomsNeeded, getValues, isMultiRoom, selectedRooms }) {
 
@@ -181,9 +180,13 @@ export default function RoomPreview({ room, roomsNeeded, getValues, isMultiRoom,
         </div>
 
         {/* Info Note */}
-        <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
-          ℹ️ Giá này chưa bao gồm voucher và dịch vụ thêm. Sẽ được cập nhật ở bước thanh toán.
+        <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800 flex items-center gap-2">
+          <Info className="w-4 h-4 flex-shrink-0" />
+          <span>
+            Giá này chưa bao gồm voucher và dịch vụ thêm. Sẽ được cập nhật ở bước thanh toán.
+          </span>
         </div>
+
       </div>
     </div>
   );
