@@ -56,7 +56,7 @@ const staff = (req, res, next) => {
 
 // Middleware kiểm tra admin hoặc staff
 const adminOrStaff = (req, res, next) => {
-  if (req.user && (req.user.role === 'admin' || req.user.role === 'staff')) {
+  if (req.user && (req.user.isAdmin || req.user.role === 'staff')) {
     next();
   } else {
     res.status(403).json({ message: 'Không được phép, yêu cầu vai trò admin hoặc staff' });

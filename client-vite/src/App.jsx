@@ -46,10 +46,12 @@ import StaffDashboard from "./components/GUI staff/StaffDashboard";
 import StaffHotelManagement from "./components/GUI staff/StaffHotelManagement";
 import StaffHotelRoomManagement from "./components/GUI staff/StaffHotelRoomManagement";
 import StaffBookings from "./components/GUI staff/StaffBookings";
+import StaffCreateHotel from "./components/GUI staff/StaffCreateHotel"; // ✅ Import Mới
 import UserStaffManagement from "./components/GUI admin/Users/UserStaffManagement";
 
 import AdminBookings from "./components/GUI admin/Bookings/AdminBookings";
 import HotelManagement from "./components/GUI admin/Hotels/HotelManagement";
+import AdminApproveHotel from "./components/GUI admin/Hotels/AdminApproveHotel"; // ✅ Import Mới
 import HotelRoomManagement from "./components/GUI admin/Hotels/HotelRoomManagement";
 import ServiceManagement from "./components/GUI admin/Hotels/ServiceManagement";
 import AdminDiscounts from "./components/GUI admin/Discounts/AdminDiscounts";
@@ -188,6 +190,7 @@ function App() {
 
             <Route path="bookings" element={<AdminBookings />} />
             <Route path="hotels" element={<HotelManagement />} />
+            <Route path="approve-hotels" element={<AdminApproveHotel />} /> {/* ✅ Route Mới */}
             <Route path="hotel/:hotelId/rooms" element={<HotelRoomManagement />} />
             <Route path="hotel-services" element={<HotelServiceManagement />} />
             <Route path="services" element={<ServiceManagement />} />
@@ -211,6 +214,7 @@ function App() {
             <Route index element={<StaffDashboard />} />
             <Route path="dashboard" element={<StaffDashboard />} />
             <Route path="hotels" element={<StaffHotelManagement />} />
+            <Route path="create-hotel" element={<StaffCreateHotel />} /> {/* ✅ Route Mới */}
             <Route path="hotel/:hotelId/rooms" element={<StaffHotelRoomManagement />} />
             <Route path="bookings" element={<StaffBookings />} />
           </Route>

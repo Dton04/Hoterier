@@ -19,7 +19,7 @@ exports.getAllHotels = async (req, res) => {
     }
 
     const { region, city, district } = req.query;
-    const filter = {};
+    const filter = { isApproved: true }; // ✅ Chỉ lấy khách sạn đã được duyệt
 
     // Support both region id (ObjectId) or region name
     if (region) {
@@ -593,7 +593,7 @@ exports.getHotelsByRegion = async (req, res) => {
       return res.status(400).json({ message: 'ID khu vực không hợp lệ' });
     }
 
-    const hotels = await Hotel.find({ region: regionId })
+    const hotels = await Hotel.find({ region: regionId, isApproved: true })
       .populate('region', 'name')
       .lean();
 
