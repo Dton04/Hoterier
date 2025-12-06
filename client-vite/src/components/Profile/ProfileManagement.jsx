@@ -228,16 +228,16 @@ export default function ProfileManagement() {
           {
             title: "Trợ giúp",
             items: [
-              { icon: <Phone className="w-4 h-4 text-[#003580]" />, text: "Liên hệ dịch vụ khách hàng" },
-              { icon: <Shield className="w-4 h-4 text-[#003580]" />, text: "Trung tâm bảo mật" },
-              { icon: <Scale className="w-4 h-4 text-[#003580]" />, text: "Giải quyết khiếu nại" },
+              { icon: <Phone className="w-4 h-4 text-[#003580]" />, text: "Liên hệ dịch vụ khách hàng", link: "/contact" },
+              { icon: <Shield className="w-4 h-4 text-[#003580]" />, text: "Trung tâm bảo mật", link: "/profile/security" },
+              { icon: <Scale className="w-4 h-4 text-[#003580]" />, text: "Giải quyết khiếu nại", link: "/profile/dispute" },
             ],
           },
           {
             title: "Pháp lý & Quyền riêng tư",
             items: [
               { icon: <FileText className="w-4 h-4 text-[#003580]" />, text: "Quản lý quyền riêng tư", link: "/profile/details?tab=privacy" },
-              { icon: <BookOpen className="w-4 h-4 text-[#003580]" />, text: "Hướng dẫn nội dung" },
+              { icon: <BookOpen className="w-4 h-4 text-[#003580]" />, text: "Hướng dẫn nội dung", link: "/profile/content-guidelines" },
             ],
           },
         ].map((section, idx) => (
