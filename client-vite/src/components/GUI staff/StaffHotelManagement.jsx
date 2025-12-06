@@ -3,7 +3,7 @@ import axios from "axios";
 import { Link } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { Search, Settings, AlertCircle, Edit2 } from "lucide-react";
+import { Search, Settings, AlertCircle, Edit2, Plus } from "lucide-react";
 import { Modal } from 'antd';
 
 const StaffHotelManagement = () => {
@@ -133,6 +133,17 @@ const StaffHotelManagement = () => {
             <li className="font-medium text-blue-600">Hotels</li>
           </ol>
         </nav>
+      </div>
+
+      {/* Nút tạo khách sạn */}
+      <div className="mb-6">
+        <Link
+          to="/staff/create-hotel"
+          className="flex items-center gap-2 w-fit px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+        >
+          <Plus size={18} />
+          Đăng ký khách sạn mới
+        </Link>
       </div>
 
       <div className="rounded-lg border border-gray-200 bg-white px-5 pt-6 pb-4 shadow-sm">

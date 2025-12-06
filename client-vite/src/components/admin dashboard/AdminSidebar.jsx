@@ -36,6 +36,7 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const menuItemsStaff = [
     { label: "Dashboard", icon: <FiGrid />, path: `${basePath}/dashboard` },
     { label: "Khách sạn", icon: <FiHome />, path: `${basePath}/hotels` },
+    // { label: "Tạo khách sạn", icon: <FiPlusSquare />, path: `${basePath}/create-hotel` }, // Ẩn khỏi sidebar
     { label: "Đặt phòng", icon: <FiFileText />, path: `${basePath}/bookings` },
     { label: "Tin nhắn", icon: <FiMessageSquare />, path: `${basePath}/chat` },
   ];

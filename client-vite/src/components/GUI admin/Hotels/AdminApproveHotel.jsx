@@ -17,7 +17,7 @@ const AdminApproveHotel = () => {
   const fetchPendingHotels = async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get("/api/hotels", config);
+      const { data } = await axios.get("/api/hotels?includeUnapproved=true", config);
       const allHotels = Array.isArray(data) ? data : [];
       // Filter hotels that are NOT approved (isApproved === false or undefined)
       const pending = allHotels.filter(h => h.isApproved === false);

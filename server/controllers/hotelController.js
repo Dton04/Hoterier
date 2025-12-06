@@ -18,8 +18,13 @@ exports.getAllHotels = async (req, res) => {
       return res.status(503).json({ message: 'Kết nối cơ sở dữ liệu chưa sẵn sàng' });
     }
 
-    const { region, city, district } = req.query;
-    const filter = { isApproved: true }; // ✅ Chỉ lấy khách sạn đã được duyệt
+    const { region, city, district, includeUnapproved } = req.query;
+    const filter = {};
+
+    // Mặc định chỉ lấy đã duyệt, trừ khi có cờ includeUnapproved (dành cho Admin)
+    if (includeUnapproved !== 'true') {
+      filter.isApproved = true;
+    }
 
     // Support both region id (ObjectId) or region name
     if (region) {
