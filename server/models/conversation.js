@@ -9,6 +9,7 @@ const participantSchema = new mongoose.Schema({
 const conversationSchema = new mongoose.Schema({
   participants: { type: [participantSchema], validate: v => v.length >= 2 },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'users', required: true },
+  hotelId: { type: mongoose.Schema.Types.ObjectId, ref: 'Hotel', default: null }, // Liên kết với khách sạn
   assignedStaff: { type: mongoose.Schema.Types.ObjectId, ref: 'users', default: null },
   lastMessageAt: { type: Date, default: null },
   status: { type: String, enum: ['open', 'closed', 'archived'], default: 'open' },

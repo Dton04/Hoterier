@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { FiGrid, FiFileText, FiMapPin, FiUsers, FiStar, FiTag, FiServer, FiHome, FiRotateCcw, FiBell, FiCheckCircle } from 'react-icons/fi';
+import { FiGrid, FiFileText, FiMapPin, FiUsers, FiStar, FiTag, FiServer, FiHome, FiRotateCcw, FiBell, FiCheckCircle, FiMessageSquare } from 'react-icons/fi';
 
 const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const location = useLocation();
@@ -37,6 +37,7 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { label: "Dashboard", icon: <FiGrid />, path: `${basePath}/dashboard` },
     { label: "Khách sạn", icon: <FiHome />, path: `${basePath}/hotels` },
     { label: "Đặt phòng", icon: <FiFileText />, path: `${basePath}/bookings` },
+    { label: "Tin nhắn", icon: <FiMessageSquare />, path: `${basePath}/chat` },
   ];
 
   const menuItems = role === 'admin' ? menuItemsAdmin : menuItemsStaff;
