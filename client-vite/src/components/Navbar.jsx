@@ -109,13 +109,13 @@ function Navbar() {
         const timer = setTimeout(() => {
           setNotifications((prev) => {
             const next = prev.filter((x) => (x?._id || `${x.message}-${x.createdAt}`) !== id);
-            try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch {}
+            try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch { }
             return next;
           });
           delete expiryTimersRef.current[id];
         }, delay);
         expiryTimersRef.current[id] = timer;
-      } catch {}
+      } catch { }
     };
 
     const fetchFeed = async () => {
@@ -135,7 +135,7 @@ function Navbar() {
           setNotifications(filtered);
           filtered.forEach(scheduleExpiry);
           updateHasNewFromList(filtered);
-          try { localStorage.setItem("notif_cache", JSON.stringify(filtered)); } catch {}
+          try { localStorage.setItem("notif_cache", JSON.stringify(filtered)); } catch { }
         } else {
           const res = await axios.get("/api/notifications/public/latest");
           const list = res.data ? [res.data] : [];
@@ -148,9 +148,9 @@ function Navbar() {
           setNotifications(filtered);
           filtered.forEach(scheduleExpiry);
           updateHasNewFromList(filtered);
-          try { localStorage.setItem("notif_cache", JSON.stringify(filtered)); } catch {}
+          try { localStorage.setItem("notif_cache", JSON.stringify(filtered)); } catch { }
         }
-      } catch (e) {}
+      } catch (e) { }
     };
 
     try {
@@ -162,7 +162,7 @@ function Navbar() {
         setNotifications(filtered);
         updateHasNewFromList(filtered);
       }
-    } catch {}
+    } catch { }
 
     fetchFeed();
 
@@ -174,7 +174,7 @@ function Navbar() {
         const id = payload?._id || payload?.id || null;
         setNotifications((prev) => {
           const next = prev.filter((x) => (x?._id || x?.id) !== id);
-          try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch {}
+          try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch { }
           return next;
         });
         if (id) {
@@ -198,7 +198,7 @@ function Navbar() {
             setTimeout(() => {
               setNotifications((prev) => {
                 const next = [payload, ...prev].slice(0, 10);
-                try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch {}
+                try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch { }
                 return next;
               });
               setHasNewNotif(true);
@@ -209,7 +209,7 @@ function Navbar() {
         }
         setNotifications((prev) => {
           const next = [payload, ...prev].slice(0, 10);
-          try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch {}
+          try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch { }
           return next;
         });
         scheduleExpiry(payload);
@@ -276,9 +276,9 @@ function Navbar() {
               key={item.path}
               to={item.path}
               className={`pb-2 hover:text-[#febb02] ${location.pathname === item.path ||
-                  (item.path === "/home" && location.pathname === "/")
-                  ? "border-b-2 border-[#febb02]"
-                  : ""
+                (item.path === "/home" && location.pathname === "/")
+                ? "border-b-2 border-[#febb02]"
+                : ""
                 }`}
             >
               {item.label}
@@ -352,7 +352,9 @@ function Navbar() {
                 <img
                   src={
                     user?.avatar
-                      ? `http://localhost:5000/${user.avatar.replace(/^\/+/, "")}`
+                      ? user.avatar.startsWith("http")
+                        ? user.avatar
+                        : `http://localhost:5000/${user.avatar.replace(/^\/+/, "")}`
                       : "http://localhost:5000/Uploads/default-avt.jpg"
                   }
                   alt="avatar"
@@ -527,12 +529,12 @@ function Navbar() {
               ></span>
             </div>
           </button>
-                </div>
-              </div>
+        </div>
+      </div>
 
-              {/* 📱 Mobile Menu Overlay - Giống Booking.com */}
-              {isNavOpen && (
-                <div className="fixed inset-0 bg-white text-gray-800 z-[9999] overflow-y-auto animate-fadeIn">
+      {/* 📱 Mobile Menu Overlay - Giống Booking.com */}
+      {isNavOpen && (
+        <div className="fixed inset-0 bg-white text-gray-800 z-[9999] overflow-y-auto animate-fadeIn">
           {/* Header */}
           <div className="flex justify-between items-center p-5 border-b border-gray-200 sticky top-0 bg-white">
             <h2 className="text-lg font-semibold text-[#003580]">Khác</h2>
@@ -624,27 +626,27 @@ function Navbar() {
               </ul>
             </div>
 
-                {/* Đăng nhập / Tài khoản */}
-                <div className="border-t border-gray-200 pt-5">
-                  {isLoggedIn ? (
-                    <>
-                      <h3 className="font-semibold mb-2 text-[#003580]">Tài khoản của tôi</h3>
-                      <ul className="space-y-2 text-gray-700">
-                        <li><Link to="/profile" onClick={closeNav}>Hồ sơ cá nhân</Link></li>
-                        <li><Link to="/bookings" onClick={closeNav}>Đặt phòng của tôi</Link></li>
-                        <li><Link to="/favorites" onClick={closeNav}>Danh sách yêu thích</Link></li>
-                        <li><Link to="/reviews" onClick={closeNav}>Đánh giá của tôi</Link></li>
-                        {user?.role === 'staff' && (
-                          <li><Link to="/staff/dashboard" onClick={closeNav}>Staff Dashboard</Link></li>
-                        )}
-                        <li>
-                          <button onClick={handleLogout} className="text-red-600">
-                            Đăng xuất
-                          </button>
-                        </li>
-                      </ul>
-                    </>
-                  ) : (
+            {/* Đăng nhập / Tài khoản */}
+            <div className="border-t border-gray-200 pt-5">
+              {isLoggedIn ? (
+                <>
+                  <h3 className="font-semibold mb-2 text-[#003580]">Tài khoản của tôi</h3>
+                  <ul className="space-y-2 text-gray-700">
+                    <li><Link to="/profile" onClick={closeNav}>Hồ sơ cá nhân</Link></li>
+                    <li><Link to="/bookings" onClick={closeNav}>Đặt phòng của tôi</Link></li>
+                    <li><Link to="/favorites" onClick={closeNav}>Danh sách yêu thích</Link></li>
+                    <li><Link to="/reviews" onClick={closeNav}>Đánh giá của tôi</Link></li>
+                    {user?.role === 'staff' && (
+                      <li><Link to="/staff/dashboard" onClick={closeNav}>Staff Dashboard</Link></li>
+                    )}
+                    <li>
+                      <button onClick={handleLogout} className="text-red-600">
+                        Đăng xuất
+                      </button>
+                    </li>
+                  </ul>
+                </>
+              ) : (
                 <>
                   <Link
                     to="/login"

@@ -266,10 +266,18 @@ export default function ProfileDetails() {
                 />
                 <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden border border-gray-300">
                   <img
-                    src={previewAvatar || (profile?.avatar ? `${API_BASE_URL}/${profile.avatar.replace(/^\/+/, "")}` : "https://cf.bstatic.com/static/img/theme-index/default-avatar.svg")}
+                    src={
+                      previewAvatar ||
+                      (profile?.avatar
+                        ? profile.avatar.startsWith("http")
+                          ? profile.avatar
+                          : `${API_BASE_URL}/${profile.avatar.replace(/^\/+/, "")}`
+                        : "https://cf.bstatic.com/static/img/theme-index/default-avatar.svg")
+                    }
                     alt="Avatar"
                     className="w-full h-full object-cover"
                   />
+
                 </div>
                 <button
                   onClick={handleAvatarClick}

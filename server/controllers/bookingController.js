@@ -1228,6 +1228,7 @@ exports.getBookings = async (req, res) => {
     }
 
     const bookings = await Booking.find(query)
+      .sort({ createdAt: -1 })
       .populate("roomid")
       .populate("hotelId", "name address email")
       .lean();
@@ -1790,14 +1791,16 @@ exports.getTopHotels = async (req, res) => {
     const topHotelsAggPipeline = [
       {
         $match: {
-          paymentStatus: 'paid',
-          createdAt: { $gte: startOfYear, $lte: endOfYear }
+          status: { $in: ["confirmed", "completed"] },
+          paymentStatus: "paid",
+          checkin: { $gte: startOfYear, $lte: endOfYear }
         }
       },
       {
         $group: {
           _id: "$hotelId",
-          totalRevenue: { $sum: "$totalAmount" }
+          totalRevenue: { $sum: "$totalAmount" },
+          bookingCount: { $sum: 1 }
         }
       },
       { $sort: { totalRevenue: -1 } }
@@ -1829,24 +1832,27 @@ exports.getTopHotels = async (req, res) => {
         hotelId: item._id,
         name: info ? info.name : 'Unknown Hotel',
         image: info && info.imageurls && info.imageurls.length > 0 ? info.imageurls[0] : null,
-        totalRevenue: item.totalRevenue
+        totalRevenue: item.totalRevenue,
+        bookingCount: item.bookingCount
       };
     });
 
     // 2. Lấy dữ liệu doanh thu theo tháng cho các khách sạn này
+    // ✅ FIX: Sử dụng checkin thay vì createdAt
     const monthlyStats = await Booking.aggregate([
       {
         $match: {
-          paymentStatus: 'paid',
+          status: { $in: ["confirmed", "completed"] },
+          paymentStatus: "paid",
           hotelId: { $in: hotelIds },
-          createdAt: { $gte: startOfYear, $lte: endOfYear }
+          checkin: { $gte: startOfYear, $lte: endOfYear }
         }
       },
       {
         $group: {
           _id: {
             hotelId: "$hotelId",
-            month: { $month: "$createdAt" }
+            month: { $month: "$checkin" }
           },
           revenue: { $sum: "$totalAmount" }
         }

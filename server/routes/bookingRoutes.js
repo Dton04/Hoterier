@@ -28,14 +28,9 @@ router.put("/:id/confirm", protect, require("../middleware/auth").adminOrStaff, 
 // GET /api/bookings - Lấy danh sách đặt phòng
 router.get("/", bookingController.getBookings);
 
-// GET /api/bookings/:id - Lấy chi tiết đặt phòng
-router.get("/:id", bookingController.getBookingById);
-
-// POST /api/bookings/:id/user-cancel - User tự hủy đặt phòng (trong 15 phút)
-router.post("/:id/user-cancel", bookingController.userCancelBooking);
-
-// GET /api/bookings/room/:roomId - Lấy danh sách đặt phòng theo phòng
-router.get("/room/:roomId", bookingController.getBookingsByRoom);
+// ===== SPECIFIC ROUTES - MUST COME BEFORE /:id =====
+// GET /api/bookings/top-hotels - Lấy top khách sạn doanh thu cao nhất
+router.get("/top-hotels", bookingController.getTopHotels);
 
 // GET /api/bookings/stats/daily - Thống kê doanh thu theo ngày
 router.get("/stats/daily", bookingController.getDailyStats);
@@ -43,8 +38,24 @@ router.get("/stats/daily", bookingController.getDailyStats);
 // GET /api/bookings/stats/monthly - Thống kê doanh thu theo tháng
 router.get("/stats/monthly", bookingController.getMonthlyStats);
 
-// GET /api/bookings/top-hotels - Lấy top khách sạn doanh thu cao nhất
-router.get("/top-hotels", bookingController.getTopHotels);
+// GET /api/bookings/room/:roomId - Lấy danh sách đặt phòng theo phòng
+router.get("/room/:roomId", bookingController.getBookingsByRoom);
+
+// POST /api/bookings/cancel-reason - Gửi lý do hủy
+router.post("/cancel-reason", bookingController.sendCancelReason);
+
+//Lấy lý do hủy
+router.get("/cancel-reason", bookingController.getCancelReason);
+
+// /api/bookings/mail/booking-confirmation — Gửi email xác nhận đặt phòng
+router.post("/mail/booking-confirmation", bookingController.sendBookingConfirmationEmail);
+
+// ===== GENERIC ROUTES WITH :id PARAMETER =====
+// GET /api/bookings/:id - Lấy chi tiết đặt phòng
+router.get("/:id", bookingController.getBookingById);
+
+// POST /api/bookings/:id/user-cancel - User tự hủy đặt phòng (trong 15 phút)
+router.post("/:id/user-cancel", bookingController.userCancelBooking);
 
 // PATCH /api/bookings/:id/note - Cập nhật ghi chú
 router.patch("/:id/note", bookingController.updateNote);
@@ -55,17 +66,8 @@ router.post("/:id/assign-room", bookingController.assignRoom);
 // PATCH /api/bookings/:id/extend - Gia hạn thời gian lưu trú
 router.patch("/:id/extend", bookingController.extendStay);
 
-// POST /api/bookings/cancel-reason - Gửi lý do hủy
-router.post("/cancel-reason", bookingController.sendCancelReason);
-
-//Lấy lý do hủy
-router.get("/cancel-reason", bookingController.getCancelReason);
-
 // PATCH /api/bookings/:id/payment-method - Cập nhật phương thức thanh toán
 router.patch("/:id/payment-method", bookingController.updatePaymentMethod);
-
-// /api/bookings/mail/booking-confirmation — Gửi email xác nhận đặt phòng
-router.post("/mail/booking-confirmation", bookingController.sendBookingConfirmationEmail);
 
 
 module.exports = router;

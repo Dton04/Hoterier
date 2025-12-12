@@ -127,64 +127,64 @@ export default function ServicesTab({ services = [], amenities = [] }) {
                 </div>
               </div>
 
-             {/* ✅ Hiển thị theo nhóm 2 cột như Booking.com */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
-  {/* Cột trái */}
-  <div className="space-y-8">
-    {Object.entries(grouped)
-      .slice(0, Math.ceil(Object.keys(grouped).length / 2))
-      .map(([category, items]) => (
-        <div key={category}>
-          <h4 className="font-semibold text-gray-900 mb-2 text-base border-b pb-1">
-            {category}
-          </h4>
-          <ul className="space-y-1">
-            {items.map((s, idx) => (
-              <li key={idx} className="flex items-start gap-2">
-                <div className="mt-1 text-green-600 flex items-center">
-                  {iconForAmenity(s.name)}
+              {/* ✅ Hiển thị theo nhóm 2 cột như Booking.com */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
+                {/* Cột trái */}
+                <div className="space-y-8">
+                  {Object.entries(grouped)
+                    .slice(0, Math.ceil(Object.keys(grouped).length / 2))
+                    .map(([category, items]) => (
+                      <div key={category}>
+                        <h4 className="font-semibold text-gray-900 mb-2 text-base border-b pb-1">
+                          {category}
+                        </h4>
+                        <ul className="space-y-1">
+                          {items.map((s, idx) => (
+                            <li key={idx} className="flex items-start gap-2">
+                              <div className="mt-1 text-green-600 flex items-center">
+                                {iconForAmenity(s.name)}
+                              </div>
+                              <span className="text-gray-700 text-sm">{s.name}</span>
+                              {s.description && (
+                                <span className="text-xs text-gray-500 ml-1">
+                                  ({s.description})
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
                 </div>
-                <span className="text-gray-700 text-sm">{s.name}</span>
-                {s.description && (
-                  <span className="text-xs text-gray-500 ml-1">
-                    ({s.description})
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-  </div>
 
-  {/* Cột phải */}
-  <div className="space-y-8">
-    {Object.entries(grouped)
-      .slice(Math.ceil(Object.keys(grouped).length / 2))
-      .map(([category, items]) => (
-        <div key={category}>
-          <h4 className="font-semibold text-gray-900 mb-2 text-base border-b pb-1">
-            {category}
-          </h4>
-          <ul className="space-y-1">
-            {items.map((s, idx) => (
-              <li key={idx} className="flex items-start gap-2">
-                <div className="mt-1 text-green-600 flex items-center">
-                  {iconForAmenity(s.name)}
+                {/* Cột phải */}
+                <div className="space-y-8">
+                  {Object.entries(grouped)
+                    .slice(Math.ceil(Object.keys(grouped).length / 2))
+                    .map(([category, items]) => (
+                      <div key={category}>
+                        <h4 className="font-semibold text-gray-900 mb-2 text-base border-b pb-1">
+                          {category}
+                        </h4>
+                        <ul className="space-y-1">
+                          {items.map((s, idx) => (
+                            <li key={idx} className="flex items-start gap-2">
+                              <div className="mt-1 text-green-600 flex items-center">
+                                {iconForAmenity(s.name)}
+                              </div>
+                              <span className="text-gray-700 text-sm">{s.name}</span>
+                              {s.description && (
+                                <span className="text-xs text-gray-500 ml-1">
+                                  ({s.description})
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
                 </div>
-                <span className="text-gray-700 text-sm">{s.name}</span>
-                {s.description && (
-                  <span className="text-xs text-gray-500 ml-1">
-                    ({s.description})
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-  </div>
-</div>
+              </div>
 
 
             </div>

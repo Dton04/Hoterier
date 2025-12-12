@@ -236,7 +236,7 @@ exports.chatBotReply = async (req, res) => {
       } catch (err) {
         console.error("❌ Gemini error:", err.message);
         const reply =
-          "Hệ thống AI đang hơi bận 😅, bạn thử hỏi lại sau vài giây nhé!";
+          "Hệ thống AI đang hơi bận, bạn thử hỏi lại sau vài giây nhé!";
         await saveChat(userId, "bot", reply, prev, intent);
         return res.json({ reply });
       }

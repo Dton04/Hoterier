@@ -91,7 +91,9 @@ export default function ProfileManagement() {
             <img
               src={
                 user?.avatar
-                  ? `${API_BASE_URL}/${user.avatar.replace(/^\/+/, "")}`
+                  ? user.avatar.startsWith("http")
+                    ? user.avatar
+                    : `${API_BASE_URL}/${user.avatar.replace(/^\/+/, "")}`
                   : defaultAvatar
               }
               alt="avatar"

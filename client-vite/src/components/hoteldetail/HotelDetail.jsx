@@ -371,9 +371,9 @@ export default function HotelDetail() {
                     </p>
                     <button
                       onClick={() => setShowMoreDesc((s) => !s)}
-                      className="mt-2 text-blue-600 hover:underline text-sm"
+                      className="mt-2 ml-2 text-blue-600 hover:underline text-sm border border-blue-600 px-2 py-2 rounded-md"
                     >
-                      {showMoreDesc ? "Thu gọn" : "Xem thêm"}
+                      {showMoreDesc ? "Thu gọn" : "Tôi muốn xem thêm"}
                     </button>
                   </>
                 ) : (

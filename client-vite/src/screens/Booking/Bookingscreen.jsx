@@ -39,6 +39,7 @@ export default function Bookingscreen() {
       isMultiRoom: isMultiRoom,
       selectedRooms: selectedRooms,
       room: location.state?.room || null,  // ✅ Include room data from navigation state
+      hotel: hotelFromState,  // ✅ Include hotel data for multi-room service fetching
    };
 
    const {

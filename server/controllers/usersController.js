@@ -13,6 +13,15 @@ const nodemailer = require('nodemailer');
 
 const generateToken = require('../utils/generateToken');
 
+const cloudinary = require('cloudinary').v2;
+const fs = require('fs');
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
 // Gửi OTP qua Gmail
 const sendOTPEmail = async (email, otp) => {
   const transporter = nodemailer.createTransport({
@@ -473,12 +482,12 @@ exports.getAllUsers = async (req, res) => {
   try {
     let filter = { isDeleted: false };
 
-    // ✅ Nếu là staff → chỉ thấy user
+    //Nếu là staff → chỉ thấy user
     if (req.user.role === "staff") {
       filter.role = "user";
     }
 
-    // ✅ Nếu là admin → chỉ thấy user + staff (ẩn admin khác)
+    //Nếu là admin → chỉ thấy user + staff (ẩn admin khác)
     if (req.user.role === "admin") {
       filter.role = { $in: ["user", "staff"] };
     }
@@ -684,9 +693,21 @@ exports.updateUserProfile = async (req, res) => {
       } catch (e) { console.error("Error parsing privacySettings", e); }
     }
 
+    // Upload avatar lên Cloudinary
     if (req.file) {
-      updates.avatar = req.file.path.replace(/\\/g, "/");
+      const uploadResult = await cloudinary.uploader.upload(req.file.path, {
+        folder: 'users',
+        public_id: `${user._id}_avatar_${Date.now()}`,
+      });
+
+      updates.avatar = uploadResult.secure_url;
+
+      // Xóa file tạm
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.error("Lỗi xóa file avatar tạm:", err);
+      });
     }
+
 
     const updatedUser = await User.findByIdAndUpdate(userId, updates, { new: true }).select('-password');
     res.json(updatedUser);

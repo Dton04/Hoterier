@@ -6,6 +6,14 @@ const Hotel = require("../models/hotel");
 const fs = require('fs');
 const path = require('path');
 const Amenity = require("../models/amenity");
+const cloudinary = require('cloudinary').v2;
+
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 // ===== HELPER: Format ngày theo LOCAL timezone (không dùng UTC) =====
 function formatLocalDate(date) {
@@ -214,7 +222,7 @@ exports.updateRoom = async (req, res) => {
   }
 };
 
-// BE4.21 POST /api/rooms/:id/images - Tải ảnh phòng
+// BE4.21 POST /api/rooms/:id/images - Tải ảnh phòng lên CLOUDINARY
 exports.uploadRoomImages = async (req, res) => {
   const { id } = req.params;
 
@@ -236,8 +244,26 @@ exports.uploadRoomImages = async (req, res) => {
       return res.status(400).json({ message: "Vui lòng cung cấp ít nhất một ảnh" });
     }
 
-    const newImages = req.files.map(file => `${req.protocol}://${req.get('host')}/Uploads/${file.filename}`);
-    room.imageurls = [...room.imageurls, ...newImages];
+    // Upload từng file lên Cloudinary
+    const uploadPromises = req.files.map(file => {
+      return cloudinary.uploader.upload(file.path, {
+        folder: 'rooms',
+        public_id: `${room._id}_${Date.now()}`, // Tên file unique
+      });
+    });
+
+    const results = await Promise.all(uploadPromises);
+    const newImageUrls = results.map(result => result.secure_url); // HTTPS URL
+
+    // Xóa file tạm trên server
+    req.files.forEach(file => {
+      fs.unlink(file.path, err => {
+        if (err) console.error("Lỗi xóa file tạm:", err);
+      });
+    });
+
+    // Cập nhật imageurls của phòng
+    room.imageurls = [...(room.imageurls || []), ...newImageUrls];
     const updatedRoom = await room.save();
 
     res.status(201).json({ message: "Tải ảnh phòng thành công", room: updatedRoom });

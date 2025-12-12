@@ -221,8 +221,7 @@ exports.uploadHotelImages = async (req, res) => {
 
     const uploadPromises = req.files.map(file => {
       return cloudinary.uploader.upload(file.path, {
-        folder: 'hotels', // Thư mục trên Cloudinary
-        upload_preset: 'hotel_images',
+        folder: 'hotels',
         public_id: `${hotel._id}_${Date.now()}`, // Tên file unique
       });
     });

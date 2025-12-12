@@ -97,7 +97,7 @@ export default function BookingDetailModal({ booking, isOpen, onClose, onCancelS
                <h2 className="text-2xl font-bold">Chi tiết đặt phòng</h2>
                <button
                   onClick={onClose}
-                  className="p-2 hover:bg-white/20 rounded-full transition"
+                  className="p-2 hover:bg-blue-200 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full transition"
                >
                   <X className="w-6 h-6" />
                </button>
@@ -111,7 +111,7 @@ export default function BookingDetailModal({ booking, isOpen, onClose, onCancelS
                      {booking.hotelId?.name || "Khách sạn"}
                   </h3>
                   <p className="text-gray-600 text-sm">
-                     📍 {booking.hotelId?.address || "Địa chỉ không có"}
+                     {booking.hotelId?.address || "Địa chỉ không có"}
                   </p>
                </div>
 

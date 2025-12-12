@@ -1090,19 +1090,31 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
     fetchRoomData();
   }, [fetchRoomData]);
 
-  // 2) fetch services theo hotelId
+  // 2) fetch services theo hotelId (hỗ trợ cả single-room và multi-room)
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        if (!room?.hotelId) return;
-        const response = await axios.get(`/api/services/hotel/${room.hotelId}`);
+        // Lấy hotelId từ nhiều nguồn để hỗ trợ cả 2 flow
+        const hotelId =
+          room?.hotelId ||                    // Single room flow (preferred)
+          room?.hotel?._id ||                 // Single room with populated hotel
+          initialData?.hotel?._id;            // Multi-room flow
+
+        if (!hotelId) {
+          console.warn("⚠️ Không tìm thấy hotelId để fetch services");
+          return;
+        }
+
+        console.log("🔍 Fetching services for hotel:", hotelId);
+        const response = await axios.get(`/api/services/hotel/${hotelId}`);
         setAvailableServices(response.data || []);
+        console.log("✅ Services fetched:", response.data?.length || 0, "services");
       } catch (err) {
-        console.error("Lỗi khi lấy danh sách dịch vụ:", err);
+        console.error("❌ Lỗi khi lấy danh sách dịch vụ:", err);
       }
     };
     fetchServices();
-  }, [room]);
+  }, [room, initialData?.hotel]);
 
   // 3) fill user info + location state / localStorage
   useEffect(() => {
