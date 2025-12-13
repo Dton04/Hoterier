@@ -47,7 +47,7 @@ router.post('/:id/images', protect, require('../middleware/auth').adminOrStaff, 
 router.delete('/:id/images/:imgId', protect, require('../middleware/auth').adminOrStaff, require('../middleware/auth').restrictHotelUpdate, hotelController.deleteHotelImage);
 
 // POST /api/hotels - Tạo khách sạn mới
-router.post('/', protect, admin, hotelController.createHotel);
+router.post('/', protect, require('../middleware/auth').adminOrStaff, hotelController.createHotel);
 
 // PUT /api/hotels/:id - Cập nhật thông tin khách sạn (staff chỉ sửa khi sở hữu, không đổi email)
 router.put('/:id', protect, require('../middleware/auth').adminOrStaff, require('../middleware/auth').restrictHotelUpdate, hotelController.updateHotel);

@@ -20,9 +20,9 @@ function decodeUserInfo() {
       const user = info?.user || info || {};
 
       return {
-         token: user?.token || info?.token || "",
-         userId: user?._id || info?._id || null,
-         role: user?.role || info?.role || null
+         token: info?.token || user?.token || "",
+         userId: user?._id || null,
+         role: user?.isAdmin ? "admin" : (user?.role || "user")
       };
    } catch {
       return { token: "", userId: null, role: null };
@@ -66,7 +66,11 @@ export default function UnifiedChat() {
          try {
             const list = await listConversations(token);
             if (list?.length) {
-               setConversationId(list[0]._id);
+               // Chỉ lấy hội thoại không có hotelId (Hỗ trợ hệ thống)
+               const supportConv = list.find(c => !c.hotelId);
+               if (supportConv) {
+                  setConversationId(supportConv._id);
+               }
             }
          } catch { }
       })();
@@ -74,7 +78,8 @@ export default function UnifiedChat() {
 
    async function ensureConversation() {
       if (conversationId) return conversationId;
-      if (role !== "user") return null;
+      // Allow user and staff to create conversation with admin
+      if (role !== "user" && role !== "staff") return null;
 
       if (!defaultAdminId) {
          alert("Chưa cấu hình admin hỗ trợ!");
@@ -100,7 +105,8 @@ export default function UnifiedChat() {
    const handleOpen = async () => {
       setUnread(0);
 
-      if (role === "user") {
+      // Staff and User both use the normal chat window to talk to Admin
+      if (role === "user" || role === "staff") {
          const ok = await ensureConversation();
          if (!ok) return;
 
@@ -112,9 +118,9 @@ export default function UnifiedChat() {
    };
 
 
-   // Auto set real time tab for admin/staff
+   // Auto set real time tab for admin
    useEffect(() => {
-      if (role === "admin" || role === "staff") {
+      if (role === "admin") {
          setTab("realtime");
       }
    }, [role]);
@@ -148,7 +154,7 @@ export default function UnifiedChat() {
          {open && (
             <>
                {/* Backdrop overlay for admin/staff */}
-               {(role === "admin" || role === "staff") && (
+               {(role === "admin") && (
                   <div
                      className="fixed inset-0 bg-black bg-opacity-50 z-[9998]"
                      onClick={() => setOpen(false)}
@@ -157,14 +163,14 @@ export default function UnifiedChat() {
 
                {/* Modal content */}
                <div className={
-                  role === "admin" || role === "staff"
+                  role === "admin"
                      ? "fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[9999] w-[90vw] max-w-[900px] h-[80vh] max-h-[600px] bg-white shadow-2xl rounded-xl flex flex-col border"
                      : "fixed bottom-6 right-6 z-[9999] w-[360px] h-[520px] bg-white shadow-2xl rounded-xl flex flex-col border"
                }>
                   {/* Header */}
                   <div className="p-2 bg-[#003580] text-white flex justify-between items-center rounded-t-xl">
                      <span className="font-semibold ml-2">
-                        {role === "admin" || role === "staff"
+                        {role === "admin"
                            ? "Trung tâm chat hỗ trợ"
                            : "Trung tâm hỗ trợ"}
                      </span>
@@ -173,7 +179,7 @@ export default function UnifiedChat() {
                   </div>
 
                   {/* Tabs for USER ONLY */}
-                  {role !== "admin" && role !== "staff" && (
+                  {role !== "admin" && (
                      <div className="flex border-b">
                         <button
                            onClick={() => setTab("bot")}
@@ -199,7 +205,7 @@ export default function UnifiedChat() {
 
                   {/* CONTENT */}
                   <div className="flex-1 min-h-0 overflow-y-hidden flex">
-                     {role === "admin" || role === "staff" ? (
+                     {role === "admin" ? (
                         <Suspense fallback={null}>
                            <LazyAdminChatModal
                               token={token}

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Conversation = require('../models/conversation');
 const Message = require('../models/message');
 const User = require('../models/user');
+const Hotel = require('../models/hotel');
 
 function canCreateConversation(requesterRole, targetRole) {
   if (requesterRole === 'user') return ['staff', 'admin'].includes(targetRole);
@@ -12,44 +13,75 @@ function canCreateConversation(requesterRole, targetRole) {
 exports.createConversation = async (req, res) => {
   try {
     const requester = req.user;
-    const { targetUserId } = req.body;
+    const { targetUserId, hotelId } = req.body;
 
-    if (!mongoose.Types.ObjectId.isValid(targetUserId)) {
-      return res.status(400).json({ message: 'ID người dùng mục tiêu không hợp lệ' });
+    let targetUser = null;
+
+    // Trường hợp 1: Tạo hội thoại thông qua Hotel ID (User nhắn cho khách sạn)
+    if (hotelId) {
+      if (!mongoose.Types.ObjectId.isValid(hotelId)) {
+        return res.status(400).json({ message: 'ID khách sạn không hợp lệ' });
+      }
+      const hotel = await Hotel.findById(hotelId);
+      if (!hotel) {
+        return res.status(404).json({ message: 'Không tìm thấy khách sạn' });
+      }
+      // Tìm Staff qua email của khách sạn (không phân biệt hoa thường)
+      targetUser = await User.findOne({ email: { $regex: new RegExp(`^${hotel.email}$`, 'i') } });
+      if (!targetUser) {
+        return res.status(404).json({ message: 'Không tìm thấy nhân viên quản lý khách sạn này' });
+      }
+    } 
+    // Trường hợp 2: Tạo hội thoại trực tiếp qua User ID (Admin/Staff nhắn cho nhau hoặc User cũ)
+    else {
+      if (!mongoose.Types.ObjectId.isValid(targetUserId)) {
+        return res.status(400).json({ message: 'ID người dùng mục tiêu không hợp lệ' });
+      }
+      targetUser = await User.findById(targetUserId).select('role isDeleted');
     }
 
-    const target = await User.findById(targetUserId).select('role isDeleted');
-    if (!target || target.isDeleted) {
+    if (!targetUser || targetUser.isDeleted) {
       return res.status(404).json({ message: 'Không tìm thấy người dùng mục tiêu' });
     }
 
-    if (!canCreateConversation(requester.role, target.role)) {
+    if (!canCreateConversation(requester.role, targetUser.role)) {
       return res.status(403).json({ message: 'Không được phép tạo hội thoại với đối tượng này' });
     }
 
     // Tìm hội thoại mở giữa 2 người
-    let conv = await Conversation.findOne({
+    let query = {
       status: 'open',
       $and: [
         { 'participants.user': requester._id },
-        { 'participants.user': target._id },
+        { 'participants.user': targetUser._id },
       ],
-    });
+    };
+
+    // Nếu có hotelId, bắt buộc phải khớp hotelId (để tách biệt các hội thoại theo khách sạn)
+    if (hotelId) {
+      query.hotelId = hotelId;
+    } else {
+      query.hotelId = null;
+    }
+
+    let conv = await Conversation.findOne(query);
 
     if (!conv) {
       const participants = [
         { user: requester._id, role: requester.role },
-        { user: target._id, role: target.role },
+        { user: targetUser._id, role: targetUser.role },
       ];
       conv = await Conversation.create({
         participants,
         createdBy: requester._id,
-        assignedStaff: target.role === 'staff' ? target._id : null,
+        assignedStaff: targetUser.role === 'staff' ? targetUser._id : null,
+        hotelId: hotelId || null,
       });
     }
 
     const populated = await Conversation.findById(conv._id)
-      .populate('participants.user', 'name email role avatar');
+      .populate('participants.user', 'name email role avatar')
+      .populate('hotelId', 'name imageurls'); // Populate thêm thông tin khách sạn
 
     res.status(201).json(populated);
   } catch (error) {
@@ -66,9 +98,24 @@ exports.listConversations = async (req, res) => {
     if (user.role === 'user') {
       filter = { 'participants.user': user._id };
     }
+    // Nếu là staff, xem hội thoại mình tham gia HOẶC hội thoại của khách sạn mình quản lý
+    if (user.role === 'staff') {
+       // Tìm các khách sạn mà staff này quản lý (dựa theo email)
+       const hotels = await Hotel.find({ email: { $regex: new RegExp(`^${user.email}$`, 'i') } }).select('_id');
+       const hotelIds = hotels.map(h => h._id);
+
+       filter = {
+           $or: [
+               { 'participants.user': user._id },
+               { 'hotelId': { $in: hotelIds } }
+           ]
+       };
+    }
+
     const conversations = await Conversation.find(filter)
       .sort({ updatedAt: -1 })
       .populate('participants.user', 'name email role avatar')
+      .populate('hotelId', 'name imageurls')
       .lean();
 
     res.status(200).json(conversations);

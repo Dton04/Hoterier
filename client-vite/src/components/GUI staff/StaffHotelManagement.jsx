@@ -3,7 +3,7 @@ import axios from "axios";
 import { Link } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { Search, Settings, AlertCircle, Edit2 } from "lucide-react";
+import { Search, Settings, AlertCircle, Edit2, Plus } from "lucide-react";
 import { Modal } from 'antd';
 
 const StaffHotelManagement = () => {
@@ -135,6 +135,17 @@ const StaffHotelManagement = () => {
         </nav>
       </div>
 
+      {/* Nút tạo khách sạn */}
+      <div className="mb-6">
+        <Link
+          to="/staff/create-hotel"
+          className="flex items-center gap-2 w-fit px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+        >
+          <Plus size={18} />
+          Đăng ký khách sạn mới
+        </Link>
+      </div>
+
       <div className="rounded-lg border border-gray-200 bg-white px-5 pt-6 pb-4 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-800">Danh sách khách sạn ({filteredHotels.length})</h3>
@@ -156,6 +167,7 @@ const StaffHotelManagement = () => {
               <tr className="bg-gray-100 text-left">
                 <th className="py-4 px-4 font-medium text-slate-800">Khách sạn</th>
                 <th className="py-4 px-4 font-medium text-slate-800">Liên hệ</th>
+                <th className="py-4 px-4 font-medium text-slate-800 text-center">Trạng thái</th> {/* ✅ Thêm cột trạng thái */}
                 <th className="py-4 px-4 font-medium text-slate-800">Khu vực</th>
                 <th className="py-4 px-4 font-medium text-slate-800 text-center">Phòng</th>
                 <th className="py-4 px-4 font-medium text-slate-800 text-center">Hành động</th>
@@ -164,7 +176,7 @@ const StaffHotelManagement = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="py-12 text-center text-gray-500">
+                  <td colSpan="6" className="py-12 text-center text-gray-500">
                     <div className="flex justify-center items-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                       <span className="ml-3">Đang tải...</span>
@@ -173,7 +185,7 @@ const StaffHotelManagement = () => {
                 </tr>
               ) : currentHotels.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="text-center py-8 text-gray-500">
+                  <td colSpan="6" className="text-center py-8 text-gray-500">
                     <AlertCircle className="inline mr-2" size={20} />
                     Không có khách sạn nào thuộc quyền quản lý của bạn
                   </td>
@@ -198,6 +210,17 @@ const StaffHotelManagement = () => {
                     <td className="border-b border-gray-200 py-4 px-4">
                       <p className="text-sm text-slate-800">{hotel.email}</p>
                       <p className="text-sm text-gray-500">{hotel.contactNumber}</p>
+                    </td>
+                    <td className="border-b border-gray-200 py-4 px-4 text-center">
+                      {hotel.isApproved ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Đã duyệt
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          Chờ duyệt
+                        </span>
+                      )}
                     </td>
                     <td className="border-b border-gray-200 py-4 px-4">
                       <p className="text-slate-800">

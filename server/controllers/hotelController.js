@@ -18,8 +18,13 @@ exports.getAllHotels = async (req, res) => {
       return res.status(503).json({ message: 'Kết nối cơ sở dữ liệu chưa sẵn sàng' });
     }
 
-    const { region, city, district } = req.query;
+    const { region, city, district, includeUnapproved } = req.query;
     const filter = {};
+
+    // Mặc định chỉ lấy đã duyệt, trừ khi có cờ includeUnapproved (dành cho Admin)
+    if (includeUnapproved !== 'true') {
+      filter.isApproved = true;
+    }
 
     // Support both region id (ObjectId) or region name
     if (region) {
@@ -592,7 +597,7 @@ exports.getHotelsByRegion = async (req, res) => {
       return res.status(400).json({ message: 'ID khu vực không hợp lệ' });
     }
 
-    const hotels = await Hotel.find({ region: regionId })
+    const hotels = await Hotel.find({ region: regionId, isApproved: true })
       .populate('region', 'name')
       .lean();
 

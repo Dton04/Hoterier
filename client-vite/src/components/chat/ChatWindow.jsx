@@ -9,6 +9,7 @@ export default function ChatWindow({
   onClose,
   clearUnread,
   embedded, // thêm prop cho chế độ modal
+  customHeader, // thêm prop custom header
 }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -127,6 +128,7 @@ export default function ChatWindow({
       aria-label="Cửa sổ chat hỗ trợ"
     >
       {/* Header */}
+      {customHeader ? customHeader : (
       <div className="flex items-center justify-between px-3 py-2 border-b">
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 rounded-full bg-blue-600 text-white flex items-center justify-center">H</div>
@@ -147,6 +149,7 @@ export default function ChatWindow({
           </div>
         )}
       </div>
+      )}
 
       {/* Body luôn hiển thị */}
       <div className={embedded ? "flex flex-col flex-1 min-h-0" : "flex flex-col h-[calc(58vh-48px)] md:h-[calc(62vh-48px)]"}>
@@ -162,11 +165,11 @@ export default function ChatWindow({
             <div className="text-sm text-slate-500">Hãy bắt đầu cuộc trò chuyện</div>
           ) : (
             messages.map((m) => {
-              const isMe =
-                userId &&
-                (m.sender === userId ||
-                  m.sender?._id === userId ||
-                  m.sender?.toString?.() === userId);
+              let senderId = m.sender;
+              if (senderId && typeof senderId === 'object') {
+                  senderId = senderId._id || senderId;
+              }
+              const isMe = userId && String(senderId) === String(userId);
 
               return (
                 // Neo bubble theo cột: bên trái cho người khác, bên phải cho user
