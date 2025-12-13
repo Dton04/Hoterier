@@ -252,7 +252,7 @@ function Navbar() {
   };
 
   return (
-    <header className="relative top-0 left-0 w-full text-white z-[999] bg-[#003580]">
+    <header className="fixed top-0 left-0 w-full text-white z-[999] bg-[#003580] shadow-md">
 
       <div className="max-w-7xl mx-auto flex justify-between items-center px-5 py-3">
         {/* 🏨 Logo */}

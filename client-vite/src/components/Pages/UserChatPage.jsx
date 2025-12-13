@@ -71,7 +71,7 @@ export default function UserChatPage() {
                         conversations.map(c => {
                             // Determine name/avatar to show
                             const isStaff = userInfo?.user?.role === 'staff';
-                            const other = c.participants.find(p => p.user._id !== userId)?.user;
+                            const other = c.participants.find(p => p.user && p.user._id !== userId)?.user;
                             const hotel = c.hotelId;
                             
                             let displayName, displayImg;

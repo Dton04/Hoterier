@@ -27,9 +27,16 @@ exports.createConversation = async (req, res) => {
         return res.status(404).json({ message: 'Không tìm thấy khách sạn' });
       }
       // Tìm Staff qua email của khách sạn (không phân biệt hoa thường)
+      if (!hotel.email) {
+         return res.status(400).json({ message: 'Khách sạn chưa cập nhật email liên hệ' });
+      }
       targetUser = await User.findOne({ email: { $regex: new RegExp(`^${hotel.email}$`, 'i') } });
+      
+      // Nếu không tìm thấy Staff qua email, thử tìm Admin mặc định để hỗ trợ?
+      // Hoặc trả về lỗi rõ ràng hơn
       if (!targetUser) {
-        return res.status(404).json({ message: 'Không tìm thấy nhân viên quản lý khách sạn này' });
+        console.log(`[Chat] No staff found for hotel email: ${hotel.email}`);
+        return res.status(404).json({ message: `Không tìm thấy nhân viên quản lý (Email: ${hotel.email})` });
       }
     } 
     // Trường hợp 2: Tạo hội thoại trực tiếp qua User ID (Admin/Staff nhắn cho nhau hoặc User cũ)

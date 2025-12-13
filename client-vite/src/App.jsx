@@ -183,6 +183,7 @@ function App() {
             <Route path="/favorites" element={<UserRoute><Favorites /></UserRoute>} />
             <Route path="/reviews" element={<UserRoute><Review /></UserRoute>} />
             <Route path="/my-chat-history" element={<UserRoute><MyChatHistory /></UserRoute>} />
+            <Route path="/chat" element={<UserRoute><UserChatPage /></UserRoute>} />
 
             {/* Các trang hỗ trợ riêng biệt */}
             <Route path="/profile/security" element={<UserRoute><SecurityCenter /></UserRoute>} />

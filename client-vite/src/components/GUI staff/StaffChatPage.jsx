@@ -77,7 +77,7 @@ export default function StaffChatPage() {
                         </div>
                     ) : (
                         conversations.map(c => {
-                            const other = c.participants.find(p => p.user._id !== userId)?.user;
+                            const other = c.participants.find(p => p.user && p.user._id !== userId)?.user;
                             const hotel = c.hotelId;
                             const isActive = selectedId === c._id;
                             

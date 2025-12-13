@@ -61,11 +61,23 @@ export default function HotelHighlights({ hotel }) {
       toast.warn("Vui lòng đăng nhập để nhắn tin");
       return;
     }
+    if (!hotel?._id) {
+      toast.error("Không tìm thấy thông tin khách sạn");
+      return;
+    }
     try {
+      console.log("Creating conversation for hotel:", hotel._id);
       const conv = await createHotelConversation(hotel._id, userInfo.token);
-      navigate(`/chat?conversationId=${conv._id}`);
+      console.log("Conversation created:", conv);
+      if (conv && conv._id) {
+        navigate(`/chat?conversationId=${conv._id}`);
+      } else {
+        toast.error("Không thể tạo hội thoại (Dữ liệu trả về không hợp lệ)");
+      }
     } catch (error) {
-      toast.error(error.response?.data?.message || "Lỗi khi tạo hội thoại");
+      console.error("Chat creation error:", error);
+      const msg = error.response?.data?.message || error.message || "Lỗi khi tạo hội thoại";
+      toast.error(msg);
     }
   };
   return (
