@@ -136,8 +136,11 @@ exports.getReviewsByEmail = async (req, res) => {
       isDeleted: false,
       isVisible: true
     })
-      .populate("hotelId", "name")
-      .populate("roomId", "name type");
+      .populate("hotelId", "name imageurls")
+      .populate("roomId", "name type")
+      .select("hotelId roomId rating comment createdAt criteriaRatings")
+      .lean()
+      .sort({ createdAt: -1 });
 
     res.json(reviews);
   } catch (error) {

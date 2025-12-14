@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, lazy, Suspense } from "react";
 import { Input, Button, Spin, Empty } from "antd";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -7,7 +7,9 @@ import axios from "axios";
 import moment from "moment";
 import "moment/locale/vi";
 import toast from "react-hot-toast";
-import Banner from "../components/Banner";
+
+// Lazy load Banner component for better performance
+const Banner = lazy(() => import("../components/Banner"));
 
 const { TextArea } = Input;
 
@@ -44,25 +46,28 @@ const Review = () => {
       try {
         setLoading(true);
 
-        const bookingsResponse = await axios.get(`/api/bookings`, {
-          params: {
-            email: user.email,
-            status: "confirmed"
-          }
-        });
+        // Fetch both bookings and reviews in parallel for faster loading
+        const [bookingsResponse, reviewsResponse] = await Promise.all([
+          axios.get(`/api/bookings`, {
+            params: {
+              email: user.email,
+              status: "confirmed"
+            }
+          }),
+          axios.get(`/api/reviews/by-email`, {
+            params: { email: user.email }
+          })
+        ]);
 
         const confirmedAndPaidBookings = bookingsResponse.data.filter(
           (b) => b.paymentStatus === "paid" && b.status === "confirmed"
         );
 
         setPaidBookings(confirmedAndPaidBookings);
-
-        const reviewsResponse = await axios.get(`/api/reviews/by-email`, {
-          params: { email: user.email }
-        });
         setReviews(reviewsResponse.data);
 
       } catch (error) {
+        console.error("Error fetching data:", error);
         toast.error("Không thể tải dữ liệu. Vui lòng thử lại sau.");
       } finally {
         setLoading(false);
@@ -71,6 +76,13 @@ const Review = () => {
 
     fetchData();
   }, [user, navigate]);
+
+  // Memoize the list of bookings that can be reviewed (not yet reviewed)
+  const reviewableBookings = useMemo(() => {
+    return paidBookings.filter(booking =>
+      !reviews.some(review => review.hotelId?._id === booking.hotelId?._id)
+    );
+  }, [paidBookings, reviews]);
 
   const handleSubmit = async () => {
     if (!selectedHotel || rating < 1 || rating > 10) {
@@ -138,7 +150,9 @@ const Review = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="relative w-full -mt-[260px] sm:-mt-[330px]">
-        <Banner />
+        <Suspense fallback={<div className="h-[260px] sm:h-[330px]" />}>
+          <Banner />
+        </Suspense>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">

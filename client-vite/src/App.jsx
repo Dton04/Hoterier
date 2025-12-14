@@ -37,6 +37,7 @@ import HotelDetail from "./components/hoteldetail/HotelDetail";
 import Review from "./screens/Review";
 import DiscountsPage from "./screens/DiscountsPage";
 import FestivalHotels from "./screens/FestivalHotels";
+import PaymentCallback from "./screens/PaymentCallback";
 import SecurityCenter from "./components/Profile/Pages/SecurityCenter";
 import DisputeResolution from "./components/Profile/Pages/DisputeResolution";
 import ContentGuidelines from "./components/Profile/Pages/ContentGuidelines";
@@ -180,10 +181,12 @@ function App() {
             <Route path="/reviews" element={<UserRoute><Review /></UserRoute>} />
             <Route path="/my-chat-history" element={<UserRoute><MyChatHistory /></UserRoute>} />
 
-            {/* Các trang hỗ trợ riêng biệt */}
             <Route path="/profile/security" element={<UserRoute><SecurityCenter /></UserRoute>} />
             <Route path="/profile/dispute" element={<UserRoute><DisputeResolution /></UserRoute>} />
             <Route path="/profile/content-guidelines" element={<UserRoute><ContentGuidelines /></UserRoute>} />
+
+            {/* Payment callback route for VNPay and MoMo */}
+            <Route path="/payment-callback" element={<PaymentCallback />} />
           </Route>
 
 

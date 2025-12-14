@@ -9,8 +9,8 @@ const config = {
     partnerCode: process.env.MOMO_PARTNER_CODE,
     accessKey: process.env.MOMO_ACCESS_KEY,
     secretKey: process.env.MOMO_SECRET_KEY,
-    redirectUrl: process.env.MOMO_REDIRECT_URL || 'http://localhost:3000/bookings',
-    ipnUrl: process.env.MOMO_IPN_URL || 'https://your-production-ipn-url',
+    redirectUrl: process.env.MOMO_REDIRECT_URL || 'http://localhost:3000/payment-callback?type=momo',
+    ipnUrl: process.env.MOMO_IPN_URL || 'http://localhost:5000/api/momo/ipn',
     requestType: 'payWithMethod',
     autoCapture: true,
     lang: 'vi',
@@ -84,7 +84,7 @@ const createMomoPayment = async (req, res) => {
 
         // Tạo raw signature
         const rawSignature = `accessKey=${config.accessKey}&amount=${parsedAmount}&extraData=${extraData}&ipnUrl=${config.ipnUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${config.partnerCode}&redirectUrl=${config.redirectUrl}&requestId=${requestId}&requestType=${config.requestType}`;
-        
+
         // Tạo chữ ký
         const signature = crypto.createHmac('sha256', config.secretKey)
             .update(rawSignature)

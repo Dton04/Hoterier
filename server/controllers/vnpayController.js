@@ -186,6 +186,7 @@ exports.vnpayReturn = async (req, res) => {
                 // Payment successful
                 await Booking.findByIdAndUpdate(booking._id, {
                     paymentStatus: 'paid',
+                    status: 'confirmed',
                     vnpTransactionNo: vnp_Params['vnp_TransactionNo'],
                     vnpBankTranNo: vnp_Params['vnp_BankTranNo'],
                     vnpPayDate: vnp_Params['vnp_PayDate'],
@@ -196,17 +197,55 @@ exports.vnpayReturn = async (req, res) => {
                     throw err;
                 });
 
-                // Redirect to success page
-                res.redirect(`http://localhost:3000/`);
+                // Auto accumulate points after successful payment
+                try {
+                    const User = require('../models/user');
+                    const Transaction = require('../models/transaction');
+
+                    const user = await User.findOne({ email: booking.email.toLowerCase() });
+                    if (user) {
+                        // Check if transaction already exists
+                        const existingTransaction = await Transaction.findOne({ bookingId: booking._id });
+                        if (!existingTransaction) {
+                            const updatedBooking = await Booking.findById(booking._id).populate('roomid');
+                            const checkinDate = new Date(updatedBooking.checkin);
+                            const checkoutDate = new Date(updatedBooking.checkout);
+                            const days = Math.ceil((checkoutDate - checkinDate) / (1000 * 60 * 60 * 24));
+                            const totalAmount = updatedBooking.totalAmount || 0;
+                            const pointsEarned = Math.floor(totalAmount * 0.01); // 1% of total
+
+                            const transaction = new Transaction({
+                                userId: user._id,
+                                bookingId: booking._id,
+                                amount: totalAmount,
+                                points: pointsEarned,
+                                type: 'earn',
+                                status: 'completed',
+                            });
+                            await transaction.save();
+
+                            user.points = (user.points || 0) + pointsEarned;
+                            await user.save();
+                            console.log(`✅ Tích ${pointsEarned} điểm cho user ${user.email}`);
+                        }
+                    }
+                } catch (pointsError) {
+                    console.error('Lỗi khi tích điểm tự động:', pointsError);
+                    // Don't fail the payment if points accumulation fails
+                }
+
+                // Redirect to success page with payment type
+                res.redirect(`http://localhost:3000/payment-callback?type=vnpay&bookingId=${booking._id}&vnp_ResponseCode=00`);
             } else {
                 // Payment failed
                 await Booking.findByIdAndUpdate(booking._id, {
                     paymentStatus: 'canceled',
+                    status: 'canceled',
                 }).catch(err => {
                     console.error('Lỗi khi cập nhật booking thất bại:', err);
                     throw err;
                 });
-                res.redirect(`http://localhost:3000/booking-failed?bookingId=${booking._id}`);
+                res.redirect(`http://localhost:3000/payment-callback?type=vnpay&bookingId=${booking._id}&vnp_ResponseCode=${vnp_Params['vnp_ResponseCode']}`);
             }
         } else {
             res.status(400).json({ message: 'Chữ ký không hợp lệ' });

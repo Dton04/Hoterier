@@ -1229,8 +1229,8 @@ exports.getBookings = async (req, res) => {
 
     const bookings = await Booking.find(query)
       .sort({ createdAt: -1 })
-      .populate("roomid")
-      .populate("hotelId", "name address email")
+      .populate("roomid", "name type")
+      .populate("hotelId", "name address email imageurls")
       .lean();
 
     res.status(200).json(bookings);
