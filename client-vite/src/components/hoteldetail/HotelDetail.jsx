@@ -15,6 +15,7 @@ import HeaderTab from "./tabs/HeaderTab"
 import HotelHighlights from "./tabs/HotelHighlights";
 import { getSuggestedRoomCombos } from "./components/SuggestedRoomCombos";
 import BookingRecommendation from "./tabs/BookingRecommendation";
+import { io } from "socket.io-client";
 
 import Loader from "../Loader";
 
@@ -210,6 +211,28 @@ export default function HotelDetail() {
     fetchData();
   }, [id, festivalId]);
 
+  // ✅ Socket.IO listener for real-time room availability updates
+  useEffect(() => {
+    const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+    if (!userInfo?.token) return;
+
+    const socket = io("http://localhost:5000", {
+      auth: { token: userInfo.token }
+    });
+
+    socket.on("room:availability:updated", (data) => {
+      // If the update is for this hotel, refresh the data
+      if (data.hotelId === id) {
+        console.log("Room availability updated, refreshing data...", data);
+        // Re-fetch hotel and room data
+        window.location.reload(); // Simple refresh for now
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [id]);
 
   if (loading) {
     return <Loader message="Đang tải dữ liệu.." />

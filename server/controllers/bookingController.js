@@ -1069,6 +1069,17 @@ exports.cancelBooking = async (req, res) => {
 
     await session.commitTransaction();
 
+    if (global.io) {
+      global.io.emit('room:availability:updated', {
+        roomId: booking.roomid.toString(),
+        hotelId: booking.hotelId.toString(),
+        action: 'canceled',
+        checkin: booking.checkin,
+        checkout: booking.checkout,
+        roomsBooked: booking.roomsBooked || 1
+      });
+    }
+
     res.status(200).json({
       message: "Hủy đặt phòng thành công",
       booking: { _id: booking._id, status: booking.status, cancelDate: booking.cancelDate }
@@ -1082,9 +1093,6 @@ exports.cancelBooking = async (req, res) => {
   }
 };
 
-// ===============================
-// XÁC NHẬN BOOKING + AUTO TÍCH ĐIỂM
-// ===============================
 
 // PUT /api/bookings/:id/confirm - Xác nhận đặt phòng
 exports.confirmBooking = async (req, res) => {
@@ -1151,6 +1159,18 @@ exports.confirmBooking = async (req, res) => {
     }
 
     await session.commitTransaction();
+
+    // ✅ Emit socket event for real-time room availability update
+    if (global.io) {
+      global.io.emit('room:availability:updated', {
+        roomId: booking.roomid.toString(),
+        hotelId: booking.hotelId.toString(),
+        action: 'confirmed',
+        checkin: booking.checkin,
+        checkout: booking.checkout,
+        roomsBooked: booking.roomsBooked || 1
+      });
+    }
 
     // Notification
     try {

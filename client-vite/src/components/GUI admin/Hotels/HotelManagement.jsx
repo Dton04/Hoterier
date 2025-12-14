@@ -168,9 +168,8 @@ const HotelManagement = () => {
         toast.dismiss(loadingToast);
         toast.success(`Cập nhật "${formData.name}" thành công`);
       } else {
-        // Admin tạo thì tự động duyệt luôn
-        const createPayload = { ...payload, isApproved: true };
-        const { data } = await axios.post("/api/hotels", createPayload, config);
+        // Backend will auto-approve if user is admin, otherwise pending
+        const { data } = await axios.post("/api/hotels", payload, config);
         savedHotelId = data.hotel._id;
         toast.dismiss(loadingToast);
         toast.success(`Thêm khách sạn "${formData.name}" thành công`);

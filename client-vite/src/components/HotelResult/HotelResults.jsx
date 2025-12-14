@@ -232,8 +232,9 @@ const HotelResults = () => {
             );
             const services = servicesRes.data || [];
 
+            // ✅ Use discountedPrice if available (from backend festival check)
             const lowestPrice = hotel.rooms?.length
-              ? Math.min(...hotel.rooms.map((r) => r.rentperday))
+              ? Math.min(...hotel.rooms.map((r) => r.discountedPrice || r.rentperday))
               : 0;
 
             return { ...hotel, services, lowestPrice };

@@ -226,7 +226,7 @@ exports.vnpayReturn = async (req, res) => {
 
                             user.points = (user.points || 0) + pointsEarned;
                             await user.save();
-                            console.log(`✅ Tích ${pointsEarned} điểm cho user ${user.email}`);
+                            console.log(` Tích ${pointsEarned} điểm cho user ${user.email}`);
                         }
                     }
                 } catch (pointsError) {

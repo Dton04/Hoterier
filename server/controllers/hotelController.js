@@ -58,7 +58,7 @@ exports.getAllHotels = async (req, res) => {
 
 
     // Truy vấn và populate đầy đủ
-    const hotels = await Hotel.find(filter)
+    let hotels = await Hotel.find(filter)
       .populate('region', 'name')
       .populate('rooms', '_id name maxcount beds baths rentperday quantity type description imageurls availabilityStatus amenities')
       .lean();
@@ -67,6 +67,53 @@ exports.getAllHotels = async (req, res) => {
     if (!hotels || hotels.length === 0) {
       return res.status(200).json([]);
     }
+
+    // ✅ Check for active festivals and attach discount info
+    const now = new Date();
+    const activeFestivals = await Discount.find({
+      type: 'festival',
+      isDeleted: false,
+      startDate: { $lte: now },
+      endDate: { $gte: now },
+    }).lean();
+
+    // Apply festival discounts to applicable hotels
+    hotels = hotels.map(hotel => {
+      // Find if this hotel is in any active festival
+      const applicableFestival = activeFestivals.find(festival =>
+        festival.applicableHotels?.some(hotelId =>
+          hotelId.toString() === hotel._id.toString()
+        )
+      );
+
+      if (applicableFestival && hotel.rooms) {
+        // Calculate discounted prices for all rooms
+        hotel.rooms = hotel.rooms.map(room => {
+          let discountedPrice;
+          if (applicableFestival.discountType === 'percentage') {
+            discountedPrice = Math.round(room.rentperday * (1 - applicableFestival.discountValue / 100));
+          } else {
+            discountedPrice = Math.max(0, room.rentperday - applicableFestival.discountValue);
+          }
+
+          return {
+            ...room,
+            discountedPrice,
+            festivalDiscount: room.rentperday - discountedPrice,
+          };
+        });
+
+        // Attach festival info to hotel
+        hotel.festival = {
+          _id: applicableFestival._id,
+          name: applicableFestival.name,
+          discountType: applicableFestival.discountType,
+          discountValue: applicableFestival.discountValue,
+        };
+      }
+
+      return hotel;
+    });
 
     res.status(200).json(hotels);
   } catch (error) {
@@ -326,6 +373,8 @@ exports.createHotel = async (req, res) => {
       return res.status(400).json({ message: 'Tên khách sạn đã tồn tại' });
     }
 
+    const isApproved = req.user && req.user.role === 'admin' ? true : false;
+
     const hotel = new Hotel({
       name,
       address,
@@ -336,6 +385,7 @@ exports.createHotel = async (req, res) => {
       rooms: rooms || [],
       district: district || null,
       starRating: starRating || 3,
+      isApproved,
     });
 
     const savedHotel = await hotel.save();
@@ -349,7 +399,7 @@ exports.createHotel = async (req, res) => {
 // PUT /api/hotels/:id - Cập nhật thông tin khách sạn
 exports.updateHotel = async (req, res) => {
   const { id } = req.params;
-  const { name, address, region, district, contactNumber, email, description, rooms, starRating } = req.body;
+  const { name, address, region, district, contactNumber, email, description, rooms, starRating, isApproved } = req.body;
 
   try {
     if (mongoose.connection.readyState !== 1) {
@@ -358,6 +408,21 @@ exports.updateHotel = async (req, res) => {
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: 'ID khách sạn không hợp lệ' });
+    }
+
+    if (typeof isApproved === 'boolean' && req.user?.isAdmin) {
+      const hotel = await Hotel.findById(id);
+      if (!hotel) {
+        return res.status(404).json({ message: 'Không tìm thấy khách sạn' });
+      }
+
+      hotel.isApproved = isApproved;
+      await hotel.save();
+
+      return res.status(200).json({
+        message: 'Duyệt khách sạn thành công',
+        hotel,
+      });
     }
 
     if (!name || !address || !region || !contactNumber || !email) {
