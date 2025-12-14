@@ -1,7 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-// ✅ ĐÃ CẬP NHẬT: Bỏ FiTable, thêm FiMapPin và FiBell
-import { FiGrid, FiFileText, FiMapPin, FiUsers, FiStar, FiTag, FiServer, FiHome, FiRotateCcw, FiBell } from 'react-icons/fi';
+import { FiGrid, FiFileText, FiMapPin, FiUsers, FiStar, FiTag, FiServer, FiHome, FiRotateCcw, FiBell, FiCheckCircle, FiMessageSquare } from 'react-icons/fi';
 
 const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const location = useLocation();
@@ -23,6 +22,7 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { label: "Đặt phòng", icon: <FiFileText />, path: "/admin/bookings" },
     { label: "Người dùng & NV", icon: <FiUsers />, path: "/admin/users" },
     { label: "Khách sạn", icon: <FiHome />, path: "/admin/hotels" },
+    { label: "Duyệt khách sạn", icon: <FiCheckCircle />, path: "/admin/approve-hotels" }, // ✅ Đã thêm lại
     { label: "Dịch vụ khách sạn (chung)", icon: <FiServer />, path: "/admin/hotel-services" },
     { label: "Dịch vụ khách sạn", icon: <FiServer />, path: "/admin/services" },
     { label: "Tiện nghi phòng", icon: <FiRotateCcw />, path: "/admin/amenities" },
@@ -36,7 +36,9 @@ const AdminSidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const menuItemsStaff = [
     { label: "Dashboard", icon: <FiGrid />, path: `${basePath}/dashboard` },
     { label: "Khách sạn", icon: <FiHome />, path: `${basePath}/hotels` },
+    // { label: "Tạo khách sạn", icon: <FiPlusSquare />, path: `${basePath}/create-hotel` }, // Ẩn khỏi sidebar
     { label: "Đặt phòng", icon: <FiFileText />, path: `${basePath}/bookings` },
+    { label: "Tin nhắn", icon: <FiMessageSquare />, path: `${basePath}/chat` },
   ];
 
   const menuItems = role === 'admin' ? menuItemsAdmin : menuItemsStaff;

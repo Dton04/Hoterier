@@ -50,10 +50,13 @@ import StaffDashboard from "./components/GUI staff/StaffDashboard";
 import StaffHotelManagement from "./components/GUI staff/StaffHotelManagement";
 import StaffHotelRoomManagement from "./components/GUI staff/StaffHotelRoomManagement";
 import StaffBookings from "./components/GUI staff/StaffBookings";
+import StaffCreateHotel from "./components/GUI staff/StaffCreateHotel"; // ✅ Import Mới
+import StaffChatPage from "./components/GUI staff/StaffChatPage"; // ✅ Import StaffChatPage
 import UserStaffManagement from "./components/GUI admin/Users/UserStaffManagement";
 
 import AdminBookings from "./components/GUI admin/Bookings/AdminBookings";
 import HotelManagement from "./components/GUI admin/Hotels/HotelManagement";
+import AdminApproveHotel from "./components/GUI admin/Hotels/AdminApproveHotel"; // ✅ Import Mới
 import HotelRoomManagement from "./components/GUI admin/Hotels/HotelRoomManagement";
 import ServiceManagement from "./components/GUI admin/Hotels/ServiceManagement";
 import AdminDiscounts from "./components/GUI admin/Discounts/AdminDiscounts";
@@ -65,6 +68,7 @@ import HotelServiceManagement from "./components/GUI admin/Hotels/HotelServiceMa
 import AdminNotifications from "./components/GUI admin/Notifications/AdminNotifications";
 import ChatHistoryAdmin from "./components/GUI admin/Chats/ChatHistoryAdmin";
 import MyChatHistory from "./components/Pages/MyChatHistory";
+import UserChatPage from "./components/Pages/UserChatPage";
 
 
 
@@ -180,6 +184,7 @@ function App() {
             <Route path="/favorites" element={<UserRoute><Favorites /></UserRoute>} />
             <Route path="/reviews" element={<UserRoute><Review /></UserRoute>} />
             <Route path="/my-chat-history" element={<UserRoute><MyChatHistory /></UserRoute>} />
+            <Route path="/chat" element={<UserRoute><UserChatPage /></UserRoute>} />
 
             <Route path="/profile/security" element={<UserRoute><SecurityCenter /></UserRoute>} />
             <Route path="/profile/dispute" element={<UserRoute><DisputeResolution /></UserRoute>} />
@@ -199,6 +204,7 @@ function App() {
 
             <Route path="bookings" element={<AdminBookings />} />
             <Route path="hotels" element={<HotelManagement />} />
+            <Route path="approve-hotels" element={<AdminApproveHotel />} /> {/* ✅ Route Mới */}
             <Route path="hotel/:hotelId/rooms" element={<HotelRoomManagement />} />
             <Route path="hotel-services" element={<HotelServiceManagement />} />
             <Route path="services" element={<ServiceManagement />} />
@@ -222,8 +228,10 @@ function App() {
             <Route index element={<StaffDashboard />} />
             <Route path="dashboard" element={<StaffDashboard />} />
             <Route path="hotels" element={<StaffHotelManagement />} />
+            <Route path="create-hotel" element={<StaffCreateHotel />} /> {/* ✅ Route Mới */}
             <Route path="hotel/:hotelId/rooms" element={<StaffHotelRoomManagement />} />
             <Route path="bookings" element={<StaffBookings />} />
+            <Route path="chat" element={<StaffChatPage />} />
           </Route>
 
 

@@ -252,7 +252,7 @@ function Navbar() {
   };
 
   return (
-    <header className="relative top-0 left-0 w-full text-white z-[999] bg-[#003580]">
+    <header className="fixed top-0 left-0 w-full text-white z-[999] bg-[#003580] shadow-md">
 
       <div className="max-w-7xl mx-auto flex justify-between items-center px-5 py-3">
         {/* 🏨 Logo */}
@@ -465,8 +465,18 @@ function Navbar() {
                           onClick={closeNav}
                           className="block px-4 py-2 hover:bg-gray-100"
                         >
-                          <i className="fas fa-heart mr-2 text-red-500"></i>
+                          <i className="fas fa-star mr-2 text-orange-500"></i>
                           Đánh giá của tôi
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          to="/chat"
+                          onClick={closeNav}
+                          className="block px-4 py-2 hover:bg-gray-100"
+                        >
+                          <i className="fas fa-comment-dots mr-2 text-blue-500"></i>
+                          Tin nhắn của tôi
                         </Link>
                       </li>
                       <li>

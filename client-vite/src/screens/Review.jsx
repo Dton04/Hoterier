@@ -75,7 +75,7 @@ const Review = () => {
     };
 
     fetchData();
-  }, [user, navigate]);
+  }, [user?.email, navigate]);
 
   // Memoize the list of bookings that can be reviewed (not yet reviewed)
   const reviewableBookings = useMemo(() => {
@@ -168,7 +168,7 @@ const Review = () => {
                       ? user.avatar.startsWith("http")
                         ? user.avatar
                         : `http://localhost:5000/${user.avatar.replace(/^\/+/, "")}`
-                      : "https://cf.bstatic.com/static/img/theme-index/default-avatar.svg"
+                      : "http://localhost:5000/Uploads/default-avt.jpg"
                   }
                   alt={user.name}
                   className="w-20 h-20 rounded-full object-cover mb-3 border-2 border-blue-200"
