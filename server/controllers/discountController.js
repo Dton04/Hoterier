@@ -14,12 +14,13 @@ const createDiscount = async (req, res) => {
       discountValue,
       startDate,
       endDate,
+      image,
       usageLimit,
       applicableHotels,
       type,
       code,
-      minBookingAmount,   // ✔ đúng field model
-      maxDiscount,        // ✔ đúng field model
+      minBookingAmount,
+      maxDiscount,
       isPublic,
       isStackable,
       targetUserSegments,
@@ -32,6 +33,7 @@ const createDiscount = async (req, res) => {
       discountValue,
       startDate,
       endDate,
+      image,
       usageLimit,
       applicableHotels,
       type,
@@ -66,6 +68,7 @@ const updateDiscount = async (req, res) => {
       discountValue,
       startDate,
       endDate,
+      image,
       usageLimit,
       applicableHotels,
       type,
@@ -87,6 +90,7 @@ const updateDiscount = async (req, res) => {
       discount.discountValue = discountValue || discount.discountValue;
       discount.startDate = startDate || discount.startDate;
       discount.endDate = endDate || discount.endDate;
+      discount.image = image || discount.image;
       discount.usageLimit = usageLimit || discount.usageLimit;
       discount.applicableHotels = applicableHotels || discount.applicableHotels;
       discount.type = type || discount.type;

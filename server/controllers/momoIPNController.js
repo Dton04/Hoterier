@@ -1,8 +1,7 @@
 const crypto = require('crypto');
 const Booking = require('../models/booking');
 
-// MoMo IPN (Instant Payment Notification) handler
-// This is called by MoMo server after payment is processed
+
 exports.momoIPN = async (req, res) => {
    try {
       console.log('MoMo IPN received:', req.body);

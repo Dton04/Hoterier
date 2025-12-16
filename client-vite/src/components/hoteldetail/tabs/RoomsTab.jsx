@@ -301,7 +301,6 @@ export default function RoomsTab({ rooms = [], onRoomSelected, hotel = {} }) {
           <tbody>
             {rooms.map((room) => {
 
-              console.log("ROOM:", room.name, "dailyInventory:", room.dailyInventory);
               return (
                 <tr
                   id={`room-row-${room._id}`}
