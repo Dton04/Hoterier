@@ -69,6 +69,7 @@ import AdminNotifications from "./components/GUI admin/Notifications/AdminNotifi
 import ChatHistoryAdmin from "./components/GUI admin/Chats/ChatHistoryAdmin";
 import MyChatHistory from "./components/Pages/MyChatHistory";
 import UserChatPage from "./components/Pages/UserChatPage";
+import ScrollToTop from "./components/ScrollToTop";
 
 
 
@@ -151,7 +152,9 @@ function App() {
         }}
       />
       <Router>
+        <ScrollToTop />
         <Routes>
+
           {/* === CÁC ROUTE CỦA NGƯỜI DÙNG === */}
           {/* Các route này sẽ tự động có Navbar và Footer */}
           <Route element={<UserLayout />}>

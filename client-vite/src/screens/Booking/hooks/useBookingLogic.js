@@ -261,15 +261,25 @@ export default function useBookingLogic({ roomid, navigate, initialData }) {
           roomFromState.maxcount = realRoom.maxcount;
           roomFromState.quantity = realRoom.quantity;
           roomFromState.type = realRoom.type;
+
+          // ✅ FIX: Always fetch and attach hotel data with imageurls
+          if (realRoom.hotel) {
+            roomFromState.hotel = realRoom.hotel;
+            roomFromState.hotelId = realRoom.hotel._id;
+          }
         } catch (err) {
           console.error("LỖI KHI LẤY MAXCOUNT:", err);
         }
-        // Ensure we have hotel data
+
+        // Fallback: Ensure we have hotel data if not already set
         if (!roomFromState.hotel && !roomFromState.hotelId) {
-          // Fetch minimal hotel info if needed
-          const { data } = await axios.post("/api/rooms/getroombyid", { roomid });
-          roomFromState.hotel = data.hotel;
-          roomFromState.hotelId = data.hotel?._id;
+          try {
+            const { data } = await axios.post("/api/rooms/getroombyid", { roomid });
+            roomFromState.hotel = data.hotel;
+            roomFromState.hotelId = data.hotel?._id;
+          } catch (err) {
+            console.error("LỖI KHI LẤY HOTEL DATA:", err);
+          }
         }
 
         // Set originalRentperday if not already set
