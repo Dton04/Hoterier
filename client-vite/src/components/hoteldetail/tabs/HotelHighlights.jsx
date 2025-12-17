@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { Star, Car, Heart, MapPin, Building } from "lucide-react";
+import { Star, Car, Heart, MapPin, Building, MessageCircle } from "lucide-react";
 import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
+import { createHotelConversation } from "../../../utils/chatApi";
 
 export default function HotelHighlights({ hotel }) {
   const [isFavorite, setIsFavorite] = useState(false);
   const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+  const navigate = useNavigate();
   const config = {
     headers: { Authorization: `Bearer ${userInfo?.token}` },
   };
@@ -53,7 +56,30 @@ export default function HotelHighlights({ hotel }) {
       toast.warn("Không tìm thấy phần Thông tin & Giá phòng");
     }
   };
-
+  const handleChat = async () => {
+    if (!userInfo) {
+      toast.warn("Vui lòng đăng nhập để nhắn tin");
+      return;
+    }
+    if (!hotel?._id) {
+      toast.error("Không tìm thấy thông tin khách sạn");
+      return;
+    }
+    try {
+      console.log("Creating conversation for hotel:", hotel._id);
+      const conv = await createHotelConversation(hotel._id, userInfo.token);
+      console.log("Conversation created:", conv);
+      if (conv && conv._id) {
+        navigate(`/chat?conversationId=${conv._id}`);
+      } else {
+        toast.error("Không thể tạo hội thoại (Dữ liệu trả về không hợp lệ)");
+      }
+    } catch (error) {
+      console.error("Chat creation error:", error);
+      const msg = error.response?.data?.message || error.message || "Lỗi khi tạo hội thoại";
+      toast.error(msg);
+    }
+  };
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm max-w-md w-full">
       {/* Tiêu đề */}
@@ -97,6 +123,13 @@ export default function HotelHighlights({ hotel }) {
           className="px-5 py-2.5 bg-[#0071c2] hover:bg-[#004999] text-white rounded-lg text-sm font-medium transition shadow-sm"
         >
           Đặt ngay
+        </button>
+        <button
+          onClick={handleChat}
+          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition shadow-sm"
+        >
+          <MessageCircle className="w-4 h-4" />
+          Nhắn tin
         </button>
 
         <button

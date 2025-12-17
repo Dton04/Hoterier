@@ -13,6 +13,15 @@ const nodemailer = require('nodemailer');
 
 const generateToken = require('../utils/generateToken');
 
+const cloudinary = require('cloudinary').v2;
+const fs = require('fs');
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
 // Gửi OTP qua Gmail
 const sendOTPEmail = async (email, otp) => {
   const transporter = nodemailer.createTransport({
@@ -473,12 +482,12 @@ exports.getAllUsers = async (req, res) => {
   try {
     let filter = { isDeleted: false };
 
-    // ✅ Nếu là staff → chỉ thấy user
+    //Nếu là staff → chỉ thấy user
     if (req.user.role === "staff") {
       filter.role = "user";
     }
 
-    // ✅ Nếu là admin → chỉ thấy user + staff (ẩn admin khác)
+    //Nếu là admin → chỉ thấy user + staff (ẩn admin khác)
     if (req.user.role === "admin") {
       filter.role = { $in: ["user", "staff"] };
     }
@@ -661,9 +670,44 @@ exports.updateUserProfile = async (req, res) => {
       name: req.body.name || user.name,
       phone: req.body.phone || user.phone,
     };
-    if (req.file) {
-      updates.avatar = req.file.path.replace(/\\/g, "/");
+
+    // Handle complex fields (parse JSON if sent as string via FormData)
+    if (req.body.companions) {
+      try {
+        updates.companions = typeof req.body.companions === 'string' ? JSON.parse(req.body.companions) : req.body.companions;
+      } catch (e) { console.error("Error parsing companions", e); }
     }
+    if (req.body.settings) {
+      try {
+        updates.settings = typeof req.body.settings === 'string' ? JSON.parse(req.body.settings) : req.body.settings;
+      } catch (e) { console.error("Error parsing settings", e); }
+    }
+    if (req.body.paymentMethods) {
+      try {
+        updates.paymentMethods = typeof req.body.paymentMethods === 'string' ? JSON.parse(req.body.paymentMethods) : req.body.paymentMethods;
+      } catch (e) { console.error("Error parsing paymentMethods", e); }
+    }
+    if (req.body.privacySettings) {
+      try {
+        updates.privacySettings = typeof req.body.privacySettings === 'string' ? JSON.parse(req.body.privacySettings) : req.body.privacySettings;
+      } catch (e) { console.error("Error parsing privacySettings", e); }
+    }
+
+    // Upload avatar lên Cloudinary
+    if (req.file) {
+      const uploadResult = await cloudinary.uploader.upload(req.file.path, {
+        folder: 'users',
+        public_id: `${user._id}_avatar_${Date.now()}`,
+      });
+
+      updates.avatar = uploadResult.secure_url;
+
+      // Xóa file tạm
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.error("Lỗi xóa file avatar tạm:", err);
+      });
+    }
+
 
     const updatedUser = await User.findByIdAndUpdate(userId, updates, { new: true }).select('-password');
     res.json(updatedUser);

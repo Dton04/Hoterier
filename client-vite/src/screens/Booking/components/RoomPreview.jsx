@@ -1,7 +1,6 @@
-// RoomPreview.jsx - Booking.com style with multi-room support
+import { Calendar, Moon, Users, Tag, TrendingDown, DollarSign, Info, } from "lucide-react";
 
 export default function RoomPreview({ room, roomsNeeded, getValues, isMultiRoom, selectedRooms }) {
-
 
   if (!room) return null;
 
@@ -15,15 +14,12 @@ export default function RoomPreview({ room, roomsNeeded, getValues, isMultiRoom,
   // Lấy giá gốc
   const originalDailyRate = room.originalRentperday || room.rentperday;
   const festivalDiscountPerDay = room.festivalDiscountPerDay || 0;
-  
+
   // Tính giá sau giảm
   const priceAfterFestival = Math.max(0, originalDailyRate - festivalDiscountPerDay);
   const totalBeforeVoucher = priceAfterFestival * days * roomsNeeded;
 
- 
-
   const hasDiscount = festivalDiscountPerDay > 0;
-
 
   // Nếu multi-room, tính tổng tiền từ tất cả phòng
   let multiRoomTotal = 0;
@@ -36,25 +32,31 @@ export default function RoomPreview({ room, roomsNeeded, getValues, isMultiRoom,
 
   return (
     <div className="mt-6 bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-  
-     
-
       {/* Content Section */}
-      <div className="p-4 md:p-5">
+      <div className="p-5">
         {/* Booking Info */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-          <div className="grid grid-cols-3 gap-3 text-sm">
-            <div>
-              <p className="text-gray-600 text-xs uppercase font-semibold">Nhận phòng</p>
-              <p className="font-semibold text-gray-800">{checkin.toLocaleDateString("vi-VN")}</p>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <div className="grid grid-cols-3 gap-4 text-sm">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-1 text-gray-600 text-xs font-semibold mb-1">
+                <Calendar className="w-4 h-4" />
+                <span>CHECKIN</span>
+              </div>
+              <p className="font-bold text-gray-900">{checkin.toLocaleDateString("vi-VN")}</p>
             </div>
-            <div>
-              <p className="text-gray-600 text-xs uppercase font-semibold">Trả phòng</p>
-              <p className="font-semibold text-gray-800">{checkout.toLocaleDateString("vi-VN")}</p>
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-1 text-gray-600 text-xs font-semibold mb-1">
+                <Calendar className="w-4 h-4" />
+                <span>CHECKOUT</span>
+              </div>
+              <p className="font-bold text-gray-900">{checkout.toLocaleDateString("vi-VN")}</p>
             </div>
-            <div>
-              <p className="text-gray-600 text-xs uppercase font-semibold">Số đêm</p>
-              <p className="font-semibold text-gray-800">{days} đêm</p>
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-1 text-gray-600 text-xs font-semibold mb-1">
+                <Moon className="w-4 h-4" />
+                <span>SỐ ĐÊM</span>
+              </div>
+              <p className="font-bold text-gray-900">{days} đêm</p>
             </div>
           </div>
         </div>
@@ -63,8 +65,9 @@ export default function RoomPreview({ room, roomsNeeded, getValues, isMultiRoom,
         {isMultiRoom && selectedRooms && selectedRooms.length > 0 ? (
           // Multi-room view
           <div className="space-y-3 mb-4">
-            <h3 className="text-lg font-bold text-gray-900 mb-3">
-              📋 Các phòng đã chọn ({selectedRooms.length})
+            <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+              <Users className="w-5 h-5 text-blue-600" />
+              Các phòng đã chọn ({selectedRooms.length})
             </h3>
             {selectedRooms.map((selectedRoom, index) => {
               const roomPrice = Math.max(0, (selectedRoom.rentperday || 0) - (selectedRoom.festivalDiscountPerDay || 0));
@@ -84,7 +87,7 @@ export default function RoomPreview({ room, roomsNeeded, getValues, isMultiRoom,
                           <p className="text-sm text-gray-500 line-through">
                             {(selectedRoom.rentperday || 0).toLocaleString()} VND
                           </p>
-                          <p className="font-semibold text-red-600">
+                          <p className="font-semibold text-green-600">
                             {roomPrice.toLocaleString()} VND
                           </p>
                         </>
@@ -112,23 +115,29 @@ export default function RoomPreview({ room, roomsNeeded, getValues, isMultiRoom,
 
             {/* Quantity Info */}
             <div className="mb-4 pb-4 border-b border-gray-200">
-              <p className="text-gray-700">
-                <span className="font-semibold">Số phòng đặt:</span>{" "}
-                <span className="text-blue-600 font-bold text-lg">{roomsNeeded} phòng</span>
-              </p>
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-600" />
+                <p className="text-gray-700">
+                  <span className="font-semibold">Số phòng đặt:</span>{" "}
+                  <span className="text-blue-600 font-bold text-lg">{roomsNeeded} phòng</span>
+                </p>
+              </div>
             </div>
 
             {/* Price Section */}
             <div className="space-y-2 mb-4">
               <div className="flex justify-between items-end">
-                <span className="text-gray-600">Giá mỗi đêm:</span>
+                <div className="flex items-center gap-2">
+                  <Tag className="w-4 h-4 text-gray-600" />
+                  <span className="text-gray-600">Giá mỗi đêm:</span>
+                </div>
                 <div className="text-right">
                   {hasDiscount ? (
                     <>
                       <span className="text-sm text-gray-500 line-through block">
                         {originalDailyRate.toLocaleString()} VND
                       </span>
-                      <span className="text-xl font-bold text-red-600">
+                      <span className="text-xl font-bold text-green-600">
                         {priceAfterFestival.toLocaleString()} VND
                       </span>
                     </>
@@ -141,18 +150,20 @@ export default function RoomPreview({ room, roomsNeeded, getValues, isMultiRoom,
               </div>
 
               {hasDiscount && (
-                <p className="text-sm text-green-600 font-semibold">
-                  💰 Tiết kiệm {festivalDiscountPerDay.toLocaleString()} VND/đêm
-                </p>
+                <div className="flex items-center gap-1 text-sm text-green-600 font-semibold justify-end">
+                  <TrendingDown className="w-4 h-4" />
+                  <span>Tiết kiệm {festivalDiscountPerDay.toLocaleString()} VND/đêm</span>
+                </div>
               )}
             </div>
           </>
         )}
 
         {/* Total Section */}
-        <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-gray-700 text-sm">
+            <span className="text-gray-700 text-sm flex items-center gap-1">
+              <DollarSign className="w-4 h-4" />
               {isMultiRoom && selectedRooms ? (
                 "Tổng cộng tất cả phòng"
               ) : (
@@ -161,18 +172,21 @@ export default function RoomPreview({ room, roomsNeeded, getValues, isMultiRoom,
             </span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-gray-600 font-semibold">Tổng (chưa voucher/dịch vụ):</span>
-            <span className="text-3xl font-bold text-blue-600">
-              {isMultiRoom ? multiRoomTotal.toLocaleString() : totalBeforeVoucher.toLocaleString()}
+            <span className="text-gray-700 font-semibold">Tổng (chưa voucher/dịch vụ):</span>
+            <span className="text-2xl font-bold text-blue-600">
+              {isMultiRoom ? multiRoomTotal.toLocaleString() : totalBeforeVoucher.toLocaleString()} VND
             </span>
           </div>
-          <p className="text-xs text-gray-500 mt-1">VND</p>
         </div>
 
         {/* Info Note */}
-        <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
-          ℹ️ Giá này chưa bao gồm voucher và dịch vụ thêm. Sẽ được cập nhật ở bước thanh toán.
+        <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800 flex items-center gap-2">
+          <Info className="w-4 h-4 flex-shrink-0" />
+          <span>
+            Giá này chưa bao gồm voucher và dịch vụ thêm. Sẽ được cập nhật ở bước thanh toán.
+          </span>
         </div>
+
       </div>
     </div>
   );

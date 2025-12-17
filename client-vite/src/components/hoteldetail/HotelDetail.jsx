@@ -15,6 +15,7 @@ import HeaderTab from "./tabs/HeaderTab"
 import HotelHighlights from "./tabs/HotelHighlights";
 import { getSuggestedRoomCombos } from "./components/SuggestedRoomCombos";
 import BookingRecommendation from "./tabs/BookingRecommendation";
+import { io } from "socket.io-client";
 
 import Loader from "../Loader";
 
@@ -43,7 +44,7 @@ export default function HotelDetail() {
   const festivalId = searchParams.get("festivalId");
 
 
-  
+
   const autoAllocateRooms = (rooms, totalGuests) => {
     if (!rooms?.length) return null;
 
@@ -152,7 +153,6 @@ export default function HotelDetail() {
           axios.get(`/api/hotels/${id}`, {
             params: { festivalId },
           }),
-
           axios.get(`/api/amenities`),
           axios.get(`/api/services/hotel/${id}`),
           axios.get(`/api/reviews?hotelId=${id}`),
@@ -160,10 +160,41 @@ export default function HotelDetail() {
           axios.get(`/api/discounts`),
         ]);
 
-        setHotel(hotelRes.data.hotel || hotelRes.data);
-        setRooms(hotelRes.data.rooms || []);
+        //Lưu thông tin khách sạn
+        const hotelData = hotelRes.data.hotel || hotelRes.data;
+        setHotel(hotelData);
+
+        //Lấy FULL danh sách phòng (có dailyInventory, currentbookings,…)
+        const allRoomsRes = await axios.get("/api/rooms/getallrooms");
+
+        //Lọc những phòng thuộc khách sạn hiện tại
+        const fullRooms = allRoomsRes.data
+          .filter((r) => {
+            const hotelIdStr =
+              typeof r.hotelId === "object" && r.hotelId !== null
+                ? r.hotelId._id
+                : r.hotelId;
+            return String(hotelIdStr) === String(id);
+          })
+          .map((room) => {
+            // Tìm phòng tương ứng trong danh sách hotel.rooms đang có discountedPrice
+            const discountedRoom =
+              hotelData.rooms?.find((hRoom) => hRoom._id === room._id);
+
+            return {
+              ...room,
+              discountedPrice: discountedRoom?.discountedPrice ?? null,
+            };
+          });
+
+        setRooms(fullRooms);
+
+
+        //Các dữ liệu khác giữ nguyên
         const amenityNames = Array.isArray(amenityRes.data)
-          ? amenityRes.data.map((a) => (typeof a === "string" ? a : a?.name)).filter(Boolean)
+          ? amenityRes.data
+            .map((a) => (typeof a === "string" ? a : a?.name))
+            .filter(Boolean)
           : [];
         setAmenities(amenityNames);
         setServices(serviceRes.data);
@@ -172,12 +203,35 @@ export default function HotelDetail() {
         setDiscounts(discountRes.data);
       } catch (err) {
         console.error("Lỗi khi tải dữ liệu:", err);
-
       } finally {
         setLoading(false);
       }
     }
+
     fetchData();
+  }, [id, festivalId]);
+
+  // ✅ Socket.IO listener for real-time room availability updates
+  useEffect(() => {
+    const userInfo = JSON.parse(localStorage.getItem("userInfo"));
+    if (!userInfo?.token) return;
+
+    const socket = io("http://localhost:5000", {
+      auth: { token: userInfo.token }
+    });
+
+    socket.on("room:availability:updated", (data) => {
+      // If the update is for this hotel, refresh the data
+      if (data.hotelId === id) {
+        console.log("Room availability updated, refreshing data...", data);
+        // Re-fetch hotel and room data
+        window.location.reload(); // Simple refresh for now
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, [id]);
 
   if (loading) {
@@ -225,14 +279,15 @@ export default function HotelDetail() {
         {/* BookingForm (Desktop & Tablet) */}
         <div
           className="
-          hidden sm:block
-          absolute left-1/2 -translate-x-1/2 bottom-[-30px] 
-          w-full max-w-6xl px-4 sm:px-6
-          z-30
-        "
+  hidden sm:block
+  absolute left-1/2 -translate-x-1/2 bottom-[-30px] 
+  w-full max-w-6xl px-4 sm:px-6
+  z-[60]
+"
         >
           <BookingForm />
         </div>
+
       </div>
       <div className="p-5">
         <HeaderTab hotel={hotel} />
@@ -339,9 +394,9 @@ export default function HotelDetail() {
                     </p>
                     <button
                       onClick={() => setShowMoreDesc((s) => !s)}
-                      className="mt-2 text-blue-600 hover:underline text-sm"
+                      className="mt-2 ml-2 text-blue-600 hover:underline text-sm border border-blue-600 px-2 py-2 rounded-md"
                     >
-                      {showMoreDesc ? "Thu gọn" : "Xem thêm"}
+                      {showMoreDesc ? "Thu gọn" : "Tôi muốn xem thêm"}
                     </button>
                   </>
                 ) : (

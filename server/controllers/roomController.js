@@ -6,6 +6,38 @@ const Hotel = require("../models/hotel");
 const fs = require('fs');
 const path = require('path');
 const Amenity = require("../models/amenity");
+const cloudinary = require('cloudinary').v2;
+
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// ===== HELPER: Format ngày theo LOCAL timezone (không dùng UTC) =====
+function formatLocalDate(date) {
+  const d = new Date(date);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// Hàm khởi tạo tồn kho theo ngày (5 phòng/ngày mặc định)
+function getOrInitInventory(room, dayStr) {
+  let daily = room.dailyInventory.find(d => d.date === dayStr);
+
+  // Nếu chưa có tồn kho ngày → tạo mới với quantity gốc của phòng
+  if (!daily) {
+    daily = { date: dayStr, quantity: room.quantity };
+    room.dailyInventory.push(daily);
+  }
+
+  return daily;
+}
+
+
 
 // GET /api/rooms/getallrooms - Lấy tất cả phòng
 exports.getAllRooms = async (req, res) => {
@@ -49,6 +81,8 @@ exports.getRoomById = async (req, res) => {
     }
 
     room.availabilityStatus = room.quantity > 0 ? "available" : "unavailable";
+    room.dailyInventory = room.dailyInventory || [];
+
     // Đưa hotelId thành field "hotel" để FE dễ dùng
     if (room.hotelId) {
       room.hotel = {
@@ -188,7 +222,7 @@ exports.updateRoom = async (req, res) => {
   }
 };
 
-// BE4.21 POST /api/rooms/:id/images - Tải ảnh phòng
+// BE4.21 POST /api/rooms/:id/images - Tải ảnh phòng lên CLOUDINARY
 exports.uploadRoomImages = async (req, res) => {
   const { id } = req.params;
 
@@ -210,8 +244,26 @@ exports.uploadRoomImages = async (req, res) => {
       return res.status(400).json({ message: "Vui lòng cung cấp ít nhất một ảnh" });
     }
 
-    const newImages = req.files.map(file => `${req.protocol}://${req.get('host')}/Uploads/${file.filename}`);
-    room.imageurls = [...room.imageurls, ...newImages];
+    // Upload từng file lên Cloudinary
+    const uploadPromises = req.files.map(file => {
+      return cloudinary.uploader.upload(file.path, {
+        folder: 'rooms',
+        public_id: `${room._id}_${Date.now()}`, // Tên file unique
+      });
+    });
+
+    const results = await Promise.all(uploadPromises);
+    const newImageUrls = results.map(result => result.secure_url); // HTTPS URL
+
+    // Xóa file tạm trên server
+    req.files.forEach(file => {
+      fs.unlink(file.path, err => {
+        if (err) console.error("Lỗi xóa file tạm:", err);
+      });
+    });
+
+    // Cập nhật imageurls của phòng
+    room.imageurls = [...(room.imageurls || []), ...newImageUrls];
     const updatedRoom = await room.save();
 
     res.status(201).json({ message: "Tải ảnh phòng thành công", room: updatedRoom });
@@ -388,16 +440,16 @@ exports.removeAmenityFromRoom = async (req, res) => {
   }
 };
 
-
 exports.checkAvailability = async (req, res) => {
   try {
-    const { roomid, checkin, checkout, roomsNeeded } = req.body;
+    const { roomid, checkin, checkout, roomsNeeded = 1 } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(roomid)) {
       return res.status(400).json({ message: "ID phòng không hợp lệ" });
     }
 
-    const room = await Room.findById(roomid).lean();
+    // Lấy cả dailyInventory từ DB
+    const room = await Room.findById(roomid);
     if (!room) {
       return res.status(404).json({ message: "Không tìm thấy phòng" });
     }
@@ -409,38 +461,48 @@ exports.checkAvailability = async (req, res) => {
       return res.status(400).json({ message: "Ngày nhận/trả phòng không hợp lệ" });
     }
 
-    // KIỂM TRA MỖI NGÀY
-    for (let d = new Date(checkinDate); d < checkoutDate; d.setDate(d.getDate() + 1)) {
-      let bookedToday = 0;
+    const dailyInventory = room.dailyInventory || [];
+    let minAvailable = Infinity;
 
-      room.currentbookings.forEach(b => {
+    // KIỂM TRA MỖI NGÀY (sử dụng LOCAL timezone)
+    for (let d = new Date(checkinDate); d < checkoutDate; d.setDate(d.getDate() + 1)) {
+      // ✅ FIX: Dùng formatLocalDate thay vì toISOString để tránh lệch timezone
+      const dayStr = formatLocalDate(d);
+
+      // Số phòng đã book theo currentbookings (nếu còn dùng)
+      let bookedToday = 0;
+      (room.currentbookings || []).forEach(b => {
         if (d >= new Date(b.checkin) && d < new Date(b.checkout)) {
           bookedToday += b.roomsBooked || 1;
         }
       });
 
-      const dayStr = d.toISOString().split("T")[0];
-      const daily = getOrInitInventory(room, dayStr, room.quantity);
-      const availableToday = daily.quantity - bookedToday;
+      // Tồn kho theo ngày (nếu chưa có -> dùng room.quantity)
+      const daily = dailyInventory.find(di => di.date === dayStr);
+      const baseQty = daily ? daily.quantity : room.quantity;
 
+      const availableToday = baseQty - bookedToday;
+      if (availableToday < minAvailable) minAvailable = availableToday;
 
       if (availableToday < roomsNeeded) {
         return res.status(200).json({
           available: false,
-          availableRooms: availableToday,
-          message: `Chỉ còn ${availableToday} phòng trống vào ngày ${d.toISOString().split("T")[0]}`,
+          availableRooms: availableToday < 0 ? 0 : availableToday,
+          message: `Chỉ còn ${availableToday < 0 ? 0 : availableToday} phòng trống vào ngày ${dayStr}`,
         });
       }
     }
 
+    if (minAvailable === Infinity) minAvailable = room.quantity;
+
     return res.status(200).json({
       available: true,
-      availableRooms: room.quantity,
-      message: "Phòng còn trống cho toàn bộ khoảng thời gian!",
+      availableRooms: minAvailable < 0 ? 0 : minAvailable,
+      message: "Phòng còn trống cho toàn bộ khoảng thời gian trong ngày!",
     });
 
   } catch (err) {
+    console.error("Lỗi checkAvailability:", err);
     res.status(500).json({ message: "Lỗi kiểm tra phòng trống", error: err.message });
   }
 };
-

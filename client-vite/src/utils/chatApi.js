@@ -84,6 +84,15 @@ export async function createConversation(targetUserId, token) {
   return res.data;
 }
 
+export async function createHotelConversation(hotelId, token) {
+  const res = await axios.post(
+    '/api/chats/conversations',
+    { hotelId },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return res.data;
+}
+
 // Tham gia phòng hội thoại (socket phòng)
 export async function joinConversation(conversationId, token) {
   const res = await axios.post(

@@ -14,12 +14,13 @@ const createDiscount = async (req, res) => {
       discountValue,
       startDate,
       endDate,
+      image,
       usageLimit,
       applicableHotels,
       type,
       code,
-      minBookingValue,
-      maxDiscountAmount,
+      minBookingAmount,
+      maxDiscount,
       isPublic,
       isStackable,
       targetUserSegments,
@@ -32,16 +33,18 @@ const createDiscount = async (req, res) => {
       discountValue,
       startDate,
       endDate,
+      image,
       usageLimit,
       applicableHotels,
       type,
       code,
-      minBookingValue,
-      maxDiscountAmount,
+      minBookingAmount,
+      maxDiscount,
       isPublic,
       isStackable,
       targetUserSegments,
     });
+
 
     const createdDiscount = await discount.save();
     res.status(201).json(createdDiscount);
@@ -65,12 +68,13 @@ const updateDiscount = async (req, res) => {
       discountValue,
       startDate,
       endDate,
+      image,
       usageLimit,
       applicableHotels,
       type,
       code,
-      minBookingValue,
-      maxDiscountAmount,
+      minBookingAmount,
+      maxDiscount,
       isPublic,
       isStackable,
       targetUserSegments,
@@ -86,12 +90,17 @@ const updateDiscount = async (req, res) => {
       discount.discountValue = discountValue || discount.discountValue;
       discount.startDate = startDate || discount.startDate;
       discount.endDate = endDate || discount.endDate;
+      discount.image = image || discount.image;
       discount.usageLimit = usageLimit || discount.usageLimit;
       discount.applicableHotels = applicableHotels || discount.applicableHotels;
       discount.type = type || discount.type;
       discount.code = code || discount.code;
-      discount.minBookingValue = minBookingValue || discount.minBookingValue;
-      discount.maxDiscountAmount = maxDiscountAmount || discount.maxDiscountAmount;
+      discount.minBookingAmount =
+        minBookingAmount !== undefined ? minBookingAmount : discount.minBookingAmount;
+
+      discount.maxDiscount =
+        maxDiscount !== undefined ? maxDiscount : discount.maxDiscount;
+
       discount.isPublic = isPublic !== undefined ? isPublic : discount.isPublic;
       discount.isStackable = isStackable !== undefined ? isStackable : discount.isStackable;
       discount.targetUserSegments = targetUserSegments || discount.targetUserSegments;
@@ -148,7 +157,7 @@ const getPublicDiscounts = async (req, res) => {
 // @access  Admin
 const getAllDiscountsAdmin = async (req, res) => {
   try {
-    const discounts = await Discount.find({}).populate('applicableHotels', 'name');
+    const discounts = await Discount.find({ isDeleted: false }).populate('applicableHotels', 'name');
     res.json(discounts);
   } catch (error) {
     res.status(500).json({
@@ -176,7 +185,7 @@ const getMemberDiscounts = async (req, res) => {
         isPublic: true
       }, {
         targetUserSegments: 'member'
-      }, ],
+      },],
     }).populate('applicableHotels', 'name region imageurls address rating');
     res.json(discounts);
   } catch (error) {
@@ -242,13 +251,21 @@ const deleteDiscount = async (req, res) => {
 // @access  Private (User)
 const applyDiscounts = async (req, res) => {
   try {
-    const {
-      discountCodes,
-      bookingValue,
-      hotelId
-    } = req.body;
-    const userId = req.user._id;
+    const { discountCodes, bookingValue, hotelId } = req.body;
+    const userId = req.user && req.user._id;
     const now = new Date();
+
+    if (!Array.isArray(discountCodes) || discountCodes.length === 0) {
+      return res.status(400).json({ message: "Không có mã khuyến mãi nào được gửi lên." });
+    }
+
+    if (typeof bookingValue !== "number" || bookingValue <= 0) {
+      return res.status(400).json({ message: "Giá trị đặt phòng không hợp lệ." });
+    }
+
+    if (!userId) {
+      return res.status(401).json({ message: "Bạn cần đăng nhập lại." });
+    }
 
     let totalDiscountAmount = 0;
     let appliedDiscounts = [];
@@ -257,77 +274,96 @@ const applyDiscounts = async (req, res) => {
       const discount = await Discount.findOne({
         code,
         isDeleted: false,
-        startDate: {
-          $lte: now
-        },
-        endDate: {
-          $gte: now
-        },
+        startDate: { $lte: now },
+        endDate: { $gte: now },
       });
 
       if (!discount) {
+        return res.status(400).json({ message: `Mã ${code} không hợp lệ hoặc đã hết hạn.` });
+      }
+
+      // MIN BOOKING AMOUNT
+      if (
+        typeof discount.minBookingAmount === "number" &&
+        discount.minBookingAmount > 0 &&
+        bookingValue < discount.minBookingAmount
+      ) {
         return res.status(400).json({
-          message: `Mã khuyến mãi ${code} không hợp lệ hoặc đã hết hạn.`
+          message: `Giá trị đặt phòng tối thiểu để dùng mã ${code} là ${discount.minBookingAmount} VND.`,
         });
       }
 
-      if (discount.minBookingValue && bookingValue < discount.minBookingValue) {
-        return res.status(400).json({
-          message: `Giá trị đặt phòng không đủ để áp dụng mã ${code}. Yêu cầu tối thiểu ${discount.minBookingValue}.`
-        });
+      // CHECK APPLICABLE HOTELS
+      if (discount.applicableHotels?.length > 0) {
+        if (!hotelId) {
+          return res.status(400).json({ message: "Thiếu hotelId để xác thực mã giảm giá." });
+        }
+
+        const hotelIds = discount.applicableHotels.map((id) => id.toString());
+        if (!hotelIds.includes(hotelId.toString())) {
+          return res.status(400).json({
+            message: `Mã ${code} không áp dụng cho khách sạn này.`,
+          });
+        }
       }
 
-      if (discount.applicableHotels && discount.applicableHotels.length > 0 && !discount.applicableHotels.includes(hotelId)) {
-        return res.status(400).json({
-          message: `Mã khuyến mãi ${code} không áp dụng cho khách sạn này.`
-        });
-      }
-
-      // Check usage limit
-      const usageCount = await UserVoucher.countDocuments({
+      // CHECK USER HAS A COLLECTED VOUCHER
+      const userVoucher = await UserVoucher.findOne({
         userId,
-        discountId: discount._id
+        discountId: discount._id,
+        isUsed: false,
       });
-      if (discount.usageLimit && usageCount >= discount.usageLimit) {
+
+      if (!userVoucher) {
         return res.status(400).json({
-          message: `Bạn đã sử dụng mã khuyến mãi ${code} quá số lần cho phép.`
+          message: `Bạn chưa thu thập hoặc đã sử dụng mã ${code}.`
         });
       }
 
+      // CALCULATE DISCOUNT
       let currentDiscount = 0;
-      if (discount.discountType === 'percentage') {
-        currentDiscount = bookingValue * (discount.discountValue / 100);
+
+      if (discount.discountType === "percentage") {
+        currentDiscount = Math.round(bookingValue * (discount.discountValue / 100));
       } else {
         currentDiscount = discount.discountValue;
       }
 
-      if (discount.maxDiscountAmount && currentDiscount > discount.maxDiscountAmount) {
-        currentDiscount = discount.maxDiscountAmount;
+      if (
+        typeof discount.maxDiscount === "number" &&
+        discount.maxDiscount > 0 &&
+        currentDiscount > discount.maxDiscount
+      ) {
+        currentDiscount = discount.maxDiscount;
       }
 
       totalDiscountAmount += currentDiscount;
-      appliedDiscounts.push(discount._id);
 
-      // Record usage
-      await UserVoucher.create({
-        userId,
-        discountId: discount._id,
+      appliedDiscounts.push({
+        id: discount._id,
         code: discount.code,
-        appliedAt: now,
+        discount: currentDiscount,
       });
+
+      // MARK VOUCHER AS USED (KHÔNG CREATE MỚI)
+      await UserVoucher.findOneAndUpdate(
+        { userId, discountId: discount._id, isUsed: false },
+        { isUsed: true, usedAt: now },
+      );
     }
 
-    res.json({
+    return res.json({
       totalDiscountAmount,
-      appliedDiscounts
+      appliedDiscounts,
     });
+
   } catch (error) {
-    res.status(500).json({
-      message: 'Lỗi khi áp dụng khuyến mãi',
-      error: error.message
-    });
+    console.error("Lỗi khi áp dụng khuyến mãi:", error);
+    return res.status(500).json({ message: "Lỗi server khi áp dụng khuyến mãi", error: error.message });
   }
 };
+
+
 
 // @desc    Collect a discount code
 // @route   POST /api/discounts/collect/:identifier
@@ -373,7 +409,8 @@ const collectDiscount = async (req, res) => {
     const voucher = await UserVoucher.create({
       userId,
       discountId: discount._id,
-      code: discount.code,
+      voucherCode: discount.code,
+      expiryDate: discount.endDate,
       collectedAt: new Date(),
     });
 

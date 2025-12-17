@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useSelector } from "react-redux";
 import { ThumbsUp, ThumbsDown } from "lucide-react";
+import toast from "react-hot-toast";
 import moment from "moment";
 import "moment/locale/vi";
 
@@ -61,10 +62,13 @@ export default function ReviewsTab({ hotel, reviews = [], average = 0 }) {
       setCategoriesAvg(cats.data.average);
       setShowModal(false);
       setFormComment("");
-    } catch {}
+
+      toast.success("Đánh giá thành công!");
+
+    } catch { }
   };
 
-  
+
 
   return (
     <div className="bg-white rounded-xl border shadow-lg p-6 space-y-10">
@@ -230,27 +234,27 @@ export default function ReviewsTab({ hotel, reviews = [], average = 0 }) {
               <h2 className="text-2xl font-bold text-[#003580]">Viết đánh giá</h2>
               <div>
                 <label className="block text-sm text-gray-700 mb-1">Điểm tổng (1–10)</label>
-                <input type="number" min={1} max={10} value={formRating} onChange={(e)=>setFormRating(Number(e.target.value))} className="border rounded-md px-3 py-1.5 w-24" />
+                <input type="number" min={1} max={10} value={formRating} onChange={(e) => setFormRating(Number(e.target.value))} className="border rounded-md px-3 py-1.5 w-24" />
               </div>
               <div>
                 <label className="block text-sm text-gray-700 mb-2">Chấm điểm tiêu chí (1–10)</label>
                 <div className="grid sm:grid-cols-2 gap-3">
-                  {Object.entries(formCriteria).map(([k,v])=> (
+                  {Object.entries(formCriteria).map(([k, v]) => (
                     <div key={k} className="flex items-center justify-between gap-3">
                       <span className="text-sm text-gray-700">
                         {k === 'staff' ? 'Nhân viên phục vụ' : k === 'facilities' ? 'Tiện nghi' : k === 'cleanliness' ? 'Sạch sẽ' : k === 'comfort' ? 'Thoải mái' : k === 'value' ? 'Đáng giá tiền' : 'Địa điểm'}
                       </span>
-                      <input type="number" min={1} max={10} value={v} onChange={(e)=>setFormCriteria((s)=> ({...s, [k]: Number(e.target.value)}))} className="border rounded-md px-2 py-1 w-20" />
+                      <input type="number" min={1} max={10} value={v} onChange={(e) => setFormCriteria((s) => ({ ...s, [k]: Number(e.target.value) }))} className="border rounded-md px-2 py-1 w-20" />
                     </div>
                   ))}
                 </div>
               </div>
               <div>
                 <label className="block text-sm text-gray-700 mb-1">Nội dung đánh giá</label>
-                <textarea rows={4} value={formComment} onChange={(e)=>setFormComment(e.target.value)} className="border rounded-md w-full px-3 py-2" placeholder="Hãy chia sẻ trải nghiệm của bạn" />
+                <textarea rows={4} value={formComment} onChange={(e) => setFormComment(e.target.value)} className="border rounded-md w-full px-3 py-2" placeholder="Hãy chia sẻ trải nghiệm của bạn" />
               </div>
               <div className="flex justify-end gap-3">
-                <button onClick={()=>setShowModal(false)} className="px-4 py-2 border rounded-md">Hủy</button>
+                <button onClick={() => setShowModal(false)} className="px-4 py-2 border rounded-md">Hủy</button>
                 <button onClick={handleSubmitReview} className="px-4 py-2 bg-[#003580] text-white rounded-md">Gửi đánh giá</button>
               </div>
             </div>

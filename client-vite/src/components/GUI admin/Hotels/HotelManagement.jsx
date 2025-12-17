@@ -28,6 +28,7 @@ const HotelManagement = () => {
     contactNumber: "",
     email: "",
     description: "",
+    starRating: "",
   });
 
   const [newImages, setNewImages] = useState([]);
@@ -57,13 +58,13 @@ const HotelManagement = () => {
       const { data } = await axios.get("/api/hotels", config);
       // Ensure data is an array
       const hotelsArray = Array.isArray(data) ? data : [];
-      
+
       // Calculate room count for each hotel
       const hotelsWithRoomCount = hotelsArray.map(hotel => ({
         ...hotel,
         roomCount: hotel.rooms?.length || 0
       }));
-      
+
       setHotels(hotelsWithRoomCount);
       toast.success(`Đã tải ${hotelsWithRoomCount.length} khách sạn thành công`);
     } catch (err) {
@@ -102,13 +103,13 @@ const HotelManagement = () => {
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
     setNewImages(files);
-    
+
     // Cleanup previous previews
     imagePreview.forEach(url => URL.revokeObjectURL(url));
-    
+
     const previews = files.map(file => URL.createObjectURL(file));
     setImagePreview(previews);
-    
+
     if (files.length > 0) {
       toast.info(`Đã chọn ${files.length} ảnh`);
     }
@@ -125,6 +126,7 @@ const HotelManagement = () => {
       contactNumber: "",
       email: "",
       description: "",
+      starRating: 3,
     });
     setNewImages([]);
     setImagePreview([]);
@@ -137,7 +139,7 @@ const HotelManagement = () => {
   /** 🔹 Thêm hoặc cập nhật khách sạn */
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.name.trim()) {
       toast.warning('Vui lòng nhập tên khách sạn');
       return;
@@ -146,14 +148,19 @@ const HotelManagement = () => {
       toast.warning('Email không hợp lệ');
       return;
     }
-    
+
     setIsSubmitting(true);
     const loadingToast = toast.loading(isEditing ? 'Đang cập nhật khách sạn...' : 'Đang thêm khách sạn mới...');
-    
+
     try {
       let savedHotelId;
 
-      const payload = { ...formData, district: formData.city };
+      const payload = {
+        ...formData,
+        district: formData.city,
+        starRating: Number(formData.starRating)
+      };
+
 
       if (isEditing) {
         await axios.put(`/api/hotels/${editId}`, payload, config);
@@ -161,6 +168,7 @@ const HotelManagement = () => {
         toast.dismiss(loadingToast);
         toast.success(`Cập nhật "${formData.name}" thành công`);
       } else {
+        // Backend will auto-approve if user is admin, otherwise pending
         const { data } = await axios.post("/api/hotels", payload, config);
         savedHotelId = data.hotel._id;
         toast.dismiss(loadingToast);
@@ -210,6 +218,7 @@ const HotelManagement = () => {
       contactNumber: hotel.contactNumber,
       email: hotel.email,
       description: hotel.description || "",
+      starRating: hotel.starRating || 3,
     });
     setIsEditing(true);
     setEditId(hotel._id);
@@ -264,8 +273,8 @@ const HotelManagement = () => {
 
   return (
     <div className="p-4 md:p-6 2xl:p-10">
-      <ToastContainer 
-        position="top-right" 
+      <ToastContainer
+        position="top-right"
         autoClose={3000}
         hideProgressBar={false}
         newestOnTop={true}
@@ -276,7 +285,7 @@ const HotelManagement = () => {
         pauseOnHover
         theme="light"
       />
-      
+
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl font-semibold text-slate-800">
           Quản lý Khách sạn
@@ -322,32 +331,32 @@ const HotelManagement = () => {
                 <label className="block mb-2 text-sm font-medium text-slate-700">
                   Tên khách sạn <span className="text-red-500">*</span>
                 </label>
-                <input 
-                  type="text" 
-                  name="name" 
-                  value={formData.name} 
-                  onChange={handleInputChange} 
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
                   required
                   placeholder="VD: Khách sạn Mường Thanh Luxury"
-                  className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all" 
+                  className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
                 />
               </div>
-              
+
               <div className="mb-4">
                 <label className="block mb-2 text-sm font-medium text-slate-700">
                   Địa chỉ <span className="text-red-500">*</span>
                 </label>
-                <input 
-                  type="text" 
-                  name="address" 
-                  value={formData.address} 
-                  onChange={handleInputChange} 
+                <input
+                  type="text"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
                   required
                   placeholder="VD: 123 Đường Nguyễn Huệ"
-                  className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all" 
+                  className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
                 />
               </div>
-              
+
               <div className="mb-4">
                 <label className="block mb-2 text-sm font-medium text-slate-700">
                   Khu vực / Thành phố <span className="text-red-500">*</span>
@@ -407,18 +416,18 @@ const HotelManagement = () => {
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3">
                     <Mail className="text-gray-400" size={18} />
                   </span>
-                  <input 
-                    type="email" 
-                    name="email" 
-                    value={formData.email} 
-                    onChange={handleInputChange} 
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
                     required
                     placeholder="contact@hotel.com"
-                    className="w-full rounded-md border border-gray-300 bg-white p-2.5 pl-10 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all" 
+                    className="w-full rounded-md border border-gray-300 bg-white p-2.5 pl-10 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
                   />
                 </div>
               </div>
-              
+
               <div className="mb-4">
                 <label className="block mb-2 text-sm font-medium text-slate-700">
                   Số điện thoại <span className="text-red-500">*</span>
@@ -427,18 +436,35 @@ const HotelManagement = () => {
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3">
                     <Phone className="text-gray-400" size={18} />
                   </span>
-                  <input 
-                    type="text" 
-                    name="contactNumber" 
-                    value={formData.contactNumber} 
-                    onChange={handleInputChange} 
+                  <input
+                    type="text"
+                    name="contactNumber"
+                    value={formData.contactNumber}
+                    onChange={handleInputChange}
                     required
                     placeholder="0123 456 789"
-                    className="w-full rounded-md border border-gray-300 bg-white p-2.5 pl-10 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all" 
+                    className="w-full rounded-md border border-gray-300 bg-white p-2.5 pl-10 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all"
                   />
                 </div>
+
+                <div className="mb-4">
+                  <label className="block mb-2 text-sm font-medium text-slate-700">
+                    Xếp hạng sao
+                  </label>
+                  <input
+                    type="number"
+                    name="starRating"
+                    min="1"
+                    max="5"
+                    value={formData.starRating || 3}
+                    onChange={handleInputChange}
+                    className="w-full rounded-md border border-gray-300 bg-white p-2.5 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                  />
+                </div>
+
+
               </div>
-              
+
               <div className="mb-4">
                 <label className="block mb-2 text-sm font-medium text-slate-700">
                   Ảnh khách sạn
@@ -463,15 +489,15 @@ const HotelManagement = () => {
           </div>
 
           <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-            <button 
-              type="button" 
-              onClick={handleCancelEdit} 
+            <button
+              type="button"
+              onClick={handleCancelEdit}
               className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
             >
               Hủy
             </button>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={isSubmitting}
               className="px-6 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
@@ -568,23 +594,23 @@ const HotelManagement = () => {
                     </td>
                     <td className="border-b border-gray-200 py-4 px-4">
                       <div className="flex items-center justify-center gap-2">
-                        <button 
-                          onClick={() => handleEdit(hotel)} 
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
+                        <button
+                          onClick={() => handleEdit(hotel)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Chỉnh sửa"
                         >
                           <Edit2 size={16} />
                         </button>
-                        <button 
-                          onClick={() => handleDelete(hotel._id, hotel.name)} 
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" 
+                        <button
+                          onClick={() => handleDelete(hotel._id, hotel.name)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Xóa"
                         >
                           <Trash2 size={16} />
                         </button>
-                        <Link 
-                          to={`/admin/hotel/${hotel._id}/rooms`} 
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" 
+                        <Link
+                          to={`/admin/hotel/${hotel._id}/rooms`}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                           title="Quản lý phòng"
                         >
                           <Settings size={16} />

@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const querystring = require('qs');
 const mongoose = require('mongoose');
 const Booking = require('../models/booking');
+const Room = require('../models/room');
 const moment = require('moment');
 
 const config = {
@@ -60,10 +61,35 @@ exports.createPayment = async (req, res) => {
             return res.status(400).json({ message: 'Đặt phòng không ở trạng thái chờ thanh toán' });
         }
 
-        // Validate amount
-        const parsedAmount = parseInt(amount, 10);
+        // Lấy số tiền CHUẨN từ booking để tránh sai lệch phía client
+        let parsedAmount = Math.round(Number(booking.totalAmount || 0));
+        try {
+            if (Array.isArray(booking.rooms) && booking.rooms.length > 0) {
+                // Multi-room: tính tổng theo từng phòng
+                const totalByRooms = booking.rooms.reduce((sum, r) => {
+                    const nights = Math.max(1, Math.ceil((new Date(r.checkout) - new Date(r.checkin)) / (1000 * 60 * 60 * 24)));
+                    return sum + (Number(r.rentperday || 0) * nights * Number(r.roomsBooked || 1));
+                }, 0);
+                const adjusted = Math.max(0, totalByRooms - (booking.voucherDiscount || 0) - (booking.discount?.amountReduced || 0));
+                if (!parsedAmount || Math.abs(parsedAmount - adjusted) >= 1) parsedAmount = Math.round(adjusted);
+            } else if (booking.roomid) {
+                // Single-room
+                const room = await Room.findById(booking.roomid).lean();
+                if (room) {
+                    const nights = Math.max(1, Math.ceil((new Date(booking.checkout) - new Date(booking.checkin)) / (1000 * 60 * 60 * 24)));
+                    const expected = room.rentperday * nights * Number(booking.roomsBooked || 1);
+                    const adjusted = Math.max(0, expected - (booking.voucherDiscount || 0) - (booking.discount?.amountReduced || 0));
+                    if (!parsedAmount || Math.abs(parsedAmount - adjusted) >= 1) parsedAmount = Math.round(adjusted);
+                }
+            }
+        } catch (e) { }
+
+        // Đồng bộ lại DB nếu lệch
+        if (Math.abs((booking.totalAmount || 0) - parsedAmount) >= 1) {
+            await Booking.findByIdAndUpdate(bookingId, { totalAmount: parsedAmount });
+        }
         if (isNaN(parsedAmount) || parsedAmount <= 0) {
-            return res.status(400).json({ message: 'Số tiền không hợp lệ' });
+            return res.status(400).json({ message: 'Số tiền không hợp lệ từ đặt phòng' });
         }
 
         // Set timezone and create date
@@ -160,6 +186,7 @@ exports.vnpayReturn = async (req, res) => {
                 // Payment successful
                 await Booking.findByIdAndUpdate(booking._id, {
                     paymentStatus: 'paid',
+                    status: 'confirmed',
                     vnpTransactionNo: vnp_Params['vnp_TransactionNo'],
                     vnpBankTranNo: vnp_Params['vnp_BankTranNo'],
                     vnpPayDate: vnp_Params['vnp_PayDate'],
@@ -170,17 +197,55 @@ exports.vnpayReturn = async (req, res) => {
                     throw err;
                 });
 
-                // Redirect to success page
-                res.redirect(`http://localhost:3000/booking-success?bookingId=${booking._id}`);
+                // Auto accumulate points after successful payment
+                try {
+                    const User = require('../models/user');
+                    const Transaction = require('../models/transaction');
+
+                    const user = await User.findOne({ email: booking.email.toLowerCase() });
+                    if (user) {
+                        // Check if transaction already exists
+                        const existingTransaction = await Transaction.findOne({ bookingId: booking._id });
+                        if (!existingTransaction) {
+                            const updatedBooking = await Booking.findById(booking._id).populate('roomid');
+                            const checkinDate = new Date(updatedBooking.checkin);
+                            const checkoutDate = new Date(updatedBooking.checkout);
+                            const days = Math.ceil((checkoutDate - checkinDate) / (1000 * 60 * 60 * 24));
+                            const totalAmount = updatedBooking.totalAmount || 0;
+                            const pointsEarned = Math.floor(totalAmount * 0.01); // 1% of total
+
+                            const transaction = new Transaction({
+                                userId: user._id,
+                                bookingId: booking._id,
+                                amount: totalAmount,
+                                points: pointsEarned,
+                                type: 'earn',
+                                status: 'completed',
+                            });
+                            await transaction.save();
+
+                            user.points = (user.points || 0) + pointsEarned;
+                            await user.save();
+                            console.log(` Tích ${pointsEarned} điểm cho user ${user.email}`);
+                        }
+                    }
+                } catch (pointsError) {
+                    console.error('Lỗi khi tích điểm tự động:', pointsError);
+                    // Don't fail the payment if points accumulation fails
+                }
+
+                // Redirect to success page with payment type
+                res.redirect(`http://localhost:3000/payment-callback?type=vnpay&bookingId=${booking._id}&vnp_ResponseCode=00`);
             } else {
                 // Payment failed
                 await Booking.findByIdAndUpdate(booking._id, {
                     paymentStatus: 'canceled',
+                    status: 'canceled',
                 }).catch(err => {
                     console.error('Lỗi khi cập nhật booking thất bại:', err);
                     throw err;
                 });
-                res.redirect(`http://localhost:3000/booking-failed?bookingId=${booking._id}`);
+                res.redirect(`http://localhost:3000/payment-callback?type=vnpay&bookingId=${booking._id}&vnp_ResponseCode=${vnp_Params['vnp_ResponseCode']}`);
             }
         } else {
             res.status(400).json({ message: 'Chữ ký không hợp lệ' });

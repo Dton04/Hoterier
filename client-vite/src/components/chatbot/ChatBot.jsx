@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import axios from "axios";
-import { FaComments, FaPaperPlane } from "react-icons/fa";
+import { FaComments, FaHistory, FaPaperPlane } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import botAvatar from "../../assets/images/chatbot.png"
 
@@ -14,7 +14,57 @@ function ChatBot({ embedded = false }) {
   const [context, setContext] = useState({});
   const [suggestions, setSuggestions] = useState([]);
   const navigate = useNavigate();
-  
+
+  const listRef = useRef(null);
+  const [stickToBottom, setStickToBottom] = useState(true);
+
+  const isAtBottom = () => {
+    const el = listRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  };
+
+  const scrollToBottom = () => {
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  };
+
+
+  function getUserId() {
+    try {
+      const saved = localStorage.getItem("userInfo");
+      if (!saved) return null;
+
+      const parsed = JSON.parse(saved);
+      return parsed?.user?._id || parsed?._id || null;
+    } catch {
+      return null;
+    }
+  }
+
+
+  // Lắng nghe scroll để biết user có đang xem phần cũ không
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+
+    const onScroll = () => {
+      setStickToBottom(isAtBottom());
+    };
+
+    el.addEventListener("scroll", onScroll);
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // chỉ auto scroll nếu user đang ở cuối
+  useEffect(() => {
+    if (stickToBottom) {
+      scrollToBottom();
+    }
+  }, [messages, stickToBottom]);
+
+
 
   const sendMessage = async () => {
     // 🔍 Bắt thông tin người dùng từ câu nhập
@@ -42,6 +92,7 @@ function ChatBot({ embedded = false }) {
     try {
       const { data } = await axios.post("/api/chatbot/chat", {
         message: input,
+        userId: getUserId(),
         context: {
           ...context,
           ...{
@@ -60,7 +111,7 @@ function ChatBot({ embedded = false }) {
       setContext((prev) => ({
         ...prev,
         ...data.context,
-        hotelId: data.context?.hotelId || prev.hotelId, // ✅ giữ lại hotelId
+        hotelId: data.context?.hotelId || prev.hotelId,
       }));
 
 
@@ -101,6 +152,18 @@ function ChatBot({ embedded = false }) {
 
         // Nếu chatbot đã biết đủ thông tin (checkin, checkout, people)
         if (context.checkin && context.checkout && context.people) {
+          // 💾 Lưu dữ liệu booking vào localStorage để BookingForm đọc được
+          const bookingInfo = {
+            checkin: context.checkin,
+            checkout: context.checkout,
+            adults: parseInt(context.people) || 2,
+            children: 0,
+            childrenAges: [],
+            rooms: item.roomsNeeded || 1,
+          };
+          localStorage.setItem("bookingInfo", JSON.stringify(bookingInfo));
+          localStorage.setItem("hotelIdForBooking", context.hotelId);
+
           const redirectUrl = `/book/${item.id}?hotelId=${context.hotelId}&checkin=${encodeURIComponent(context.checkin)}&checkout=${encodeURIComponent(context.checkout)}&people=${encodeURIComponent(context.people)}`;
 
           setMessages((prev) => [
@@ -117,6 +180,7 @@ function ChatBot({ embedded = false }) {
       // Gửi request bình thường nếu chưa đủ thông tin
       const { data } = await axios.post("/api/chatbot/chat", {
         message: `Chọn ${item.name}`,
+        userId: getUserId(),
         context: newContext,
       });
 
@@ -146,110 +210,110 @@ function ChatBot({ embedded = false }) {
 
 
   return (
-  <div className={embedded ? "w-full h-full" : "fixed bottom-6 right-6 z-50"}>
+    <div className={embedded ? "w-full h-full" : "fixed bottom-6 right-6 z-50"}>
 
-    {/*Nếu embedded => bật UI luôn, không cần open */}
-    {(embedded || open) && (
-      <div className="bg-white w-full h-full shadow-2xl rounded-xl flex flex-col border border-gray-200">
+      {/*Nếu embedded => bật UI luôn, không cần open */}
+      {(embedded || open) && (
+        <div className="bg-white w-full h-full shadow-2xl rounded-xl flex flex-col border border-gray-200">
 
-        <div className="bg-white text-black font-semibold p-3 flex justify-between items-center border-b">
-          <span>Trợ lý Hotelier</span>
 
-          {/* embedded: không cho đóng */}
-          {!embedded && (
-            <button onClick={() => setOpen(false)} className="text-black hover:text-red-300 text-lg">
-              ✕
-            </button>
-          )}
-        </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50">
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              className={`p-2 rounded-lg text-sm max-w-[80%] ${
-                msg.sender === "bot"
+          {/* Messages */}
+          <div
+            ref={listRef}
+            className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50 flex flex-col"
+          >
+            {messages.map((msg, i) => (
+              <div
+                key={i}
+                className={`p-2 rounded-lg text-sm max-w-[80%] ${msg.sender === "bot"
                   ? "bg-blue-100 text-gray-800 self-start"
                   : "bg-[#0071c2] text-white self-end ml-auto"
-              }`}
-            >
-              {msg.text}
-            </div>
-          ))}
+                  }`}
+              >
+                {msg.text}
+              </div>
+            ))}
 
-          {loading && (
-            <p className="text-gray-400 text-xs italic">Đang nhập...</p>
-          )}
+            {loading && (
+              <p className="text-gray-400 text-xs italic">Đang nhập...</p>
+            )}
 
-          {/* Suggestions */}
-          {suggestions.length > 0 && (
-            <div className="mt-2 space-y-2">
-              <p className="text-gray-700 text-sm font-medium">🔍 Gợi ý:</p>
+            {/* Suggestions */}
+            {suggestions.length > 0 && (
+              <div className="mt-2 space-y-2">
+                <p className="text-gray-700 text-sm font-medium">🔍 Gợi ý:</p>
 
-              {suggestions.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => handleSelect(item)}
-                  className="w-full text-left bg-white border border-gray-200 rounded-lg hover:bg-blue-50 shadow-sm flex items-center gap-2 p-2 transition"
-                >
-                  {item.image && (
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-12 h-12 rounded-md object-cover"
-                    />
-                  )}
-                  <div className="flex flex-col text-sm">
-                    <span className="font-medium text-gray-800">{item.name}</span>
-                    {item.price && (
-                      <span className="text-blue-600 font-semibold">
-                        {Number(item.price).toLocaleString()}₫ / đêm
-                      </span>
+                {suggestions.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => handleSelect(item)}
+                    className="w-full text-left bg-white border border-gray-200 rounded-lg hover:bg-blue-50 shadow-sm flex items-center gap-2 p-2 transition"
+                  >
+                    {item.image && (
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-12 h-12 rounded-md object-cover"
+                      />
                     )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+                    <div className="flex flex-col text-sm">
+                      <span className="font-medium text-gray-800">{item.name}</span>
+                      {item.price && (
+                        <span className="text-blue-600 font-semibold">
+                          {Number(item.price).toLocaleString()}₫ / đêm
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-        {/* Input */}
-        <div className="p-2 border-t flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Nhập tin nhắn..."
-            className="flex-1 border rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+
+          {/* Input */}
+          <div className="p-2 border-t flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Nhập tin nhắn..."
+              className="flex-1 border rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+            />
+            <button
+              onClick={sendMessage}
+              className="bg-[#0071c2] hover:bg-blue-700 text-white px-3 py-2 rounded-lg"
+            >
+              <FaPaperPlane />
+            </button>
+            <button
+              onClick={() => navigate("/my-chat-history")}
+              className="bg-[#0071c2] hover:bg-blue-700 text-white px-3 py-2 rounded-lg"
+            >
+              <FaHistory />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/*Khi embedded = true → KHÔNG render icon ChatBot */}
+      {!embedded && !open && (
+        <button
+          onClick={() => setOpen(true)}
+          className="bg-[#0071c2] hover:bg-blue-700 w-16 h-16 rounded-full shadow-xl flex items-center justify-center overflow-hidden transform transition-transform hover:scale-110"
+        >
+          <img
+            src={botAvatar}
+            alt="Chatbot"
+            className="w-8 h-8 object-cover animate-spin rounded-full scale-125"
           />
-          <button
-            onClick={sendMessage}
-            className="bg-[#0071c2] hover:bg-blue-700 text-white px-3 py-2 rounded-lg"
-          >
-            <FaPaperPlane />
-          </button>
-        </div>
-      </div>
-    )}
+        </button>
+      )}
 
-    {/*Khi embedded = true → KHÔNG render icon ChatBot */}
-    {!embedded && !open && (
-      <button
-        onClick={() => setOpen(true)}
-        className="bg-[#0071c2] hover:bg-blue-700 w-16 h-16 rounded-full shadow-xl flex items-center justify-center overflow-hidden transform transition-transform hover:scale-110"
-      >
-        <img
-          src={botAvatar}
-          alt="Chatbot"
-          className="w-8 h-8 object-cover animate-spin rounded-full scale-125"
-        />
-      </button>
-    )}
-
-  </div>
-);
+    </div>
+  );
 
 }
 

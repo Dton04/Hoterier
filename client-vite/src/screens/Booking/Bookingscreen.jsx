@@ -24,12 +24,12 @@ export default function Bookingscreen() {
 
    // *** Lấy query parameters từ URL (Dữ liệu từ Chatbot) ***
    const queryParams = new URLSearchParams(location.search);
-   
+
    // *** Lấy multi-room data từ location.state (từ RoomsTab) ***
    const isMultiRoom = location.state?.isMultiRoom === true;
    const selectedRooms = location.state?.selectedRooms || [];
    const hotelFromState = location.state?.hotel || null;
-   
+
    // *** Merge initialData từ cả URL query params và location.state ***
    const initialData = {
       checkin: location.state?.checkin || queryParams.get('checkin'),
@@ -38,6 +38,8 @@ export default function Bookingscreen() {
       hotelId: queryParams.get('hotelId'),
       isMultiRoom: isMultiRoom,
       selectedRooms: selectedRooms,
+      room: location.state?.room || null,  // ✅ Include room data from navigation state
+      hotel: hotelFromState,  // ✅ Include hotel data for multi-room service fetching
    };
 
    const {
@@ -78,13 +80,13 @@ export default function Bookingscreen() {
       roomsNeeded,
       setValue,
       watch,
-      checkAvailability, 
+      checkAvailability,
+      collectedVouchers,
    } = useBookingLogic({ roomid, navigate, initialData });
 
    const [hotel, setHotel] = useState(null);
-
-
    const [currentStep, setCurrentStep] = useState(1);
+
    useEffect(() => {
       if (paymentStatus === "paid") setCurrentStep(3);
       else if (room && !paymentStatus) setCurrentStep(2);
@@ -136,12 +138,12 @@ export default function Bookingscreen() {
                            name: hotel?.name,
                            address: hotel?.address,
                            city: hotel?.region?.name,
-                           stars: 5, // có thể cập nhật thêm field sao trong DB nếu cần
+                           stars: hotel?.starRating || 5,
                            rating: hotel?.rating,
-                           reviewScore: hotel?.reviewScore || 9.5,
-                           reviewText: "Tuyệt vời",
-                           reviewCount: hotel?._id ? room?.totalReviews || 120 : 0,
-                           image: hotel?.imageurls?.[0],
+                           reviewScore: hotel?.reviewScore,
+                           reviewText: hotel?.reviewText,
+                           reviewCount: hotel?.reviewCount,
+                           imageurls: hotel?.imageurls,
                            wifi: hotel?.amenities?.includes("wifi"),
                            parking: hotel?.amenities?.includes("parking"),
                         }}
@@ -222,10 +224,10 @@ export default function Bookingscreen() {
                            isMultiRoom={isMultiRoom}
                            selectedRooms={selectedRooms}
                            watch={watch}
-
-                           checkAvailability={checkAvailability} 
+                           initialData={initialData}
+                           checkAvailability={checkAvailability}
+                           collectedVouchers={collectedVouchers}
                         />
-
                      )}
                   </div>
                </div>

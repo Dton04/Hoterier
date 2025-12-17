@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -68,6 +68,9 @@ export default function AdminRegions() {
   const userInfo = JSON.parse(localStorage.getItem("userInfo"));
   const config = { headers: { Authorization: `Bearer ${userInfo?.token}` } };
 
+  // Debounce timer ref
+  const debounceTimer = useRef(null);
+
   /** 📦 Fetch Regions (Hỗ trợ filter và pagination) */
   const fetchRegions = async () => {
     setLoading(true);
@@ -84,13 +87,13 @@ export default function AdminRegions() {
       if (filters.domain !== 'all') params.domain = filters.domain;
 
       const { data } = await axios.get("/api/regions", { params });
-      
+
       console.log("📊 Data nhận từ API:", {
         totalRegions: data.totalRegions,
         currentPage: data.currentPage,
         sampleRegion: data.regions?.[0] // Log region đầu tiên để xem structure
       });
-      
+
       setRegions(data.regions || []);
       setTotalPages(data.totalPages || 1);
       setTotalRegions(data.totalRegions || 0);
@@ -103,9 +106,30 @@ export default function AdminRegions() {
     }
   };
 
+  // Debounced fetch for search inputs
+  useEffect(() => {
+    // Clear existing timer
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+
+    // Set new timer with 500ms delay
+    debounceTimer.current = setTimeout(() => {
+      fetchRegions();
+    }, 500);
+
+    // Cleanup on unmount
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, [filters.name, filters.city, filters.domain]);
+
+  // Immediate fetch for pagination changes
   useEffect(() => {
     fetchRegions();
-  }, [filters]);
+  }, [filters.page]);
 
   // --- Xử lý Filters và Pagination ---
   const handleFilterInputChange = (e) => {
@@ -131,7 +155,7 @@ export default function AdminRegions() {
         domain: region.domain,
         cities: region.cities?.length || 0
       });
-      
+
       setIsEditing(true);
       setEditId(region._id);
       form.setFieldsValue({
@@ -178,7 +202,7 @@ export default function AdminRegions() {
       setIsModalOpen(false);
       setNewImage(null);
       form.resetFields();
-      
+
       // Đợi một chút rồi mới fetch lại để đảm bảo DB đã lưu xong
       setTimeout(() => {
         fetchRegions();
@@ -188,12 +212,12 @@ export default function AdminRegions() {
       toast.error(err.response?.data?.message || "Lỗi khi lưu khu vực!");
     }
   };
-  
+
   // --- Xử lý Modal Thành Phố ---
   const handleAddCity = async () => {
     const city = newCity.trim();
     if (!city) return toast.error("Vui lòng nhập tên thành phố!");
-    
+
     try {
       await axios.post(`/api/regions/${cityModal.region._id}/cities`, { name: city }, config);
       toast.success("Thêm thành phố thành công!");
@@ -224,7 +248,7 @@ export default function AdminRegions() {
     setDeleteModalVisible(false);
     setRegionToDelete(null);
   };
-  
+
   const handleDeleteCancel = () => {
     setDeleteModalVisible(false);
     setRegionToDelete(null);
@@ -245,7 +269,7 @@ export default function AdminRegions() {
       {/* Header */}
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl font-semibold text-slate-800 flex items-center gap-2">
-          <MapPin className="w-6 h-6" /> 
+          <MapPin className="w-6 h-6" />
           Quản lý Khu vực
         </h2>
         <Button
@@ -342,10 +366,10 @@ export default function AdminRegions() {
                     </td>
                     <td className="border-b border-gray-200 py-5 px-4">
                       <Tag color={
-                        region.domain === 'north' ? 'blue' : 
-                        region.domain === 'central' ? 'green' : 
-                        region.domain === 'south' ? 'gold' : 
-                        'default'
+                        region.domain === 'north' ? 'blue' :
+                          region.domain === 'central' ? 'green' :
+                            region.domain === 'south' ? 'gold' :
+                              'default'
                       }>
                         {DOMAIN_OPTIONS.find(o => o.value === region.domain)?.label || 'Khác'}
                       </Tag>
@@ -364,24 +388,24 @@ export default function AdminRegions() {
                     <td className="border-b border-gray-200 py-5 px-4">
                       <div className="flex items-center justify-center gap-2">
                         <Tooltip title="Sửa khu vực">
-                          <button 
-                            onClick={() => openRegionModal(region)} 
+                          <button
+                            onClick={() => openRegionModal(region)}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
                           >
                             <Edit size={16} />
                           </button>
                         </Tooltip>
                         <Tooltip title="Thêm thành phố">
-                          <button 
-                            onClick={() => setCityModal({ open: true, region })} 
+                          <button
+                            onClick={() => setCityModal({ open: true, region })}
                             className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition"
                           >
                             <PackagePlus size={16} />
                           </button>
                         </Tooltip>
                         <Tooltip title="Xóa khu vực">
-                          <button 
-                            onClick={() => showDeleteConfirm(region._id)} 
+                          <button
+                            onClick={() => showDeleteConfirm(region._id)}
                             className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
                           >
                             <Trash2 size={16} />
@@ -433,16 +457,16 @@ export default function AdminRegions() {
         centered
       >
         <Form form={form} layout="vertical" onFinish={handleRegionSubmit} className="p-4">
-          <Form.Item 
-            label="Tên khu vực" 
-            name="name" 
+          <Form.Item
+            label="Tên khu vực"
+            name="name"
             rules={[{ required: true, message: "Vui lòng nhập tên khu vực!" }]}
           >
             <Input placeholder="VD: Khánh Hòa..." className="py-2" />
           </Form.Item>
-          <Form.Item 
-            label="Miền" 
-            name="domain" 
+          <Form.Item
+            label="Miền"
+            name="domain"
             rules={[{ required: true, message: "Vui lòng chọn miền!" }]}
           >
             <Select placeholder="Chọn miền cho khu vực">
@@ -452,9 +476,9 @@ export default function AdminRegions() {
             </Select>
           </Form.Item>
           <Form.Item label="Ảnh đại diện (tùy chọn)">
-            <input 
-              type="file" 
-              accept="image/*" 
+            <input
+              type="file"
+              accept="image/*"
               onChange={(e) => setNewImage(e.target.files[0])}
               className="w-full"
             />
@@ -494,7 +518,7 @@ export default function AdminRegions() {
           onPressEnter={handleAddCity}
         />
       </Modal>
-      
+
       {/* Modal Xóa Khu Vực */}
       <Modal
         title="Xác nhận xóa"

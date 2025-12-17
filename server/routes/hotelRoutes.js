@@ -41,16 +41,16 @@ router.get('/', hotelController.getAllHotels);
 router.get('/:id', hotelController.getHotelById);
 
 // POST /api/hotels/:id/images - Tải ảnh khách sạn
-router.post('/:id/images', protect, admin, upload.array('images', 5), hotelController.uploadHotelImages);
+router.post('/:id/images', protect, require('../middleware/auth').adminOrStaff, require('../middleware/auth').restrictHotelUpdate, upload.array('images', 5), hotelController.uploadHotelImages);
 
 // DELETE /api/hotels/:id/images/:imgId - Xóa ảnh khách sạn
-router.delete('/:id/images/:imgId', protect, admin, hotelController.deleteHotelImage);
+router.delete('/:id/images/:imgId', protect, require('../middleware/auth').adminOrStaff, require('../middleware/auth').restrictHotelUpdate, hotelController.deleteHotelImage);
 
 // POST /api/hotels - Tạo khách sạn mới
-router.post('/', protect, admin, hotelController.createHotel);
+router.post('/', protect, require('../middleware/auth').adminOrStaff, hotelController.createHotel);
 
-// PUT /api/hotels/:id - Cập nhật thông tin khách sạn
-router.put('/:id', protect, admin, hotelController.updateHotel);
+// PUT /api/hotels/:id - Cập nhật thông tin khách sạn (staff chỉ sửa khi sở hữu, không đổi email)
+router.put('/:id', protect, require('../middleware/auth').adminOrStaff, require('../middleware/auth').restrictHotelUpdate, hotelController.updateHotel);
 
 // DELETE /api/hotels/:id - Xóa khách sạn
 router.delete('/:id', protect, admin, hotelController.deleteHotel);

@@ -1,28 +1,38 @@
-import React, { useEffect, useState } from "react";
-import { Card, Input, Button, List, message, Select, Spin, Empty } from "antd";
+import React, { useEffect, useState, useMemo, lazy, Suspense } from "react";
+import { Input, Button, Spin, Empty } from "antd";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import { FileText, Star } from "lucide-react";
 import axios from "axios";
 import moment from "moment";
 import "moment/locale/vi";
+import toast from "react-hot-toast";
+
+// Lazy load Banner component for better performance
+const Banner = lazy(() => import("../components/Banner"));
 
 const { TextArea } = Input;
-const { Option } = Select;
 
 const Review = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [bookings, setBookings] = useState([]);
   const [paidBookings, setPaidBookings] = useState([]);
   const [selectedHotel, setSelectedHotel] = useState(null);
   const [rating, setRating] = useState(10);
   const [comment, setComment] = useState("");
   const [reviews, setReviews] = useState([]);
-  const [criteria, setCriteria] = useState({ cleanliness: 10, comfort: 10, staff: 10, location: 10, facilities: 10, value: 10 });
+  const [criteria, setCriteria] = useState({
+    cleanliness: 10,
+    comfort: 10,
+    staff: 10,
+    location: 10,
+    facilities: 10,
+    value: 10
+  });
 
   const userFromRedux = useSelector((state) => state.loginUserReducer.currentUser);
   const storedRaw = typeof window !== 'undefined' ? localStorage.getItem('userInfo') : null;
-  const stored = (()=>{ try { const p = storedRaw ? JSON.parse(storedRaw) : null; return p?.user || p || null; } catch { return null; } })();
+  const stored = (() => { try { const p = storedRaw ? JSON.parse(storedRaw) : null; return p?.user || p || null; } catch { return null; } })();
   const user = userFromRedux || stored;
   const navigate = useNavigate();
 
@@ -36,44 +46,51 @@ const Review = () => {
       try {
         setLoading(true);
 
-        // Lấy danh sách đặt phòng đã thanh toán và xác nhận
-        const bookingsResponse = await axios.get(`/api/bookings`, {
-          params: {
-            email: user.email,
-            status: "confirmed"
-          }
-        });
+        // Fetch both bookings and reviews in parallel for faster loading
+        const [bookingsResponse, reviewsResponse] = await Promise.all([
+          axios.get(`/api/bookings`, {
+            params: {
+              email: user.email,
+              status: "confirmed"
+            }
+          }),
+          axios.get(`/api/reviews/by-email`, {
+            params: { email: user.email }
+          })
+        ]);
 
         const confirmedAndPaidBookings = bookingsResponse.data.filter(
           (b) => b.paymentStatus === "paid" && b.status === "confirmed"
         );
 
-        setBookings(bookingsResponse.data);
         setPaidBookings(confirmedAndPaidBookings);
-
-        // Lấy các đánh giá hiện có
-        const reviewsResponse = await axios.get(`/api/reviews/by-email`, {
-          params: { email: user.email }
-        });
         setReviews(reviewsResponse.data);
 
       } catch (error) {
-        message.error("Không thể tải dữ liệu. Vui lòng thử lại sau.");
+        console.error("Error fetching data:", error);
+        toast.error("Không thể tải dữ liệu. Vui lòng thử lại sau.");
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [user, navigate]);
+  }, [user?.email, navigate]);
+
+  // Memoize the list of bookings that can be reviewed (not yet reviewed)
+  const reviewableBookings = useMemo(() => {
+    return paidBookings.filter(booking =>
+      !reviews.some(review => review.hotelId?._id === booking.hotelId?._id)
+    );
+  }, [paidBookings, reviews]);
 
   const handleSubmit = async () => {
     if (!selectedHotel || rating < 1 || rating > 10) {
-      return message.warning("Vui lòng chọn khách sạn và đánh giá tổng từ 1–10");
+      return toast.error("Vui lòng chọn khách sạn và đánh giá tổng từ 1–10");
     }
 
     if (!comment.trim()) {
-      return message.warning("Vui lòng chia sẻ trải nghiệm của bạn");
+      return toast.error("Vui lòng chia sẻ trải nghiệm của bạn");
     }
 
     try {
@@ -93,8 +110,7 @@ const Review = () => {
         }
       );
 
-
-      message.success("Đánh giá thành công!");
+      toast.success("Đánh giá thành công!");
 
       // Reset form
       setRating(10);
@@ -109,9 +125,9 @@ const Review = () => {
       setReviews(reviewsResponse.data);
     } catch (err) {
       if (err.response?.status === 403) {
-        message.error("Bạn cần đặt phòng và thanh toán trước khi đánh giá");
+        toast.error("Bạn cần đặt phòng và thanh toán trước khi đánh giá");
       } else {
-        message.error(err.response?.data?.message || "Lỗi khi gửi đánh giá");
+        toast.error(err.response?.data?.message || "Lỗi khi gửi đánh giá");
       }
     } finally {
       setSubmitting(false);
@@ -119,152 +135,245 @@ const Review = () => {
   };
 
   if (!user) {
-    return null; // Sẽ redirect sang trang login
+    return null;
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Spin size="large" />
+      </div>
+    );
   }
 
   return (
-    <div className="review-page" style={{ maxWidth: 800, margin: "24px auto", padding: "0 16px" }}>
-      {loading ? (
-        <div style={{ textAlign: "center", padding: "40px" }}>
-          <Spin size="large" />
-        </div>
-      ) : (
-        <>
-          {/* Form viết đánh giá */}
-          <Card
-            title={<h2 style={{ margin: 0 }}>Viết đánh giá khách sạn</h2>}
-            style={{ marginBottom: 24 }}
-          >
-            {paidBookings.length > 0 ? (
-              <>
-                <div style={{ marginBottom: 16 }}>
-                  <p style={{ marginBottom: 8, fontWeight: 500 }}>Chọn khách sạn bạn đã trải nghiệm:</p>
-                  <Select
-                    style={{ width: "100%" }}
-                    placeholder="Chọn khách sạn"
-                    value={selectedHotel}
-                    onChange={setSelectedHotel}
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="relative w-full -mt-[260px] sm:-mt-[330px]">
+        <Suspense fallback={<div className="h-[260px] sm:h-[330px]" />}>
+          <Banner />
+        </Suspense>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Sidebar - User Profile */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-lg shadow-sm border p-6 sticky top-4">
+              {/* User Avatar */}
+              <div className="flex flex-col items-center mb-6">
+                <img
+                  src={
+                    user?.avatar
+                      ? user.avatar.startsWith("http")
+                        ? user.avatar
+                        : `http://localhost:5000/${user.avatar.replace(/^\/+/, "")}`
+                      : "http://localhost:5000/Uploads/default-avt.jpg"
+                  }
+                  alt={user.name}
+                  className="w-20 h-20 rounded-full object-cover mb-3 border-2 border-blue-200"
+                />
+                <h3 className="font-semibold text-lg text-gray-900">{user.name}</h3>
+              </div>
+
+              {/* Stats */}
+              <div className="space-y-4 border-t pt-4">
+                <div className="flex items-center justify-between py-2 border-b hover:bg-gray-50 px-2 rounded cursor-pointer">
+                  <span className="text-sm text-gray-700">Tất cả đánh giá</span>
+                  <span className="font-semibold text-gray-900">{reviews.length}</span>
+                </div>
+                <div className="flex items-center justify-between py-2 hover:bg-gray-50 px-2 rounded cursor-pointer">
+                  <span className="text-sm text-gray-700">Đánh giá về chỗ nghỉ</span>
+                  <span className="font-semibold text-gray-900">{reviews.length}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="lg:col-span-3 space-y-6 ">
+            {/* Review Form Card */}
+            {paidBookings.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm border p-6 ">
+                <h2 className="text-xl font-semibold text-gray-900 mb-6">Viết đánh giá mới</h2>
+
+                {/* Hotel Selection */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Chọn khách sạn bạn đã trải nghiệm
+                  </label>
+                  <select
+                    value={selectedHotel || ""}
+                    onChange={(e) => setSelectedHotel(e.target.value)}
                     disabled={submitting}
-                  > 
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">-- Chọn khách sạn --</option>
                     {paidBookings.map((b) => {
                       const reviewExists = reviews.some(r => r.hotelId?._id === b.hotelId?._id);
                       return (
-                        <Option
+                        <option
                           key={b._id}
                           value={b.hotelId?._id}
                           disabled={reviewExists}
                         >
                           {b.hotelId?.name || "Khách sạn"} - {b.roomType}
                           {reviewExists ? " (Đã đánh giá)" : ""}
-                        </Option>
+                        </option>
                       );
                     })}
-                  </Select>
+                  </select>
                 </div>
 
-                <div style={{ marginBottom: 16 }}>
-                  <p style={{ marginBottom: 8, fontWeight: 500 }}>Điểm tổng (1–10):</p>
-                  <Input
+                {/* Rating Score */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Điểm tổng (1–10)
+                  </label>
+                  <input
                     type="number"
                     min={1}
                     max={10}
                     value={rating}
-                    onChange={(e)=> setRating(Number(e.target.value))}
+                    onChange={(e) => setRating(Number(e.target.value))}
                     disabled={submitting}
-                    style={{ width: 120 }}
+                    className="w-32 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
 
-                <div style={{ marginBottom: 16 }}>
-                  <p style={{ marginBottom: 8, fontWeight: 500 }}>Chấm điểm tiêu chí (1–10):</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    {Object.entries(criteria).map(([k,v]) => (
-                      <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                        <span>
-                          {k === 'staff' ? 'Nhân viên phục vụ' : k === 'facilities' ? 'Tiện nghi' : k === 'cleanliness' ? 'Sạch sẽ' : k === 'comfort' ? 'Thoải mái' : k === 'value' ? 'Đáng giá tiền' : 'Địa điểm'}
+                {/* Criteria Ratings */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Chấm điểm tiêu chí (1–10)
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Object.entries(criteria).map(([k, v]) => (
+                      <div key={k} className="flex items-center justify-between gap-4 bg-gray-50 p-3 rounded-lg">
+                        <span className="text-sm text-gray-700 font-medium">
+                          {k === 'staff' ? 'Nhân viên phục vụ' :
+                            k === 'facilities' ? 'Tiện nghi' :
+                              k === 'cleanliness' ? 'Sạch sẽ' :
+                                k === 'comfort' ? 'Thoải mái' :
+                                  k === 'value' ? 'Đáng giá tiền' : 'Địa điểm'}
                         </span>
-                        <Input
+                        <input
                           type="number"
                           min={1}
                           max={10}
                           value={v}
-                          onChange={(e)=> setCriteria((s)=> ({...s, [k]: Number(e.target.value)}))}
+                          onChange={(e) => setCriteria((s) => ({ ...s, [k]: Number(e.target.value) }))}
                           disabled={submitting}
-                          style={{ width: 90 }}
+                          className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div style={{ marginBottom: 16 }}>
-                  <p style={{ marginBottom: 8, fontWeight: 500 }}>Chia sẻ trải nghiệm:</p>
+                {/* Comment */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Chia sẻ trải nghiệm của bạn
+                  </label>
                   <TextArea
-                    rows={4}
+                    rows={6}
                     placeholder="Hãy chia sẻ những điều bạn thích về khách sạn..."
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                     disabled={submitting}
+                    className="rounded-lg"
                   />
                 </div>
 
+                {/* Submit Button */}
                 <Button
                   type="primary"
                   onClick={handleSubmit}
                   loading={submitting}
-                  block
+                  size="large"
+                  className="w-full md:w-auto px-8"
+                  style={{ backgroundColor: '#003580', borderColor: '#003580' }}
                 >
                   Gửi đánh giá
                 </Button>
-              </>
-            ) : (
-              <Empty
-                description={
-                  <span>
-                    Bạn chưa có đơn đặt phòng nào đã hoàn thành.
-                    <br />
-                    Hãy đặt phòng và trải nghiệm dịch vụ của chúng tôi!
-                  </span>
-                }
-              />
+              </div>
             )}
-          </Card>
 
-          {/* Danh sách đánh giá */}
-          <Card
-            title={<h2 style={{ margin: 0 }}>Đánh giá của bạn</h2>}
-            style={{ marginBottom: 24 }}
-          >
-            <List
-              itemLayout="vertical"
-              dataSource={reviews}
-              locale={{
-                emptyText: <Empty description="Bạn chưa có đánh giá nào" />
-              }}
-              renderItem={(review) => (
-                <List.Item>
-                  <List.Item.Meta
-                    title={
-                      <div style={{ fontSize: "16px", fontWeight: 500 }}>
-                        {review.hotelId?.name || "Khách sạn"}
-                      </div>
-                    }
-                    description={
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{Number(review.rating || 0).toFixed(1)}/10</div>
-                        <div style={{ color: "#8c8c8c", fontSize: "12px", marginTop: 4 }}>
-                          Đánh giá vào: {moment(review.createdAt).locale("vi").format("DD/MM/YYYY HH:mm")}
+            {/* Empty State for No Bookings */}
+            {paidBookings.length === 0 && (
+              <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
+                <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Bạn hiện không có đánh giá đang chờ xử lý nào
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Bạn chưa có đơn đặt phòng nào đã hoàn thành.<br />
+                  Hãy đặt phòng và trải nghiệm dịch vụ của chúng tôi!
+                </p>
+              </div>
+            )}
+
+            {/* Reviews List */}
+            {reviews.length > 0 ? (
+              <div className="bg-white rounded-lg shadow-sm border">
+                <div className="p-6 border-b">
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Đánh giá của bạn ({reviews.length})
+                  </h2>
+                </div>
+                <div className="divide-y">
+                  {reviews.map((review) => (
+                    <div key={review._id} className="p-6 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-start gap-4">
+                        {/* Hotel Image Placeholder */}
+                        <div className="w-24 h-24 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden">
+                          {review.hotelId?.imageurls?.[0] ? (
+                            <img
+                              src={review.hotelId.imageurls[0]}
+                              alt={review.hotelId?.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400">
+                              <FileText size={32} />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Review Content */}
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <h3 className="font-semibold text-gray-900 text-lg">
+                                {review.hotelId?.name || "Khách sạn"}
+                              </h3>
+                              <p className="text-sm text-gray-500">
+                                Đánh giá vào {moment(review.createdAt).locale("vi").format("DD MMMM YYYY")}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 bg-[#003580] text-white px-3 py-1 rounded-lg">
+                              <Star size={16} fill="white" />
+                              <span className="font-bold">{Number(review.rating || 0).toFixed(1)}</span>
+                            </div>
+                          </div>
+                          <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                            {review.comment}
+                          </p>
                         </div>
                       </div>
-                    }
-                  />
-                  <div style={{ whiteSpace: "pre-wrap" }}>{review.comment}</div>
-                </List.Item>
-              )}
-            />
-          </Card>
-        </>
-      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
+                <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-600">Bạn chưa có đánh giá nào</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

@@ -26,11 +26,11 @@ const AdminDiscounts = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(true);
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('none');
-  
+
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const discountsPerPage = 10;
@@ -47,7 +47,7 @@ const AdminDiscounts = () => {
     setLoading(true);
     try {
       const { data } = await axios.get('/api/discounts/admin', config);
-      setDiscounts(data || []);
+      setDiscounts((data || []).filter(d => d.isDeleted !== true));
     } catch (error) {
       toast.error('Lỗi khi lấy danh sách khuyến mãi.');
       setDiscounts([]);
@@ -77,7 +77,7 @@ const AdminDiscounts = () => {
     }
     if (searchTerm) {
       const lowercasedTerm = searchTerm.toLowerCase();
-      result = result.filter(d => 
+      result = result.filter(d =>
         d.name.toLowerCase().includes(lowercasedTerm) ||
         d.code?.toLowerCase().includes(lowercasedTerm)
       );
@@ -104,15 +104,15 @@ const AdminDiscounts = () => {
   }, [searchTerm, typeFilter, sortOrder]);
 
   const resetForm = () => {
-    setFormData({ 
-      name: '', code: '', description: '', type: 'voucher', discountType: 'percentage', 
-      discountValue: 0, applicableHotels: [], startDate: '', endDate: '', 
-      maxDiscount: '', isStackable: false, image: '' 
+    setFormData({
+      name: '', code: '', description: '', type: 'voucher', discountType: 'percentage',
+      discountValue: 0, applicableHotels: [], startDate: '', endDate: '',
+      maxDiscount: '', isStackable: false, image: ''
     });
     setIsEditing(false);
     setEditId(null);
   };
-  
+
   const handleEdit = (discount) => {
     setIsEditing(true);
     setEditId(discount._id);
@@ -141,7 +141,7 @@ const AdminDiscounts = () => {
     }
     setIsModalOpen(true);
   };
-  
+
   const handleCancelModal = () => {
     setIsModalOpen(false);
     resetForm();
@@ -151,7 +151,7 @@ const AdminDiscounts = () => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
-  
+
   const handleHotelChange = (e) => {
     const selected = Array.from(e.target.selectedOptions, option => option.value);
     setFormData({ ...formData, applicableHotels: selected });
@@ -192,7 +192,7 @@ const AdminDiscounts = () => {
     const names = hotelIds.map(id => hotels.find(h => h._id === (id._id || id))?.name).filter(Boolean);
     return names.length > 2 ? `${names.slice(0, 2).join(', ')} và ${names.length - 2} khác` : names.join(', ');
   };
-  
+
   const formatPrice = (price) => price?.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
   // --- UI ---
@@ -208,30 +208,30 @@ const AdminDiscounts = () => {
               <li className="font-medium text-blue-600">Discounts</li>
             </ol>
           </nav>
-          <button 
-            onClick={() => handleOpenModal()} 
+          <button
+            onClick={() => handleOpenModal()}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
           >
             <Plus size={18} /> Thêm Khuyến mãi
           </button>
         </div>
       </div>
-      
+
       {/* Filter Section */}
       <div className="rounded-lg border border-gray-200 bg-white shadow-sm p-5 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Tìm theo tên hoặc mã..." 
-              value={searchTerm} 
+            <input
+              type="text"
+              placeholder="Tìm theo tên hoặc mã..."
+              value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md bg-white text-sm focus:ring-2 focus:ring-blue-500" 
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md bg-white text-sm focus:ring-2 focus:ring-blue-500"
             />
           </div>
-          <select 
-            value={typeFilter} 
+          <select
+            value={typeFilter}
             onChange={e => setTypeFilter(e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-sm focus:ring-2 focus:ring-blue-500"
           >
@@ -241,8 +241,8 @@ const AdminDiscounts = () => {
             <option value="member">Member</option>
             <option value="accumulated">Accumulated</option>
           </select>
-          <select 
-            value={sortOrder} 
+          <select
+            value={sortOrder}
             onChange={e => setSortOrder(e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-sm focus:ring-2 focus:ring-blue-500"
           >
@@ -292,12 +292,11 @@ const AdminDiscounts = () => {
                       <p className="text-xs font-semibold text-blue-600">{d.code || 'N/A'}</p>
                     </td>
                     <td className="py-3 px-4">
-                      <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                        d.type === 'voucher' ? 'bg-yellow-100 text-yellow-800' : 
+                      <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${d.type === 'voucher' ? 'bg-yellow-100 text-yellow-800' :
                         d.type === 'festival' ? 'bg-purple-100 text-purple-800' :
-                        d.type === 'member' ? 'bg-blue-100 text-blue-800' :
-                        'bg-green-100 text-green-800'
-                      }`}>
+                          d.type === 'member' ? 'bg-blue-100 text-blue-800' :
+                            'bg-green-100 text-green-800'
+                        }`}>
                         {d.type}
                       </span>
                     </td>
@@ -318,16 +317,16 @@ const AdminDiscounts = () => {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center justify-center gap-2">
-                        <button 
-                          onClick={() => handleEdit(d)} 
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" 
+                        <button
+                          onClick={() => handleEdit(d)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Sửa"
                         >
                           <Edit2 size={16} />
                         </button>
-                        <button 
-                          onClick={() => handleDelete(d._id)} 
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" 
+                        <button
+                          onClick={() => handleDelete(d._id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Xóa"
                         >
                           <Trash2 size={16} />
@@ -369,7 +368,7 @@ const AdminDiscounts = () => {
           </div>
         )}
       </div>
-        
+
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -382,113 +381,113 @@ const AdminDiscounts = () => {
             </div>
             <form onSubmit={handleSubmit} className="p-6 overflow-y-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InputField 
-                  label="Tên khuyến mãi" 
-                  name="name" 
-                  value={formData.name} 
-                  onChange={handleInputChange} 
+                <InputField
+                  label="Tên khuyến mãi"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
                   required
                 />
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-slate-700">Loại khuyến mãi</label>
-                  <select 
-                    name="type" 
-                    value={formData.type} 
-                    onChange={handleInputChange} 
-                    disabled={isEditing} 
+                  <select
+                    name="type"
+                    value={formData.type}
+                    onChange={handleInputChange}
+                    disabled={isEditing}
                     className="w-full mt-1 p-2 border rounded-md bg-white text-sm"
                   >
                     {discountTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </div>
                 {formData.type === 'voucher' && (
-                  <InputField 
-                    label="Mã Voucher" 
-                    name="code" 
-                    value={formData.code} 
-                    onChange={handleInputChange} 
+                  <InputField
+                    label="Mã Voucher"
+                    name="code"
+                    value={formData.code}
+                    onChange={handleInputChange}
                     required
                   />
                 )}
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-slate-700">Loại giảm giá</label>
-                  <select 
-                    name="discountType" 
-                    value={formData.discountType} 
-                    onChange={handleInputChange} 
+                  <select
+                    name="discountType"
+                    value={formData.discountType}
+                    onChange={handleInputChange}
                     className="w-full mt-1 p-2 border rounded-md bg-white text-sm"
                   >
                     {discountValueTypes.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </div>
-                <InputField 
-                  label="Giá trị" 
-                  name="discountValue" 
-                  type="number" 
-                  value={formData.discountValue} 
-                  onChange={handleInputChange} 
+                <InputField
+                  label="Giá trị"
+                  name="discountValue"
+                  type="number"
+                  value={formData.discountValue}
+                  onChange={handleInputChange}
                   required
                 />
                 {formData.discountType === 'percentage' && (
-                  <InputField 
-                    label="Giảm tối đa (VND)" 
-                    name="maxDiscount" 
-                    type="number" 
-                    value={formData.maxDiscount} 
-                    onChange={handleInputChange} 
+                  <InputField
+                    label="Giảm tối đa (VND)"
+                    name="maxDiscount"
+                    type="number"
+                    value={formData.maxDiscount}
+                    onChange={handleInputChange}
                     placeholder="Không giới hạn"
                   />
                 )}
                 <div className="md:col-span-2">
-                  <InputField 
-                    label="Mô tả" 
-                    name="description" 
-                    value={formData.description} 
-                    onChange={handleInputChange} 
+                  <InputField
+                    label="Mô tả"
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
                     inputType="textarea"
                   />
                 </div>
                 <div className="md:col-span-2 mb-4">
                   <label className="block text-sm font-medium text-slate-700">Khách sạn áp dụng</label>
-                  <select 
-                    multiple 
-                    name="applicableHotels" 
-                    value={formData.applicableHotels} 
-                    onChange={handleHotelChange} 
+                  <select
+                    multiple
+                    name="applicableHotels"
+                    value={formData.applicableHotels}
+                    onChange={handleHotelChange}
                     className="w-full mt-1 p-2 border rounded-md bg-white text-sm h-24"
                   >
                     {hotels.map(h => <option key={h._id} value={h._id}>{h.name}</option>)}
                   </select>
                   <p className="text-xs text-gray-500 mt-1">Để trống để áp dụng cho tất cả. Giữ Ctrl/Cmd để chọn nhiều.</p>
                 </div>
-                <InputField 
-                  label="Ngày bắt đầu" 
-                  name="startDate" 
-                  type="date" 
-                  value={formData.startDate} 
-                  onChange={handleInputChange} 
+                <InputField
+                  label="Ngày bắt đầu"
+                  name="startDate"
+                  type="date"
+                  value={formData.startDate}
+                  onChange={handleInputChange}
                   required
                 />
-                <InputField 
-                  label="Ngày kết thúc" 
-                  name="endDate" 
-                  type="date" 
-                  value={formData.endDate} 
-                  onChange={handleInputChange} 
+                <InputField
+                  label="Ngày kết thúc"
+                  name="endDate"
+                  type="date"
+                  value={formData.endDate}
+                  onChange={handleInputChange}
                   required
                 />
                 <div className="md:col-span-2">
-                  <InputField 
-                    label="Ảnh (URL)" 
-                    name="image" 
-                    value={formData.image} 
+                  <InputField
+                    label="Ảnh (URL)"
+                    name="image"
+                    value={formData.image}
                     onChange={handleInputChange}
                   />
                   {formData.image && (
                     <div className="mt-2">
-                      <img 
-                        src={formData.image} 
-                        alt="Preview" 
+                      <img
+                        src={formData.image}
+                        alt="Preview"
                         className="h-32 w-auto rounded-md object-cover border border-gray-200"
                         onError={(e) => { e.target.style.display = 'none'; }}
                       />
@@ -496,24 +495,24 @@ const AdminDiscounts = () => {
                   )}
                 </div>
                 <div className="md:col-span-2">
-                  <CheckBox 
-                    label="Cho phép chồng khuyến mãi" 
-                    name="isStackable" 
-                    checked={formData.isStackable} 
+                  <CheckBox
+                    label="Cho phép chồng khuyến mãi"
+                    name="isStackable"
+                    checked={formData.isStackable}
                     onChange={handleInputChange}
                   />
                 </div>
               </div>
               <div className="flex justify-end gap-2 border-t pt-4 mt-4">
-                <button 
-                  type="button" 
-                  onClick={handleCancelModal} 
+                <button
+                  type="button"
+                  onClick={handleCancelModal}
                   className="px-4 py-2 text-sm font-medium bg-gray-200 rounded-md hover:bg-gray-300"
                 >
                   Hủy
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
                 >
                   {isEditing ? 'Cập nhật' : 'Tạo mới'}
@@ -531,24 +530,24 @@ const InputField = ({ label, name, type = "text", value, onChange, required, pla
   <div className="mb-4">
     <label className="block text-sm font-medium text-slate-700">{label}</label>
     {inputType === "textarea" ? (
-      <textarea 
-        name={name} 
-        value={value} 
-        onChange={onChange} 
-        required={required} 
-        disabled={disabled} 
-        rows="3" 
+      <textarea
+        name={name}
+        value={value}
+        onChange={onChange}
+        required={required}
+        disabled={disabled}
+        rows="3"
         className="w-full mt-1 p-2 border rounded-md bg-white text-sm resize-none"
       />
     ) : (
-      <input 
-        type={type} 
-        name={name} 
-        value={value} 
-        onChange={onChange} 
-        required={required} 
-        disabled={disabled} 
-        placeholder={placeholder} 
+      <input
+        type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        required={required}
+        disabled={disabled}
+        placeholder={placeholder}
         className="w-full mt-1 p-2 border rounded-md bg-white text-sm"
       />
     )}
@@ -557,12 +556,12 @@ const InputField = ({ label, name, type = "text", value, onChange, required, pla
 
 const CheckBox = ({ label, name, checked, onChange }) => (
   <div className="flex items-center">
-    <input 
-      type="checkbox" 
-      name={name} 
-      checked={checked} 
-      onChange={onChange} 
-      id={name} 
+    <input
+      type="checkbox"
+      name={name}
+      checked={checked}
+      onChange={onChange}
+      id={name}
       className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
     />
     <label htmlFor={name} className="ml-2 block text-sm text-slate-700">{label}</label>

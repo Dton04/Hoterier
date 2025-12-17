@@ -1,5 +1,3 @@
-// 📁 ./components/HotelResult/components/HotelList.jsx
-import React from "react";
 import Loader from "../../Loader";
 import HotelCard from "./HotelCard";
 
@@ -26,21 +24,23 @@ export default function HotelList({
           toggleFavorite={toggleFavorite}
           ratingInfo={averageRatings[hotel._id] || { average: 0, totalReviews: 0 }}
           discountInfo={
-            festivalInfo
+
+            hotel.festival || festivalInfo
               ? {
-                  name: festivalInfo.name,
-                  description: festivalInfo.description,
-                  discountType: festivalInfo.discountType,
-                  discountValue: festivalInfo.discountValue,
-                  type: festivalInfo.type,
-                  _id: festivalInfo._id, // ✅ thêm id của festival
-                }
+                name: hotel.festival?.name || festivalInfo?.name,
+                description: hotel.festival?.description || festivalInfo?.description,
+                discountType: hotel.festival?.discountType || festivalInfo?.discountType,
+                discountValue: hotel.festival?.discountValue || festivalInfo?.discountValue,
+                type: hotel.festival?.type || festivalInfo?.type,
+                _id: hotel.festival?._id || festivalInfo?._id,
+              }
               : null
           }
           onSelect={(id) =>
             navigate(
-              `/hotel/${id}${
-                festivalInfo?._id ? `?festivalId=${festivalInfo._id}` : ""
+              `/hotel/${id}${hotel.festival?._id || festivalInfo?._id
+                ? `?festivalId=${hotel.festival?._id || festivalInfo?._id}`
+                : ""
               }`
             )
           }

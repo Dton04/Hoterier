@@ -34,7 +34,7 @@ const roomSchema = new mongoose.Schema({
 
   dailyInventory: [
   {
-    date: { type: String, required: true },      // yyyy-mm-dd
+    date: { type: String, required: true },    
     quantity: { type: Number, required: true },  
   }
 ],

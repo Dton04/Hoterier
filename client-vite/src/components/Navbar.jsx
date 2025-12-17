@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { io } from "socket.io-client";
+import { connectSocket } from "../utils/chatApi";
 import { FiBell } from "react-icons/fi";
 
 function Navbar() {
@@ -16,6 +16,7 @@ function Navbar() {
   const [hasNewNotif, setHasNewNotif] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [socketRef, setSocketRef] = useState(null);
+  const expiryTimersRef = useRef({});
 
   //Kiểm tra đăng nhập
   const checkLoginStatus = async () => {
@@ -56,6 +57,37 @@ function Navbar() {
     const userInfo = storedUserInfo ? JSON.parse(storedUserInfo) : null;
     const token = userInfo?.user?.token || userInfo?.token;
     const lastSeenKey = "notif_last_seen";
+    const resolveUserId = () => {
+      try {
+        const raw = localStorage.getItem("userInfo");
+        if (!raw) return null;
+        const info = JSON.parse(raw);
+        const u = info?.user || info;
+        return u?._id || u?.id || null;
+      } catch {
+        return null;
+      }
+    };
+    const hasRecipient = (n) => {
+      const rid = n?.recipientId || n?.recipient_id || n?.userId || n?.user_id || n?.targetUserId || n?.target_user_id || n?.user;
+      return !!rid;
+    };
+    const isSystemNotif = (n) => {
+      // Chỉ coi là hệ thống chung khi audience='all' hoặc không có người nhận cụ thể
+      if (n?.audience === 'all') return true;
+      if (n?.isSystem || n?.category === 'system') {
+        return !hasRecipient(n);
+      }
+      return false;
+    };
+    const extractRecipientId = (n) => n?.recipientId || n?.recipient_id || n?.userId || n?.user_id || n?.targetUserId || n?.target_user_id || n?.user || null;
+    const shouldKeepNotif = (n, uid) => {
+      if (isSystemNotif(n)) return true;
+      if (!uid) return false;
+      const rid = extractRecipientId(n);
+      if (!rid) return false;
+      return String(rid) === String(uid);
+    };
 
     const updateHasNewFromList = (list) => {
       const lastSeen = localStorage.getItem(lastSeenKey);
@@ -65,6 +97,27 @@ function Navbar() {
       }
     };
 
+    const scheduleExpiry = (n) => {
+      try {
+        const id = n?._id || `${n.message}-${n.createdAt}`;
+        if (!id) return;
+        if (expiryTimersRef.current[id]) return;
+        const endsAtTs = n?.endsAt ? new Date(n.endsAt).getTime() : null;
+        const nowTs = Date.now();
+        if (!endsAtTs || endsAtTs <= nowTs) return;
+        const delay = endsAtTs - nowTs;
+        const timer = setTimeout(() => {
+          setNotifications((prev) => {
+            const next = prev.filter((x) => (x?._id || `${x.message}-${x.createdAt}`) !== id);
+            try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch { }
+            return next;
+          });
+          delete expiryTimersRef.current[id];
+        }, delay);
+        expiryTimersRef.current[id] = timer;
+      } catch { }
+    };
+
     const fetchFeed = async () => {
       try {
         if (token) {
@@ -72,14 +125,17 @@ function Navbar() {
           const res = await axios.get("/api/notifications/feed", config);
           const list = Array.isArray(res.data) ? res.data : res.data?.notifications || [];
           const now = Date.now();
-          const filtered = list.filter(n => (
+          const base = list.filter(n => (
             (!n.startsAt || new Date(n.startsAt).getTime() <= now) &&
             (!n.endsAt || new Date(n.endsAt).getTime() >= now) &&
             !n.isOutdated
           ));
+          const uid = resolveUserId();
+          const filtered = base.filter(n => shouldKeepNotif(n, uid));
           setNotifications(filtered);
+          filtered.forEach(scheduleExpiry);
           updateHasNewFromList(filtered);
-          try { localStorage.setItem("notif_cache", JSON.stringify(filtered)); } catch {}
+          try { localStorage.setItem("notif_cache", JSON.stringify(filtered)); } catch { }
         } else {
           const res = await axios.get("/api/notifications/public/latest");
           const list = res.data ? [res.data] : [];
@@ -90,26 +146,48 @@ function Navbar() {
             !n.isOutdated
           ));
           setNotifications(filtered);
+          filtered.forEach(scheduleExpiry);
           updateHasNewFromList(filtered);
-          try { localStorage.setItem("notif_cache", JSON.stringify(filtered)); } catch {}
+          try { localStorage.setItem("notif_cache", JSON.stringify(filtered)); } catch { }
         }
-      } catch (e) {}
+      } catch (e) { }
     };
 
     try {
       const cachedRaw = localStorage.getItem("notif_cache");
       const cached = cachedRaw ? JSON.parse(cachedRaw) : null;
       if (Array.isArray(cached) && cached.length) {
-        setNotifications(cached);
-        updateHasNewFromList(cached);
+        const uid = resolveUserId();
+        const filtered = cached.filter(n => shouldKeepNotif(n, uid));
+        setNotifications(filtered);
+        updateHasNewFromList(filtered);
       }
-    } catch {}
+    } catch { }
 
     fetchFeed();
 
     if (token) {
-      const s = io("http://localhost:5000", { transports: ["websocket"], auth: { token } });
+      const s = connectSocket(token);
+      s.on("connect_error", (err) => { console.error("Socket connect_error", err?.message || err); });
+      s.on("disconnect", (reason) => { console.warn("Socket disconnected", reason); });
+      s.on("notification:expired", (payload) => {
+        const id = payload?._id || payload?.id || null;
+        setNotifications((prev) => {
+          const next = prev.filter((x) => (x?._id || x?.id) !== id);
+          try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch { }
+          return next;
+        });
+        if (id) {
+          const t = expiryTimersRef.current[id];
+          if (t) {
+            clearTimeout(t);
+            delete expiryTimersRef.current[id];
+          }
+        }
+      });
       s.on("notification:new", (payload) => {
+        const uid = resolveUserId();
+        if (!shouldKeepNotif(payload, uid)) return;
         const now = Date.now();
         const startOk = !payload.startsAt || new Date(payload.startsAt).getTime() <= now;
         const endOk = !payload.endsAt || new Date(payload.endsAt).getTime() >= now;
@@ -120,23 +198,27 @@ function Navbar() {
             setTimeout(() => {
               setNotifications((prev) => {
                 const next = [payload, ...prev].slice(0, 10);
-                try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch {}
+                try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch { }
                 return next;
               });
               setHasNewNotif(true);
+              scheduleExpiry(payload);
             }, delay);
           }
           return;
         }
         setNotifications((prev) => {
           const next = [payload, ...prev].slice(0, 10);
-          try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch {}
+          try { localStorage.setItem("notif_cache", JSON.stringify(next)); } catch { }
           return next;
         });
+        scheduleExpiry(payload);
         setHasNewNotif(true);
       });
       setSocketRef(s);
       return () => {
+        Object.values(expiryTimersRef.current).forEach((t) => clearTimeout(t));
+        expiryTimersRef.current = {};
         s.disconnect();
       };
     }
@@ -170,7 +252,7 @@ function Navbar() {
   };
 
   return (
-    <header className="relative top-0 left-0 w-full text-white z-[999] bg-[#003580]">
+    <header className="relative  top-0 left-0 w-full text-white z-[999] bg-[#003580] shadow-md">
 
       <div className="max-w-7xl mx-auto flex justify-between items-center px-5 py-3">
         {/* 🏨 Logo */}
@@ -194,9 +276,9 @@ function Navbar() {
               key={item.path}
               to={item.path}
               className={`pb-2 hover:text-[#febb02] ${location.pathname === item.path ||
-                  (item.path === "/home" && location.pathname === "/")
-                  ? "border-b-2 border-[#febb02]"
-                  : ""
+                (item.path === "/home" && location.pathname === "/")
+                ? "border-b-2 border-[#febb02]"
+                : ""
                 }`}
             >
               {item.label}
@@ -270,8 +352,10 @@ function Navbar() {
                 <img
                   src={
                     user?.avatar
-                      ? `http://localhost:5000/${user.avatar.replace(/^\/+/, "")}`
-                      : "https://cf.bstatic.com/static/img/avatar/booking_avatar_40x40/99e8e7b26f5de94b82e8be93d93cf5b5b7b33eea.png"
+                      ? user.avatar.startsWith("http")
+                        ? user.avatar
+                        : `http://localhost:5000/${user.avatar.replace(/^\/+/, "")}`
+                      : "http://localhost:5000/Uploads/default-avt.jpg"
                   }
                   alt="avatar"
                   className="w-8 h-8 rounded-full border border-gray-300 object-cover"
@@ -323,6 +407,27 @@ function Navbar() {
                         </button>
                       </li>
                     </>
+                  ) : user.role === "staff" ? (
+                    <>
+                      <li>
+                        <Link
+                          to="/staff/dashboard"
+                          onClick={closeNav}
+                          className="block px-4 py-2 hover:bg-gray-100"
+                        >
+                          <i className="fas fa-tachometer-alt mr-2 text-blue-600"></i>
+                          Staff Dashboard
+                        </Link>
+                      </li>
+                      <li>
+                        <button
+                          onClick={handleLogout}
+                          className="w-full text-left block px-4 py-2 text-red-600 hover:bg-gray-100"
+                        >
+                          <i className="fas fa-sign-out-alt mr-2"></i> Đăng xuất
+                        </button>
+                      </li>
+                    </>
                   ) : (
                     <>
                       <li>
@@ -360,8 +465,18 @@ function Navbar() {
                           onClick={closeNav}
                           className="block px-4 py-2 hover:bg-gray-100"
                         >
-                          <i className="fas fa-heart mr-2 text-red-500"></i>
+                          <i className="fas fa-star mr-2 text-orange-500"></i>
                           Đánh giá của tôi
+                        </Link>
+                      </li>
+                      <li>
+                        <Link
+                          to="/chat"
+                          onClick={closeNav}
+                          className="block px-4 py-2 hover:bg-gray-100"
+                        >
+                          <i className="fas fa-comment-dots mr-2 text-blue-500"></i>
+                          Tin nhắn của tôi
                         </Link>
                       </li>
                       <li>
@@ -531,6 +646,9 @@ function Navbar() {
                     <li><Link to="/bookings" onClick={closeNav}>Đặt phòng của tôi</Link></li>
                     <li><Link to="/favorites" onClick={closeNav}>Danh sách yêu thích</Link></li>
                     <li><Link to="/reviews" onClick={closeNav}>Đánh giá của tôi</Link></li>
+                    {user?.role === 'staff' && (
+                      <li><Link to="/staff/dashboard" onClick={closeNav}>Staff Dashboard</Link></li>
+                    )}
                     <li>
                       <button onClick={handleLogout} className="text-red-600">
                         Đăng xuất

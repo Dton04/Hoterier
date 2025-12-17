@@ -30,7 +30,6 @@ import FacebookCallBack from "./screens/Auth/FacebookCallBack";
 import Membership from "./components/Membership";
 import HotelResults from "./components/HotelResult/HotelResults";
 import Rewards from "./components/Rewards";
-import VNPaySuccess from "./components/VNPaySuccess";
 import VerifyOTP from "./screens/Auth/VerifyOTP";
 import PointsPage from './components/PointsPage';
 import Favorites from './components/Favorites';
@@ -38,15 +37,26 @@ import HotelDetail from "./components/hoteldetail/HotelDetail";
 import Review from "./screens/Review";
 import DiscountsPage from "./screens/DiscountsPage";
 import FestivalHotels from "./screens/FestivalHotels";
+import PaymentCallback from "./screens/PaymentCallback";
+import SecurityCenter from "./components/Profile/Pages/SecurityCenter";
+import DisputeResolution from "./components/Profile/Pages/DisputeResolution";
+import ContentGuidelines from "./components/Profile/Pages/ContentGuidelines";
 
 
 
 // Import Admin Screens
 import AdminDashboard from "./components/GUI admin/Dashboards/AdminDashboard";
+import StaffDashboard from "./components/GUI staff/StaffDashboard";
+import StaffHotelManagement from "./components/GUI staff/StaffHotelManagement";
+import StaffHotelRoomManagement from "./components/GUI staff/StaffHotelRoomManagement";
+import StaffBookings from "./components/GUI staff/StaffBookings";
+import StaffCreateHotel from "./components/GUI staff/StaffCreateHotel"; // ✅ Import Mới
+import StaffChatPage from "./components/GUI staff/StaffChatPage"; // ✅ Import StaffChatPage
 import UserStaffManagement from "./components/GUI admin/Users/UserStaffManagement";
 
 import AdminBookings from "./components/GUI admin/Bookings/AdminBookings";
 import HotelManagement from "./components/GUI admin/Hotels/HotelManagement";
+import AdminApproveHotel from "./components/GUI admin/Hotels/AdminApproveHotel"; // ✅ Import Mới
 import HotelRoomManagement from "./components/GUI admin/Hotels/HotelRoomManagement";
 import ServiceManagement from "./components/GUI admin/Hotels/ServiceManagement";
 import AdminDiscounts from "./components/GUI admin/Discounts/AdminDiscounts";
@@ -56,8 +66,10 @@ import AdminRegions from "./components/GUI admin/Regions/AdminRegions";
 import AmenityManagement from "./components/GUI admin/Hotels/AmenityManagement";
 import HotelServiceManagement from "./components/GUI admin/Hotels/HotelServiceManagement";
 import AdminNotifications from "./components/GUI admin/Notifications/AdminNotifications";
-import CreateRoomForm from "./components/CreateRoomForm";
-import EditRoomForm from "./components/EditRoomForm";
+import ChatHistoryAdmin from "./components/GUI admin/Chats/ChatHistoryAdmin";
+import MyChatHistory from "./components/Pages/MyChatHistory";
+import UserChatPage from "./components/Pages/UserChatPage";
+import ScrollToTop from "./components/ScrollToTop";
 
 
 
@@ -80,7 +92,7 @@ const UserRoute = ({ children }) => {
     const raw = localStorage.getItem("userInfo");
     const parsed = raw ? JSON.parse(raw) : null;
     userInfo = parsed?.user || parsed;
-  } catch {}
+  } catch { }
   return userInfo ? children : <Navigate to="/login" replace />;
 };
 
@@ -90,11 +102,11 @@ const UserRoute = ({ children }) => {
 
 // Layout riêng cho trang đặt phòng (không Navbar, Footer, ChatBot)
 const BookingLayout = () => (
-<>
+  <>
     <Navbar />
-  <main className="bg-gray-50 min-h-screen">
-    <Outlet />
-  </main>
+    <main className="bg-gray-50 min-h-screen">
+      <Outlet />
+    </main>
   </>
 );
 
@@ -106,14 +118,14 @@ const UserLayout = () => (
     {/* Outlet là nơi các trang con của người dùng sẽ hiển thị */}
     <main className="pt-[70px] bg-gray-50 min-h-screen">
 
-       <ChatBot />
-      <UnifiedChat/>
+      <ChatBot />
+      <UnifiedChat />
 
       <Outlet />
     </main>
     <Footer />
     {/* Mount ChatBubble dùng Portal */}
-    
+
   </>
 );
 
@@ -129,9 +141,9 @@ const AdminLayoutWrapper = () => (
 
 function App() {
   return (
-    
+
     <Provider store={store}>
-       <Toaster
+      <Toaster
         position="top-center"
         reverseOrder={false}
         toastOptions={{
@@ -140,7 +152,9 @@ function App() {
         }}
       />
       <Router>
+        <ScrollToTop />
         <Routes>
+
           {/* === CÁC ROUTE CỦA NGƯỜI DÙNG === */}
           {/* Các route này sẽ tự động có Navbar và Footer */}
           <Route element={<UserLayout />}>
@@ -157,7 +171,6 @@ function App() {
             <Route path="/register" element={<Registerscreen />} />
             <Route path="/auth/google/callback" element={<GoogleCallBack />} />
             <Route path="/auth/facebook/callback" element={<FacebookCallBack />} />
-            <Route path="/booking-success" element={<VNPaySuccess />} />
             <Route path="/hotel/:id" element={<HotelDetail />} />
             <Route path="/festival/:id" element={<FestivalHotels />} />
             <Route path="/discounts" element={<DiscountsPage />} />
@@ -173,6 +186,15 @@ function App() {
             <Route path="/points" element={<UserRoute><PointsPage /></UserRoute>} />
             <Route path="/favorites" element={<UserRoute><Favorites /></UserRoute>} />
             <Route path="/reviews" element={<UserRoute><Review /></UserRoute>} />
+            <Route path="/my-chat-history" element={<UserRoute><MyChatHistory /></UserRoute>} />
+            <Route path="/chat" element={<UserRoute><UserChatPage /></UserRoute>} />
+
+            <Route path="/profile/security" element={<UserRoute><SecurityCenter /></UserRoute>} />
+            <Route path="/profile/dispute" element={<UserRoute><DisputeResolution /></UserRoute>} />
+            <Route path="/profile/content-guidelines" element={<UserRoute><ContentGuidelines /></UserRoute>} />
+
+            {/* Payment callback route for VNPay and MoMo */}
+            <Route path="/payment-callback" element={<PaymentCallback />} />
           </Route>
 
 
@@ -185,6 +207,7 @@ function App() {
 
             <Route path="bookings" element={<AdminBookings />} />
             <Route path="hotels" element={<HotelManagement />} />
+            <Route path="approve-hotels" element={<AdminApproveHotel />} /> {/* ✅ Route Mới */}
             <Route path="hotel/:hotelId/rooms" element={<HotelRoomManagement />} />
             <Route path="hotel-services" element={<HotelServiceManagement />} />
             <Route path="services" element={<ServiceManagement />} />
@@ -194,9 +217,24 @@ function App() {
             <Route path="regions" element={<AdminRegions />} />
             <Route path="amenities" element={<AmenityManagement />} />
             <Route path="notifications" element={<AdminNotifications />} />
-            {/* Đã gỡ 2 route cũ ngoài Admin */}
-            {/* <Route path="createroom" element={<CreateRoomForm />} /> */}
-            {/* <Route path="editroom/:id" element={<EditRoomForm />} /> */}
+            <Route path="chat-history" element={<ChatHistoryAdmin />} />
+          </Route>
+
+          {/* === CÁC ROUTE CỦA STAFF (tái sử dụng AdminLayout) === */}
+          <Route path="/staff" element={
+            <ProtectedRoute>
+              <AdminLayout>
+                <Outlet />
+              </AdminLayout>
+            </ProtectedRoute>
+          }>
+            <Route index element={<StaffDashboard />} />
+            <Route path="dashboard" element={<StaffDashboard />} />
+            <Route path="hotels" element={<StaffHotelManagement />} />
+            <Route path="create-hotel" element={<StaffCreateHotel />} /> {/* ✅ Route Mới */}
+            <Route path="hotel/:hotelId/rooms" element={<StaffHotelRoomManagement />} />
+            <Route path="bookings" element={<StaffBookings />} />
+            <Route path="chat" element={<StaffChatPage />} />
           </Route>
 
 

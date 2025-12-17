@@ -1,15 +1,27 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import { FaUser, FaLock, FaUsers, FaCog, FaCreditCard, FaShieldAlt } from "react-icons/fa";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { FaUser, FaLock, FaUsers, FaCog, FaCreditCard, FaShieldAlt, FaTicketAlt } from "react-icons/fa";
+
+// Import sub-components
+import SecuritySettings from "./Tabs/SecuritySettings";
+import Companions from "./Tabs/Companions";
+import GeneralSettings from "./Tabs/GeneralSettings";
+import PaymentMethods from "./Tabs/PaymentMethods";
+import PrivacySettings from "./Tabs/PrivacySettings";
+import MyVouchers from "./Tabs/MyVouchers";
 
 export default function ProfileDetails() {
   const [profile, setProfile] = useState(null);
-  const [activeTab, setActiveTab] = useState("personal");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "personal";
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
+  const [editingField, setEditingField] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [previewAvatar, setPreviewAvatar] = useState(null);
+  const fileInputRef = React.useRef(null);
 
   const navigate = useNavigate();
   const API_BASE_URL = "http://localhost:5000";
@@ -39,169 +51,260 @@ export default function ProfileDetails() {
     fetchProfile();
   }, [token, navigate]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setProfile((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSave = async (e) => {
-    e.preventDefault();
-    if (!profile) return;
+  const updateProfile = async (updatedData) => {
     setSaving(true);
     try {
-      await axios.put(
+      // Merge updatedData with existing profile to ensure we don't lose fields
+      const newProfile = { ...profile, ...updatedData };
+
+      // If sending complex objects (arrays/objects), we might need to stringify them if using FormData,
+      // but here we can try sending JSON directly if the backend supports it, 
+      // OR we stick to the existing pattern. 
+      // The backend controller I updated handles both JSON body and FormData stringified fields.
+      // Let's use JSON for simple updates and FormData only for Avatar.
+
+      const res = await axios.put(
         `${API_BASE_URL}/api/users/${userInfo._id || userInfo.id}/profile`,
-        profile,
+        newProfile,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setEditing(false);
+
+      setProfile(res.data);
+      setEditingField(null);
+      return { success: true };
     } catch (err) {
-      setError("Lỗi khi lưu thay đổi.");
+      console.error(err);
+      setError("Lỗi khi cập nhật hồ sơ.");
+      return { success: false, error: err.message };
     } finally {
       setSaving(false);
     }
   };
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setProfile((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAvatarClick = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setAvatarFile(file);
+      setPreviewAvatar(URL.createObjectURL(file));
+      saveAvatar(file);
+    }
+  };
+
+  const saveAvatar = async (file) => {
+    setSaving(true);
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    // Append other fields as strings if needed, but for avatar update, 
+    // we usually just want to update avatar. 
+    // However, the backend might expect other fields or it might be a partial update.
+    // My updated controller uses findByIdAndUpdate, so partial is fine.
+
+    try {
+      const res = await axios.put(
+        `${API_BASE_URL}/api/users/${userInfo._id || userInfo.id}/profile`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "multipart/form-data"
+          }
+        }
+      );
+      setProfile(res.data);
+      setAvatarFile(null);
+      const updatedUserInfo = { ...userInfo, avatar: res.data.avatar };
+      localStorage.setItem("userInfo", JSON.stringify(updatedUserInfo));
+    } catch (err) {
+      setError("Lỗi khi cập nhật ảnh đại diện.");
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSave = () => {
+    updateProfile(profile);
+  };
+
+  const handleCancel = () => {
+    setEditingField(null);
+    // Reload profile to reset changes? Or just keep local state?
+    // Ideally revert to 'profile' before edit. 
+    // Since 'profile' state is modified directly by handleChange, we might need a separate 'editState'.
+    // For now, let's just close edit mode.
+  };
+
   if (loading) return <div className="p-8 text-center">Đang tải...</div>;
 
-  return (
-    <div className="flex flex-col md:flex-row max-w-6xl mx-auto bg-white rounded-xl shadow-sm overflow-hidden mt-6">
-      {/* Sidebar */}
-      <aside className="w-full md:w-1/4 border-r border-gray-200 bg-gray-50">
-        <div className="p-4 border-b text-lg font-semibold text-[#003580]">
-          Tài khoản của tôi
+  const renderField = (label, value, fieldName, type = "text", isVerified = false) => {
+    const isEditing = editingField === fieldName;
+
+    return (
+      <div className="flex justify-between items-start p-4 border-b border-gray-200 last:border-0 hover:bg-gray-50 transition-colors">
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-900 mb-1">{label}</p>
+          {isEditing ? (
+            <div className="mt-1">
+              <input
+                type={type}
+                name={fieldName}
+                value={profile?.[fieldName] || ""}
+                onChange={handleChange}
+                className="border border-gray-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-blue-500 w-full max-w-md"
+              />
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className={`text-[15px] ${value ? "text-gray-900" : "text-gray-400 italic"}`}>
+                {fieldName === 'gender'
+                  ? (value === 'male' ? 'Nam' : value === 'female' ? 'Nữ' : value === 'other' ? 'Khác' : 'Chưa cung cấp')
+                  : (value || "Chưa cung cấp")}
+              </span>
+              {isVerified && (
+                <span className="bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded">
+                  Xác thực
+                </span>
+              )}
+            </div>
+          )}
+          {fieldName === "email" && !isEditing && (
+            <p className="text-xs text-gray-500 mt-1 max-w-xl">
+              Đây là địa chỉ email bạn dùng để đăng nhập. Chúng tôi cũng sẽ gửi các xác nhận đặt chỗ tới địa chỉ này.
+            </p>
+          )}
         </div>
-        <ul className="p-4 space-y-3 text-gray-700">
-          {[
-            { id: "personal", label: "Thông tin cá nhân", icon: <FaUser /> },
-            { id: "security", label: "Cài đặt bảo mật", icon: <FaLock /> },
-            { id: "companions", label: "Người đi cùng", icon: <FaUsers /> },
-            { id: "settings", label: "Cài đặt chung", icon: <FaCog /> },
-            { id: "payment", label: "Phương thức thanh toán", icon: <FaCreditCard /> },
-            { id: "privacy", label: "Quyền riêng tư & dữ liệu", icon: <FaShieldAlt /> },
-          ].map((item) => (
-            <li
-              key={item.id}
-              className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition ${
-                activeTab === item.id
-                  ? "bg-blue-100 text-[#003580] font-medium"
-                  : "hover:bg-gray-100"
-              }`}
-              onClick={() => setActiveTab(item.id)}
+
+        <div className="ml-4">
+          {isEditing ? (
+            <div className="flex gap-3 text-sm">
+              <button
+                onClick={handleCancel}
+                className="text-blue-600 font-medium hover:bg-blue-50 px-3 py-1 rounded"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="text-blue-600 font-medium hover:bg-blue-50 px-3 py-1 rounded"
+              >
+                {saving ? "Lưu..." : "Lưu"}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setEditingField(fieldName)}
+              className="text-blue-600 text-sm font-medium hover:underline"
             >
-              {item.icon}
-              <span>{item.label}</span>
-            </li>
-          ))}
-        </ul>
+              Chỉnh sửa
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col md:flex-row max-w-6xl mx-auto mt-8 mb-12 font-sans">
+      {/* Sidebar */}
+      <aside className="w-full md:w-1/4 pr-8 hidden md:block">
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <ul className="divide-y divide-gray-100">
+            {[
+              { id: "personal", label: "Thông tin cá nhân", icon: <FaUser className="text-gray-400" /> },
+              { id: "security", label: "Cài đặt bảo mật", icon: <FaLock className="text-gray-400" /> },
+              { id: "companions", label: "Người đi cùng", icon: <FaUsers className="text-gray-400" /> },
+              { id: "vouchers", label: "Voucher của tôi", icon: <FaTicketAlt className="text-gray-400" /> },
+              { id: "settings", label: "Cài đặt chung", icon: <FaCog className="text-gray-400" /> },
+              { id: "payment", label: "Phương thức thanh toán", icon: <FaCreditCard className="text-gray-400" /> },
+              { id: "privacy", label: "Quyền riêng tư & dữ liệu", icon: <FaShieldAlt className="text-gray-400" /> },
+            ].map((item) => (
+              <li
+                key={item.id}
+                onClick={() => setSearchParams({ tab: item.id })}
+                className={`flex items-center gap-3 p-4 cursor-pointer transition-colors ${activeTab === item.id
+                  ? "bg-blue-50 text-blue-600" // Active state
+                  : "hover:bg-gray-50 text-gray-700"
+                  }`}
+              >
+                <span className={activeTab === item.id ? "text-blue-600" : ""}>{item.icon}</span>
+                <span className="font-medium text-sm">{item.label}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 p-6">
+      <main className="flex-1">
         {activeTab === "personal" && (
           <div>
-            <div className="flex justify-between items-start mb-4">
+            <div className="flex justify-between items-start mb-6">
               <div>
-                <h2 className="text-2xl font-semibold text-[#003580]">Thông tin cá nhân</h2>
-                <p className="text-gray-500 text-sm">
-                  Cập nhật thông tin của bạn và tìm hiểu cách thông tin này được sử dụng.
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Thông tin cá nhân</h1>
+                <p className="text-gray-600 text-[15px]">
+                  Cập nhật thông tin của bạn và tìm hiểu các thông tin này được sử dụng ra sao.
                 </p>
               </div>
-              {!editing && (
-                <button
-                  onClick={() => setEditing(true)}
-                  className="text-blue-600 hover:underline"
-                >
-                  Chỉnh sửa
-                </button>
-              )}
-            </div>
-
-            <div className="border rounded-lg divide-y">
-              {/* Tên */}
-              <div className="flex justify-between items-center p-4 hover:bg-gray-50">
-                <div>
-                  <p className="font-medium text-gray-800">Tên</p>
-                  <p className="text-gray-600">{profile?.name || "Chưa cập nhật"}</p>
-                </div>
-                {editing && (
-                  <input
-                    name="name"
-                    value={profile?.name || ""}
-                    onChange={handleChange}
-                    className="border rounded px-2 py-1 text-sm"
+              <div className="relative">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                  accept="image/*"
+                />
+                <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden border border-gray-300">
+                  <img
+                    src={
+                      previewAvatar ||
+                      (profile?.avatar
+                        ? profile.avatar.startsWith("http")
+                          ? profile.avatar
+                          : `${API_BASE_URL}/${profile.avatar.replace(/^\/+/, "")}`
+                        : "https://cf.bstatic.com/static/img/theme-index/default-avatar.svg")
+                    }
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
                   />
-                )}
-                <button className="text-blue-600 text-sm hover:underline">Chỉnh sửa</button>
-              </div>
 
-              {/* Email */}
-              <div className="flex justify-between items-center p-4 hover:bg-gray-50">
-                <div>
-                  <p className="font-medium text-gray-800">Địa chỉ email</p>
-                  <p className="text-gray-600">{profile?.email}</p>
                 </div>
-                <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded">
-                  Đã xác thực
-                </span>
-              </div>
-
-              {/* Số điện thoại */}
-              <div className="flex justify-between items-center p-4 hover:bg-gray-50">
-                <div>
-                  <p className="font-medium text-gray-800">Số điện thoại</p>
-                  <p className="text-gray-600">{profile?.phone || "Thêm số điện thoại"}</p>
-                </div>
-                <button className="text-blue-600 text-sm hover:underline">Chỉnh sửa</button>
-              </div>
-
-              {/* Ngày sinh */}
-              <div className="flex justify-between items-center p-4 hover:bg-gray-50">
-                <div>
-                  <p className="font-medium text-gray-800">Ngày sinh</p>
-                  <p className="text-gray-600">
-                    {profile?.dob ? profile.dob.split("T")[0] : "Chưa cập nhật"}
-                  </p>
-                </div>
-                <button className="text-blue-600 text-sm hover:underline">Chỉnh sửa</button>
-              </div>
-
-
-              {/* Giới tính */}
-              <div className="flex justify-between items-center p-4 hover:bg-gray-50">
-                <div>
-                  <p className="font-medium text-gray-800">Giới tính</p>
-                  <p className="text-gray-600">
-                    {profile?.gender === "male"
-                      ? "Nam"
-                      : profile?.gender === "female"
-                      ? "Nữ"
-                      : "Khác"}
-                  </p>
-                </div>
-                <button className="text-blue-600 text-sm hover:underline">Chỉnh sửa</button>
+                <button
+                  onClick={handleAvatarClick}
+                  className="absolute bottom-0 right-0 bg-white rounded-full p-1 shadow border border-gray-200 text-gray-600 hover:text-blue-600"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                  </svg>
+                </button>
               </div>
             </div>
 
-            {editing && (
-              <div className="flex justify-end gap-3 mt-5">
-                <button
-                  onClick={() => setEditing(false)}
-                  className="px-4 py-2 border rounded"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                  {saving ? "Đang lưu..." : "Lưu thay đổi"}
-                </button>
-              </div>
-            )}
+            <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+              {renderField("Tên", profile?.name, "name")}
+              {renderField("Tên hiển thị", profile?.displayName || "Chọn tên hiển thị", "displayName")}
+              {renderField("Địa chỉ email", profile?.email, "email", "email", true)}
+              {renderField("Số điện thoại", profile?.phone, "phone", "tel")}
+            </div>
           </div>
         )}
+
+        {activeTab === "security" && <SecuritySettings profile={profile} updateProfile={updateProfile} />}
+        {activeTab === "companions" && <Companions profile={profile} updateProfile={updateProfile} />}
+        {activeTab === "vouchers" && <MyVouchers profile={profile} />}
+        {activeTab === "settings" && <GeneralSettings profile={profile} updateProfile={updateProfile} />}
+        {activeTab === "payment" && <PaymentMethods profile={profile} updateProfile={updateProfile} />}
+        {activeTab === "privacy" && <PrivacySettings profile={profile} updateProfile={updateProfile} />}
       </main>
     </div>
   );

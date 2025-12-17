@@ -86,41 +86,37 @@ const HotelResults = () => {
 
 
   useEffect(() => {
-    if (userInfo) {
-      fetchFavorites();
-    }
-  }, [userInfo]);
+    fetchFavorites();
+  }, []);
+
 
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const regionFromQuery = params.get("region");
-    const destinationId = params.get("destination");
     const districtFromQuery = params.get("district");
 
+    // Nếu không có query thì không set
+    if (!regionFromQuery) return;
 
+    setFilters((prev) => {
+      let newRegion = decodeURIComponent(regionFromQuery);
+      const newCity = decodeURIComponent(districtFromQuery || "");
 
-    // Nếu URL có destination → tìm theo ID
-    if (destinationId && regions.length > 0) {
-      const foundRegion = regions.find((r) => r._id === destinationId);
-      if (foundRegion) {
-        setFilters((prev) => ({
-          ...prev,
-          region: foundRegion.name,  // 👈 Lọc theo tên
-          city: "",
-        }));
-        return;
+      // Nếu region là ID → convert sang tên
+      const regionObj = regions.find((r) => r._id === newRegion);
+      if (regionObj) {
+        newRegion = regionObj.name;
       }
-    }
 
-    if (regionFromQuery) {
-      setFilters((prev) => ({
+      return {
         ...prev,
-        region: decodeURIComponent(regionFromQuery),
-        city: decodeURIComponent(districtFromQuery || ""),
-      }));
-    }
+        region: newRegion,
+        city: newCity,
+      };
+    });
   }, [location.search, regions]);
+
 
 
   // Khu vực
@@ -176,46 +172,77 @@ const HotelResults = () => {
         const { data } = await axios.get(`/api/discounts/${festival}/festival-hotels`);
         setFestivalInfo(data.festival);
 
-        let filtered = data.hotels;
-        if (regionParam) {
-          const isIdLike = /^[0-9a-fA-F]{24}$/.test(regionParam);
-          if (isIdLike) {
-            filtered = filtered.filter(
-              (h) =>
-                h.region &&
-                (h.region._id?.toString() === regionParam || h.region === regionParam)
-            );
-          } else {
-            filtered = filtered.filter(
-              (h) =>
-                h.regionName === regionParam || h.region?.name === regionParam
-            );
-          }
-        }
-        if (cityParam) filtered = filtered.filter((h) => h.city === cityParam);
+        // Lấy full detail cho từng khách sạn (có áp dụng giảm giá)
+        const fullHotels = await Promise.all(
+          data.hotels.map(async (h) => {
+            const detail = await axios.get(`/api/hotels/${h._id}`, {
+              params: { festivalId: festival },
+            });
+            return detail.data;
+          })
+        );
 
-        hotelsWithExtras = filtered.map((hotel) => {
-          const lowestPrice = Math.min(...hotel.rooms.map((r) => r.discountedPrice || r.rentperday));
-          return { ...hotel, lowestPrice };
-        });
+        let filtered = fullHotels;
+
+        // filter region + city nếu có
+        if (regionParam) {
+          filtered = filtered.filter(
+            (h) =>
+              h.region?.name?.toLowerCase() === regionParam.toLowerCase() ||
+              h.region?._id === regionParam
+          );
+        }
+        if (cityParam) {
+          filtered = filtered.filter((h) =>
+            h.district?.toLowerCase().includes(cityParam.toLowerCase())
+          );
+        }
+
+        // Add lowestPrice giống khách sạn thường
+        hotelsWithExtras = await Promise.all(
+          filtered.map(async (hotel) => {
+            const lowestPrice = Math.min(
+              ...hotel.rooms.map((r) => r.discountedPrice || r.rentperday)
+            );
+
+            const servicesRes = await axios.get(
+              `/api/services?hotelId=${hotel._id}&isAvailable=true`
+            );
+            const services = servicesRes.data || [];
+
+            return { ...hotel, lowestPrice, services };
+          })
+        );
       } else {
         setFestivalInfo(null);
-        // Gọi API BE có query region + city (region may be id or name)
+
+        // Gọi API khách sạn bình thường
         const { data } = await axios.get(`/api/hotels`, {
-          params: { region: regionParam || undefined, city: cityParam || undefined },
+          params: {
+            region: regionParam || undefined,
+            city: cityParam || undefined,
+          },
         });
 
+        // Lấy service + lowestPrice giống festival
         hotelsWithExtras = await Promise.all(
           data.map(async (hotel) => {
-            const servicesRes = await axios.get(`/api/services?hotelId=${hotel._id}&isAvailable=true`);
+            const servicesRes = await axios.get(
+              `/api/services?hotelId=${hotel._id}&isAvailable=true`
+            );
             const services = servicesRes.data || [];
+
+            // ✅ Use discountedPrice if available (from backend festival check)
             const lowestPrice = hotel.rooms?.length
-              ? Math.min(...hotel.rooms.map((r) => r.rentperday))
+              ? Math.min(...hotel.rooms.map((r) => r.discountedPrice || r.rentperday))
               : 0;
+
             return { ...hotel, services, lowestPrice };
           })
         );
       }
+
+
 
 
       const adults = Number(searchParams.get("adults") || 1);
@@ -317,8 +344,19 @@ const HotelResults = () => {
         const priceMax = Math.max(...hotel.rooms.map((r) => r.rentperday));
 
         const matchRegion = filters.region
-          ? hotel.region?.name?.toLowerCase() === filters.region.toLowerCase()
+          ? (
+            hotel.region?._id?.toString() === filters.region ||
+            hotel.region?.name?.toLowerCase() === filters.region.toLowerCase()
+          )
           : true;
+
+
+
+        const matchDistrict = filters.city
+          ? hotel.district?.toLowerCase().includes(filters.city.toLowerCase())
+          : true;
+
+
 
         const matchRating = avg >= filters.rating;
         const matchPrice = priceMax >= filters.minPrice && priceMin <= filters.maxPrice;
@@ -341,7 +379,15 @@ const HotelResults = () => {
             )
           );
 
-        return matchRegion && matchRating && matchPrice && matchStars && matchService && matchAmenity;
+        return (
+          matchRegion &&
+          matchDistrict &&
+          matchRating &&
+          matchPrice &&
+          matchStars &&
+          matchService &&
+          matchAmenity
+        );
       })
       .sort((a, b) => {
         if (sortBy === "priceLow") return a.lowestPrice - b.lowestPrice;

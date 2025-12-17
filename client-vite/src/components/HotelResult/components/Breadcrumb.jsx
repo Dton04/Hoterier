@@ -32,7 +32,7 @@ export default function Breadcrumb({ filters, setFilters }) {
               }}
               className="cursor-pointer hover:underline text-[#0071c2]"
             >
-              {filters.region}
+              {filters.region && filters.region[0].toUpperCase() + filters.region.slice(1)}
             </span>
           </>
         )}
@@ -48,7 +48,7 @@ export default function Breadcrumb({ filters, setFilters }) {
               }
               className="cursor-pointer hover:underline text-[#0071c2]"
             >
-              {filters.city}
+              {filters.city.charAt(0).toUpperCase() + filters.city.slice(1)}
             </span>
           </>
         )}

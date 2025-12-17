@@ -5,6 +5,7 @@ const Room = require('../models/room');
 const Region = require('../models/region');
 const Booking = require('../models/booking');
 const Discount = require('../models/discount');
+const Review = require('../models/review');
 
 const fs = require('fs');
 const path = require('path');
@@ -17,42 +18,38 @@ exports.getAllHotels = async (req, res) => {
       return res.status(503).json({ message: 'Kết nối cơ sở dữ liệu chưa sẵn sàng' });
     }
 
-    const { region, city, district } = req.query;
+    const { region, city, district, includeUnapproved } = req.query;
     const filter = {};
+
+    // Mặc định chỉ lấy đã duyệt, trừ khi có cờ includeUnapproved (dành cho Admin)
+    if (includeUnapproved !== 'true') {
+      filter.isApproved = true;
+    }
 
     // Support both region id (ObjectId) or region name
     if (region) {
       if (mongoose.Types.ObjectId.isValid(region)) {
-        filter.region = region;
+        filter.region = new mongoose.Types.ObjectId(region);
       } else {
-        // try find region by name
-        const foundRegion = await Region.findOne({ name: region }).select('_id');
-        if (foundRegion) filter.region = foundRegion._id;
-        else {
-          // fallback: if hotel documents have regionName field (legacy), filter by that
-          filter.regionName = region;
+        // Tìm theo tên khu vực
+        const foundRegion = await Region.findOne({ name: { $regex: region, $options: "i" } }).select("_id");
+        if (foundRegion) {
+          filter.region = foundRegion._id;
         }
       }
     }
-    // 🏙️ Lọc theo district (ưu tiên nếu có)
+
     if (district || city) {
-      const target = district || city;
+      const keyword = district || city;
 
-      // Chuẩn hóa tiếng Việt cho việc tìm kiếm không phân biệt dấu
       const normalizeVietnamese = (str) =>
-        str
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .replace(/đ/g, "d")
-          .replace(/Đ/g, "D")
-          .toLowerCase();
+        str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").toLowerCase();
 
-      const normalized = normalizeVietnamese(target);
+      const normalizedKeyword = normalizeVietnamese(keyword);
 
-      // ⚡️ Lọc district không phân biệt dấu bằng $or + regex
       filter.$or = [
-        { district: { $regex: target, $options: "i" } }, // có dấu
-        { district: { $regex: normalized, $options: "i" } }, // không dấu
+        { district: { $regex: keyword, $options: "i" } }, // có dấu
+        { normalizedDistrict: { $regex: normalizedKeyword, $options: "i" } }, // không dấu
       ];
     }
 
@@ -61,7 +58,7 @@ exports.getAllHotels = async (req, res) => {
 
 
     // Truy vấn và populate đầy đủ
-    const hotels = await Hotel.find(filter)
+    let hotels = await Hotel.find(filter)
       .populate('region', 'name')
       .populate('rooms', '_id name maxcount beds baths rentperday quantity type description imageurls availabilityStatus amenities')
       .lean();
@@ -70,6 +67,53 @@ exports.getAllHotels = async (req, res) => {
     if (!hotels || hotels.length === 0) {
       return res.status(200).json([]);
     }
+
+    // ✅ Check for active festivals and attach discount info
+    const now = new Date();
+    const activeFestivals = await Discount.find({
+      type: 'festival',
+      isDeleted: false,
+      startDate: { $lte: now },
+      endDate: { $gte: now },
+    }).lean();
+
+    // Apply festival discounts to applicable hotels
+    hotels = hotels.map(hotel => {
+      // Find if this hotel is in any active festival
+      const applicableFestival = activeFestivals.find(festival =>
+        festival.applicableHotels?.some(hotelId =>
+          hotelId.toString() === hotel._id.toString()
+        )
+      );
+
+      if (applicableFestival && hotel.rooms) {
+        // Calculate discounted prices for all rooms
+        hotel.rooms = hotel.rooms.map(room => {
+          let discountedPrice;
+          if (applicableFestival.discountType === 'percentage') {
+            discountedPrice = Math.round(room.rentperday * (1 - applicableFestival.discountValue / 100));
+          } else {
+            discountedPrice = Math.max(0, room.rentperday - applicableFestival.discountValue);
+          }
+
+          return {
+            ...room,
+            discountedPrice,
+            festivalDiscount: room.rentperday - discountedPrice,
+          };
+        });
+
+        // Attach festival info to hotel
+        hotel.festival = {
+          _id: applicableFestival._id,
+          name: applicableFestival.name,
+          discountType: applicableFestival.discountType,
+          discountValue: applicableFestival.discountValue,
+        };
+      }
+
+      return hotel;
+    });
 
     res.status(200).json(hotels);
   } catch (error) {
@@ -101,7 +145,7 @@ exports.getHotelById = async (req, res) => {
       .populate({
         path: "rooms",
         select:
-          "_id name maxcount beds baths rentperday type description imageurls availabilityStatus currentbookings quantity",
+          "_id name maxcount beds baths rentperday type description imageurls availabilityStatus currentbookings quantity dailyInventory",
       })
       .lean(); // ✅ trả object thường, dễ map
 
@@ -144,6 +188,31 @@ exports.getHotelById = async (req, res) => {
     }
 
 
+    // ✅ Tính toán thống kê đánh giá từ database
+    const reviews = await Review.find({
+      hotelId: hotel._id,
+      isDeleted: false,
+      isVisible: true
+    });
+
+    let reviewScore = null;
+    let reviewCount = 0;
+    let reviewText = null;
+
+    if (reviews.length > 0) {
+      const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
+      reviewScore = (totalRating / reviews.length).toFixed(1);
+      reviewCount = reviews.length;
+
+      // Xác định text đánh giá dựa trên điểm
+      const score = parseFloat(reviewScore);
+      if (score >= 9) reviewText = "Tuyệt vời";
+      else if (score >= 8) reviewText = "Rất tốt";
+      else if (score >= 7) reviewText = "Tốt";
+      else if (score >= 6) reviewText = "Khá tốt";
+      else reviewText = "Trung bình";
+    }
+
     //Trả về dữ liệu hoàn chỉnh
     res.status(200).json({
       _id: hotel._id,
@@ -158,6 +227,9 @@ exports.getHotelById = async (req, res) => {
       rooms: hotel.rooms,
       amenities: hotel.amenities,
       festival: hotel.festival || null,
+      reviewScore,
+      reviewCount,
+      reviewText,
       createdAt: hotel.createdAt,
       updatedAt: hotel.updatedAt,
     });
@@ -201,8 +273,7 @@ exports.uploadHotelImages = async (req, res) => {
 
     const uploadPromises = req.files.map(file => {
       return cloudinary.uploader.upload(file.path, {
-        folder: 'hotels', // Thư mục trên Cloudinary
-        upload_preset: 'hotel_images',
+        folder: 'hotels',
         public_id: `${hotel._id}_${Date.now()}`, // Tên file unique
       });
     });
@@ -268,16 +339,16 @@ exports.deleteHotelImage = async (req, res) => {
 
 // POST /api/hotels - Tạo khách sạn mới
 exports.createHotel = async (req, res) => {
-  const { name, address, region, district, contactNumber, email, description, rooms } = req.body;
+  const { name, address, region, district, contactNumber, email, description, rooms, starRating } = req.body;
 
   try {
     if (mongoose.connection.readyState !== 1) {
       return res.status(503).json({ message: 'Kết nối cơ sở dữ liệu chưa sẵn sàng' });
     }
 
-    if (!name || !address || !region || !contactNumber || !email) {
+    if (!name || !address || !region || !contactNumber) {
       return res.status(400).json({
-        message: 'Vui lòng cung cấp đầy đủ các trường bắt buộc: name, address, region, contactNumber, email',
+        message: 'Vui lòng cung cấp đầy đủ các trường bắt buộc: name, address, region, contactNumber',
       });
     }
 
@@ -302,6 +373,8 @@ exports.createHotel = async (req, res) => {
       return res.status(400).json({ message: 'Tên khách sạn đã tồn tại' });
     }
 
+    const isApproved = req.user && req.user.role === 'admin' ? true : false;
+
     const hotel = new Hotel({
       name,
       address,
@@ -311,6 +384,8 @@ exports.createHotel = async (req, res) => {
       description,
       rooms: rooms || [],
       district: district || null,
+      starRating: starRating || 3,
+      isApproved,
     });
 
     const savedHotel = await hotel.save();
@@ -324,7 +399,7 @@ exports.createHotel = async (req, res) => {
 // PUT /api/hotels/:id - Cập nhật thông tin khách sạn
 exports.updateHotel = async (req, res) => {
   const { id } = req.params;
-  const { name, address, region, district, contactNumber, email, description, rooms } = req.body;
+  const { name, address, region, district, contactNumber, email, description, rooms, starRating, isApproved } = req.body;
 
   try {
     if (mongoose.connection.readyState !== 1) {
@@ -333,6 +408,21 @@ exports.updateHotel = async (req, res) => {
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: 'ID khách sạn không hợp lệ' });
+    }
+
+    if (typeof isApproved === 'boolean' && req.user?.isAdmin) {
+      const hotel = await Hotel.findById(id);
+      if (!hotel) {
+        return res.status(404).json({ message: 'Không tìm thấy khách sạn' });
+      }
+
+      hotel.isApproved = isApproved;
+      await hotel.save();
+
+      return res.status(200).json({
+        message: 'Duyệt khách sạn thành công',
+        hotel,
+      });
     }
 
     if (!name || !address || !region || !contactNumber || !email) {
@@ -362,14 +452,18 @@ exports.updateHotel = async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy khách sạn' });
     }
 
-    hotel.name = name;
-    hotel.address = address;
-    hotel.region = region;
-    hotel.contactNumber = contactNumber;
-    hotel.email = email;
+    hotel.name = name ?? hotel.name;
+    hotel.address = address ?? hotel.address;
+    hotel.region = region ?? hotel.region;
+    hotel.contactNumber = contactNumber ?? hotel.contactNumber;
+    if (req.allowUpdateEmail) {
+      hotel.email = email ?? hotel.email;
+    }
     hotel.description = description || hotel.description;
     hotel.rooms = rooms || hotel.rooms;
     hotel.district = district || hotel.district;
+    hotel.starRating = starRating ?? hotel.starRating;
+
 
     const updatedHotel = await hotel.save();
     res.status(200).json({ message: 'Cập nhật khách sạn thành công', hotel: updatedHotel });
@@ -568,7 +662,7 @@ exports.getHotelsByRegion = async (req, res) => {
       return res.status(400).json({ message: 'ID khu vực không hợp lệ' });
     }
 
-    const hotels = await Hotel.find({ region: regionId })
+    const hotels = await Hotel.find({ region: regionId, isApproved: true })
       .populate('region', 'name')
       .lean();
 

@@ -104,12 +104,12 @@ const bookingSchema = new mongoose.Schema({
     default: 0, // Tổng số tiền giảm giá từ voucher
   },
   discount: {
-  id: { type: mongoose.Schema.Types.ObjectId, ref: "Discount", default: null },
-  name: String,
-  discountType: String,
-  discountValue: Number,
-  amountReduced: Number,
-},
+    id: { type: mongoose.Schema.Types.ObjectId, ref: "Discount", default: null },
+    name: String,
+    discountType: String,
+    discountValue: Number,
+    amountReduced: Number,
+  },
 
 
   appliedVouchers: [
@@ -158,9 +158,9 @@ const bookingSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Thêm index
-bookingSchema.index({ roomid: 1, paymentStatus: 1 });
-bookingSchema.index({ email: 1, paymentStatus: 1 });
-bookingSchema.index({ roomid: 1, email: 1, paymentStatus: 1 });
-bookingSchema.index({ hotelId: 1, paymentStatus: 1 });
+// bookingSchema.index({ roomid: 1, paymentStatus: 1 });
+// bookingSchema.index({ email: 1, paymentStatus: 1 });
+// bookingSchema.index({ roomid: 1, email: 1, paymentStatus: 1 });
+// bookingSchema.index({ hotelId: 1, paymentStatus: 1 });
 
 module.exports = mongoose.model("Booking", bookingSchema);

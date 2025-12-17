@@ -8,7 +8,7 @@ const userVoucherSchema = new mongoose.Schema({
   },
   discountId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Reward',
+    ref: 'Discount',
     required: true,
   },
   voucherCode: {
@@ -29,6 +29,6 @@ const userVoucherSchema = new mongoose.Schema({
   },
 });
 
-userVoucherSchema.index({ userId: 1, voucherCode: 1 }, { unique: true });
+// userVoucherSchema.index({ userId: 1, voucherCode: 1 }, { unique: true });
 
 module.exports = mongoose.model('UserVoucher', userVoucherSchema);

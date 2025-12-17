@@ -9,9 +9,10 @@ const AdminNotifications = () => {
   const [message, setMessage] = useState('');
   const [type, setType] = useState('info');
   const [sendResult, setSendResult] = useState(null);
-  const [scheduleMode, setScheduleMode] = useState('none'); // none | 15m | custom
+  const [scheduleMode, setScheduleMode] = useState('none');
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
+  const [hiding, setHiding] = useState({});
 
   // Helper function để lấy token từ localStorage
   const getAuthToken = () => {
@@ -31,7 +32,7 @@ const AdminNotifications = () => {
     try {
       const token = getAuthToken();
       const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-      
+
       const res = await axios.get('/api/notifications/admin/list', config);
       const list = Array.isArray(res.data) ? res.data : res.data?.notifications || [];
       setNotifications(list.filter(n => !n.isSystem && n.category !== 'system'));
@@ -49,11 +50,26 @@ const AdminNotifications = () => {
     fetchNotifications();
   }, []);
 
+  const hideOne = async (notif) => {
+    try {
+      const token = getAuthToken();
+      if (!token || !notif?._id) return;
+      setHiding((prev) => ({ ...prev, [notif._id]: true }));
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      const res = await axios.patch(`/api/notifications/admin/hide/${notif._id}`, {}, config);
+      const updated = res.data?.notification || null;
+      setNotifications((prev) => prev.map((n) => n._id === notif._id ? { ...n, isOutdated: true, endsAt: updated?.endsAt || new Date().toISOString() } : n));
+    } catch (e) {
+    } finally {
+      setHiding((prev) => ({ ...prev, [notif._id]: false }));
+    }
+  };
+
   // Gửi thông báo mới
   const submitNotification = async (e) => {
     e.preventDefault();
     if (!message.trim()) return;
-    
+
     setSending(true);
     setSendResult(null);
     try {
@@ -62,7 +78,7 @@ const AdminNotifications = () => {
         setSendResult({ ok: false, msg: 'Bạn chưa đăng nhập hoặc token đã hết hạn!' });
         return;
       }
-      
+
       const config = { headers: { Authorization: `Bearer ${token}` } };
       const payload = { audience, message, type };
       if (scheduleMode === '15m') {
@@ -71,12 +87,12 @@ const AdminNotifications = () => {
         if (startsAt) payload.startsAt = startsAt;
         if (endsAt) payload.endsAt = endsAt;
       }
-      
+
       console.log('Gửi thông báo với payload:', payload);
       console.log('Token:', token.substring(0, 20) + '...');
-      
+
       await axios.post('/api/notifications/admin/send', payload, config);
-      
+
       setSendResult({ ok: true, msg: 'Đã gửi thông báo thành công!' });
       setMessage('');
       setAudience('all');
@@ -84,7 +100,7 @@ const AdminNotifications = () => {
       setScheduleMode('none');
       setStartsAt('');
       setEndsAt('');
-      
+
       // Refresh danh sách thông báo
       fetchNotifications();
     } catch (e) {
@@ -100,45 +116,45 @@ const AdminNotifications = () => {
     <div className="p-6">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-2xl font-bold text-gray-800 mb-6">Quản lý thông báo</h1>
-        
+
         {/* Form tạo thông báo */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-700 mb-4">Tạo thông báo mới</h2>
-          
+
           <form onSubmit={submitNotification} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-2">Đối tượng</label>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 text-sm">
-                  <input 
-                    type="radio" 
-                    name="audience" 
-                    value="all" 
-                    checked={audience === 'all'} 
-                    onChange={(e) => setAudience(e.target.value)} 
+                  <input
+                    type="radio"
+                    name="audience"
+                    value="all"
+                    checked={audience === 'all'}
+                    onChange={(e) => setAudience(e.target.value)}
                     className="text-blue-600"
                   />
                   Tất cả mọi người
                 </label>
                 <label className="flex items-center gap-2 text-sm">
-                  <input 
-                    type="radio" 
-                    name="audience" 
-                    value="staff" 
-                    checked={audience === 'staff'} 
-                    onChange={(e) => setAudience(e.target.value)} 
+                  <input
+                    type="radio"
+                    name="audience"
+                    value="staff"
+                    checked={audience === 'staff'}
+                    onChange={(e) => setAudience(e.target.value)}
                     className="text-blue-600"
                   />
                   Nhân viên (Staff)
                 </label>
               </div>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-2">Loại thông báo</label>
-              <select 
+              <select
                 className="w-full rounded-md border border-gray-300 p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={type} 
+                value={type}
                 onChange={(e) => setType(e.target.value)}
               >
                 <option value="info">Thông tin</option>
@@ -146,51 +162,51 @@ const AdminNotifications = () => {
                 <option value="error">Lỗi</option>
               </select>
             </div>
-            
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-2">Nội dung thông báo</label>
-            <textarea 
-              className="w-full rounded-md border border-gray-300 p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              rows="3" 
-              value={message} 
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Nhập nội dung thông báo..."
-            />
-          </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-2">Nội dung thông báo</label>
+              <textarea
+                className="w-full rounded-md border border-gray-300 p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                rows="3"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Nhập nội dung thông báo..."
+              />
+            </div>
 
             {/* Lịch hiển thị */}
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-2">Thời gian hiển thị</label>
               <div className="flex flex-wrap gap-4 mb-3">
                 <label className="flex items-center gap-2 text-sm">
-                  <input type="radio" name="scheduleMode" value="none" checked={scheduleMode==='none'} onChange={(e)=>setScheduleMode(e.target.value)} />
+                  <input type="radio" name="scheduleMode" value="none" checked={scheduleMode === 'none'} onChange={(e) => setScheduleMode(e.target.value)} />
                   Không giới hạn
                 </label>
                 <label className="flex items-center gap-2 text-sm">
-                  <input type="radio" name="scheduleMode" value="15m" checked={scheduleMode==='15m'} onChange={(e)=>setScheduleMode(e.target.value)} />
+                  <input type="radio" name="scheduleMode" value="15m" checked={scheduleMode === '15m'} onChange={(e) => setScheduleMode(e.target.value)} />
                   Trong 15 phút
                 </label>
                 <label className="flex items-center gap-2 text-sm">
-                  <input type="radio" name="scheduleMode" value="custom" checked={scheduleMode==='custom'} onChange={(e)=>setScheduleMode(e.target.value)} />
+                  <input type="radio" name="scheduleMode" value="custom" checked={scheduleMode === 'custom'} onChange={(e) => setScheduleMode(e.target.value)} />
                   Khoảng thời gian tùy chọn
                 </label>
               </div>
-              {scheduleMode==='custom' && (
+              {scheduleMode === 'custom' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">Bắt đầu</label>
-                    <input type="datetime-local" className="w-full rounded-md border border-gray-300 p-2 text-sm" value={startsAt} onChange={(e)=>setStartsAt(e.target.value)} />
+                    <input type="datetime-local" className="w-full rounded-md border border-gray-300 p-2 text-sm" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
                   </div>
                   <div>
                     <label className="block text-xs text-gray-500 mb-1">Kết thúc</label>
-                    <input type="datetime-local" className="w-full rounded-md border border-gray-300 p-2 text-sm" value={endsAt} onChange={(e)=>setEndsAt(e.target.value)} />
+                    <input type="datetime-local" className="w-full rounded-md border border-gray-300 p-2 text-sm" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} />
                   </div>
                 </div>
               )}
             </div>
-            
+
             <div className="flex items-center justify-end gap-2">
-              <button 
+              <button
                 type="submit"
                 disabled={sending || !message.trim()}
                 className="rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -198,7 +214,7 @@ const AdminNotifications = () => {
                 {sending ? 'Đang gửi...' : 'Gửi thông báo'}
               </button>
             </div>
-            
+
             {sendResult && (
               <p className={`text-sm ${sendResult.ok ? 'text-green-600' : 'text-red-600'}`}>
                 {sendResult.msg}
@@ -206,11 +222,11 @@ const AdminNotifications = () => {
             )}
           </form>
         </div>
-        
+
         {/* Danh sách thông báo */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-lg font-semibold text-gray-700 mb-4">Lịch sử thông báo</h2>
-          
+
           {loading ? (
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -227,11 +243,10 @@ const AdminNotifications = () => {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          notif.type === 'error' ? 'bg-red-100 text-red-800' :
-                          notif.type === 'warning' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${notif.type === 'error' ? 'bg-red-100 text-red-800' :
+                            notif.type === 'warning' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-blue-100 text-blue-800'
+                          }`}>
                           {notif.type === 'error' ? 'Lỗi' : notif.type === 'warning' ? 'Cảnh báo' : 'Thông tin'}
                         </span>
                         <span className="text-xs text-gray-500">
@@ -248,6 +263,15 @@ const AdminNotifications = () => {
                       {notif.isOutdated && (
                         <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-700">Đã hết hạn</span>
                       )}
+                    </div>
+                    <div className="ml-4">
+                      <button
+                        disabled={!!hiding[notif._id] || !!notif.isOutdated}
+                        onClick={() => hideOne(notif)}
+                        className={`text-xs px-3 py-1 rounded border ${notif.isOutdated ? 'bg-gray-200 text-gray-500 border-gray-300' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+                      >
+                        {notif.isOutdated ? 'Đã ẩn' : (hiding[notif._id] ? 'Đang ẩn...' : 'Ẩn')}
+                      </button>
                     </div>
                   </div>
                 </div>

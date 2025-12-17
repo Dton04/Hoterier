@@ -205,7 +205,7 @@ export default function RoomDetailModal({
                {/* Booking.com: Room Amenities */}
                {/* ===================== */}
                <div className="mb-7">
-                  <h3 className="font-semibold text-lg mb-3">🛏 Tiện nghi phòng</h3>
+                  <h3 className="font-semibold text-lg mb-3"> Tiện nghi phòng</h3>
 
                   <ul className="grid grid-cols-2 gap-y-2 text-[15px]">
                      {fakeRoomAmenities.map((item, index) => (

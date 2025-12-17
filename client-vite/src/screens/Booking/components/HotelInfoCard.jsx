@@ -15,7 +15,7 @@ export default function HotelInfoCard({ hotel }) {
       {/* Ảnh khách sạn */}
       <div className="relative">
         <img
-          src={hotel.image || hotel.imageurls?.[0]}
+          src={hotel.imageurls?.[0] || hotel.image || "/images/default-hotel.jpg"}
           alt={hotel.name}
           className="w-full h-64 object-cover"
         />

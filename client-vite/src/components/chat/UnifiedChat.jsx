@@ -20,9 +20,9 @@ function decodeUserInfo() {
       const user = info?.user || info || {};
 
       return {
-         token: user?.token || info?.token || "",
-         userId: user?._id || info?._id || null,
-         role: user?.role || info?.role || null
+         token: info?.token || user?.token || "",
+         userId: user?._id || null,
+         role: user?.isAdmin ? "admin" : (user?.role || "user")
       };
    } catch {
       return { token: "", userId: null, role: null };
@@ -45,17 +45,17 @@ export default function UnifiedChat() {
 
    // --- SOCKET INIT ---
    useEffect(() => {
-   if (!token) return;
+      if (!token) return;
 
-   const s = connectSocket(token);
-   setSocket(s);
+      const s = connectSocket(token);
+      setSocket(s);
 
-   s.on("message:new", () => {
-      if (!open) setUnread((u) => u + 1);
-   });
+      s.on("message:new", () => {
+         if (!open) setUnread((u) => u + 1);
+      });
 
-   return () => s.disconnect();
-}, [token]);
+      return () => s.disconnect();
+   }, [token]);
 
 
    // --- GET OR CREATE CONVERSATION ---
@@ -66,7 +66,11 @@ export default function UnifiedChat() {
          try {
             const list = await listConversations(token);
             if (list?.length) {
-               setConversationId(list[0]._id);
+               // Chỉ lấy hội thoại không có hotelId (Hỗ trợ hệ thống)
+               const supportConv = list.find(c => !c.hotelId);
+               if (supportConv) {
+                  setConversationId(supportConv._id);
+               }
             }
          } catch { }
       })();
@@ -74,7 +78,8 @@ export default function UnifiedChat() {
 
    async function ensureConversation() {
       if (conversationId) return conversationId;
-      if (role !== "user") return null;
+      // Allow user and staff to create conversation with admin
+      if (role !== "user" && role !== "staff") return null;
 
       if (!defaultAdminId) {
          alert("Chưa cấu hình admin hỗ trợ!");
@@ -100,7 +105,8 @@ export default function UnifiedChat() {
    const handleOpen = async () => {
       setUnread(0);
 
-      if (role === "user") {
+      // Staff and User both use the normal chat window to talk to Admin
+      if (role === "user" || role === "staff") {
          const ok = await ensureConversation();
          if (!ok) return;
 
@@ -112,104 +118,120 @@ export default function UnifiedChat() {
    };
 
 
-   // Auto set real time tab for admin/staff
+   // Auto set real time tab for admin
    useEffect(() => {
-      if (role === "admin" || role === "staff") {
+      if (role === "admin") {
          setTab("realtime");
       }
    }, [role]);
 
    return (
-      <div className="fixed bottom-6 right-6 z-[9999]">
-
-         {/* Single Chat Icon */}
+      <>
+         {/* Chat Icon - always bottom right */}
          {!open && (
-            <button
-               onClick={handleOpen}
-               className="w-16 h-16 rounded-full bg-[#0071c2] hover:bg-blue-700 shadow-xl flex items-center justify-center relative"
-            >
-               <img
-                  src={botAvatar}
-                  alt="Chatbot"
-                  className="w-8 h-8 object-cover animate-bounce rounded-full"
-               />
+            <div className="fixed bottom-6 right-6 z-[9999]">
+               <button
+                  onClick={handleOpen}
+                  className="w-16 h-16 rounded-full bg-[#0071c2] hover:bg-blue-700 shadow-xl flex items-center justify-center relative"
+               >
+                  <img
+                     src={botAvatar}
+                     alt="Chatbot"
+                     className="w-8 h-8 object-cover animate-bounce rounded-full"
+                  />
 
-               {unread > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full px-2 text-xs">
-                     {unread}
-                  </span>
-               )}
-            </button>
+                  {unread > 0 && (
+                     <span className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full px-2 text-xs">
+                        {unread}
+                     </span>
+                  )}
+               </button>
+            </div>
          )}
 
 
-         {/* Popup */}
+         {/* Modal - centered for admin/staff, bottom-right for users */}
          {open && (
-            <div className="w-[360px] h-[520px] bg-white shadow-2xl rounded-xl flex flex-col border">
-               {/* Header */}
-               <div className="p-2 bg-[#003580] text-white flex justify-between items-center rounded-t-xl">
-                  <span className="font-semibold ml-2">
-                     {role === "admin" || role === "staff"
-                        ? "Chat với khách"
-                        : "Trung tâm hỗ trợ"}
-                  </span>
-
-                  <button onClick={() => setOpen(false)} className="bg-[#003560]">✕</button>
-               </div>
-
-               {/* Tabs for USER ONLY */}
-               {role !== "admin" && role !== "staff" && (
-                  <div className="flex border-b">
-                     <button
-                        onClick={() => setTab("bot")}
-                        className={`flex-1 py-2 font-semibold ${tab === "bot"
-                           ? "border-b-2 border-blue-600 text-blue-600"
-                           : "text-gray-500"
-                           }`}
-                     >
-                        Trợ lý Hotelier
-                     </button>
-
-                     <button
-                        onClick={() => setTab("realtime")}
-                        className={`flex-1 py-2 font-semibold ${tab === "realtime"
-                           ? "border-b-2 border-blue-600 text-blue-600"
-                           : "text-gray-500"
-                           }`}
-                     >
-                        Hỗ trợ khách hàng
-                     </button>
-                  </div>
+            <>
+               {/* Backdrop overlay for admin/staff */}
+               {(role === "admin") && (
+                  <div
+                     className="fixed inset-0 bg-black bg-opacity-50 z-[9998]"
+                     onClick={() => setOpen(false)}
+                  />
                )}
 
-               {/* CONTENT */}
-               <div className="flex-1 overflow-hidden">
-                  {role === "admin" || role === "staff" ? (
-                     <Suspense fallback={null}>
-                        <LazyAdminChatModal
+               {/* Modal content */}
+               <div className={
+                  role === "admin"
+                     ? "fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[9999] w-[90vw] max-w-[900px] h-[80vh] max-h-[600px] bg-white shadow-2xl rounded-xl flex flex-col border"
+                     : "fixed bottom-6 right-6 z-[9999] w-[360px] h-[520px] bg-white shadow-2xl rounded-xl flex flex-col border"
+               }>
+                  {/* Header */}
+                  <div className="p-2 bg-[#003580] text-white flex justify-between items-center rounded-t-xl">
+                     <span className="font-semibold ml-2">
+                        {role === "admin"
+                           ? "Trung tâm chat hỗ trợ"
+                           : "Trung tâm hỗ trợ"}
+                     </span>
+
+                     <button onClick={() => setOpen(false)} className="bg-[#003560] hover:bg-[#002550] px-2 py-1 rounded">✕</button>
+                  </div>
+
+                  {/* Tabs for USER ONLY */}
+                  {role !== "admin" && (
+                     <div className="flex border-b">
+                        <button
+                           onClick={() => setTab("bot")}
+                           className={`flex-1 py-2 font-semibold ${tab === "bot"
+                              ? "border-b-2 border-blue-600 text-blue-600"
+                              : "text-gray-500"
+                              }`}
+                        >
+                           Trợ lý Hotelier
+                        </button>
+
+                        <button
+                           onClick={() => setTab("realtime")}
+                           className={`flex-1 py-2 font-semibold ${tab === "realtime"
+                              ? "border-b-2 border-blue-600 text-blue-600"
+                              : "text-gray-500"
+                              }`}
+                        >
+                           Hỗ trợ khách hàng
+                        </button>
+                     </div>
+                  )}
+
+                  {/* CONTENT */}
+                  <div className="flex-1 min-h-0 overflow-y-hidden flex">
+                     {role === "admin" ? (
+                        <Suspense fallback={null}>
+                           <LazyAdminChatModal
+                              token={token}
+                              userId={userId}
+                              socket={socket}
+                              onClose={() => setOpen(false)}
+                           />
+                        </Suspense>
+                     ) : tab === "bot" ? (
+                        <ChatBot embedded />
+                     ) : (
+                        <ChatWindow
                            token={token}
                            userId={userId}
                            socket={socket}
+                           conversationId={conversationId}
+                           clearUnread={() => setUnread(0)}
+                           embedded={true}
                            onClose={() => setOpen(false)}
                         />
-                     </Suspense>
-                  ) : tab === "bot" ? (
-                     <ChatBot embedded />
-                  ) : (
-                     <ChatWindow
-                        token={token}
-                        userId={userId}
-                        socket={socket}
-                        conversationId={conversationId}
-                        clearUnread={() => setUnread(0)}
-                        embedded={true}
-                        onClose={() => setOpen(false)}
-                     />
 
-                  )}
+                     )}
+                  </div>
                </div>
-            </div>
+            </>
          )}
-      </div>
+      </>
    );
 }

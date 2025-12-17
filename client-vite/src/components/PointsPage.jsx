@@ -1,17 +1,13 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { FaGem, FaGift, FaHistory, FaCheckCircle, FaLock } from "react-icons/fa";
 
-function PointsPage() {
+export default function PointsPage() {
   const [user, setUser] = useState(null);
   const [points, setPoints] = useState(0);
   const [transactions, setTransactions] = useState([]);
-  const [bookings, setBookings] = useState([]);
-  const [selectedBooking, setSelectedBooking] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("cash");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -22,7 +18,6 @@ function PointsPage() {
     }
     setUser(userInfo);
     fetchPoints(userInfo);
-    fetchBookings(userInfo);
   }, [navigate]);
 
   const fetchPoints = async (userInfo) => {
@@ -32,219 +27,183 @@ function PointsPage() {
       setPoints(res.data.points);
       setTransactions(res.data.recentTransactions);
     } catch (err) {
-      setError("Không thể tải thông tin điểm thưởng");
-    }
-  };
-
-  const fetchBookings = async (userInfo) => {
-    try {
-      const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
-      const res = await axios.get(`/api/bookings/history/${userInfo._id}`, config);
-      const eligible = res.data.filter(
-        (b) => b.paymentStatus === "pending" && b.status !== "canceled"
-      );
-      setBookings(eligible);
-    } catch {
-      setError("Không thể tải danh sách đặt phòng");
-    }
-  };
-
-  const handleCheckout = useCallback(async () => {
-    if (!selectedBooking) return setError("Vui lòng chọn đặt phòng để thanh toán");
-
-    setLoading(true);
-    setError("");
-    setSuccess("");
-
-    try {
-      const config = { headers: { Authorization: `Bearer ${user.token}` } };
-      const check = await axios.get(`/api/bookings/${selectedBooking}`, config);
-      if (check.data.status !== "confirmed" || check.data.paymentStatus !== "paid") {
-        setError("Đặt phòng chưa đủ điều kiện để tích điểm");
-        setLoading(false);
-        return;
-      }
-
-      const res = await axios.post(
-        "/api/bookings/checkout",
-        { bookingId: selectedBooking },
-        config
-      );
-
-      setSuccess(`Thanh toán thành công! +${res.data.points} điểm`);
-      setPoints(res.data.totalPoints);
-      setTransactions([res.data.transaction, ...transactions]);
-      setBookings(bookings.filter((b) => b._id !== selectedBooking));
-      setSelectedBooking("");
-
-      setTimeout(() => setSuccess(""), 5000);
-    } catch (err) {
-      setError(err.response?.data?.message || "Lỗi khi thanh toán");
+      console.error("Không thể tải thông tin điểm thưởng", err);
     } finally {
       setLoading(false);
     }
-  }, [selectedBooking, user, bookings, transactions]);
-
-  const getPaymentDisplay = (method) => {
-    switch (method) {
-      case "cash": return "Tiền mặt";
-      case "credit_card": return "Thẻ tín dụng";
-      case "bank_transfer": return "Chuyển khoản";
-      case "mobile_payment": return "Ví MoMo";
-      default: return "Khác";
-    }
   };
 
+  // Calculate Level based on backend logic
+  const getLevelInfo = (points) => {
+    if (points >= 400000) return { level: 5, name: "Diamond", nextLevel: null, color: "text-purple-600", bg: "bg-purple-100" };
+    if (points >= 300000) return { level: 4, name: "Platinum", nextLevel: 400000, color: "text-indigo-600", bg: "bg-indigo-100" };
+    if (points >= 200000) return { level: 3, name: "Gold", nextLevel: 300000, color: "text-yellow-600", bg: "bg-yellow-100" };
+    if (points >= 100000) return { level: 2, name: "Silver", nextLevel: 200000, color: "text-gray-600", bg: "bg-gray-100" };
+    return { level: 1, name: "Bronze", nextLevel: 100000, color: "text-orange-700", bg: "bg-orange-100" };
+  };
+
+  const levelInfo = getLevelInfo(points);
+  const progress = levelInfo.nextLevel
+    ? ((points - (levelInfo.nextLevel - 100000)) / 100000) * 100 // Approximate progress within tier
+    : 100;
+
+  // Simplified progress calculation for display
+  const displayProgress = levelInfo.nextLevel
+    ? (points / levelInfo.nextLevel) * 100
+    : 100;
+
+  const benefits = [
+    { level: 1, text: "Tích điểm cho mọi đặt phòng", icon: <FaGift /> },
+    { level: 2, text: "Giảm giá 10% tại các chỗ nghỉ tham gia", icon: <FaGift /> },
+    { level: 3, text: "Giảm giá 15% + Bữa sáng miễn phí", icon: <FaGift /> },
+    { level: 4, text: "Giảm giá 20% + Nâng hạng phòng", icon: <FaGift /> },
+    { level: 5, text: "Hỗ trợ ưu tiên VIP 24/7 + Quà tặng đặc biệt", icon: <FaGift /> },
+  ];
+
+  if (loading) return <div className="p-10 text-center">Đang tải...</div>;
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-[#003580] to-[#0056a3] text-white rounded-2xl p-8 mb-8 shadow-md text-center">
-        <h2 className="text-3xl font-bold mb-2">Điểm thưởng của bạn</h2>
-        {user && (
-          <p className="text-lg text-blue-100">
-            Xin chào, <span className="font-semibold">{user.name}</span> —
-            bạn hiện có{" "}
-            <span className="font-extrabold text-yellow-300">{points.toLocaleString()}</span>{" "}
-            điểm.
-          </p>
-        )}
-      </div>
+    <div className="bg-gray-50 min-h-screen py-10">
+      <div className="max-w-5xl mx-auto px-4">
 
-      {/* Alerts */}
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 p-3 rounded-md mb-4 text-sm">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="bg-green-100 border border-green-400 text-green-700 p-3 rounded-md mb-4 text-sm">
-          {success}
-        </div>
-      )}
-
-      {/* Checkout Section */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-10">
-        <h3 className="text-xl font-semibold text-[#003580] mb-4">
-          Thanh toán & tích điểm
-        </h3>
-
-        <div className="grid sm:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Chọn đặt phòng:
-            </label>
-            <select
-              value={selectedBooking}
-              onChange={(e) => setSelectedBooking(e.target.value)}
-              disabled={loading}
-              className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-[#0071c2] focus:border-[#0071c2] p-2"
-            >
-              <option value="">-- Chọn đặt phòng --</option>
-              {bookings.map((b) => (
-                <option key={b._id} value={b._id}>
-                  #{b._id.slice(-6)} | {new Date(b.checkin).toLocaleDateString("vi-VN")} →{" "}
-                  {new Date(b.checkout).toLocaleDateString("vi-VN")}
-                </option>
-              ))}
-            </select>
+        {/* Header Section */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
+          <div className="bg-[#003580] p-8 text-white flex flex-col md:flex-row items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold flex items-center gap-3">
+                <FaGem className="text-yellow-400" /> {levelInfo.name}
+              </h1>
+              <p className="mt-2 text-blue-100">
+                Bạn đang sở hữu <span className="font-bold text-white text-xl">{points.toLocaleString()}</span> điểm thưởng.
+              </p>
+            </div>
+            <div className="mt-6 md:mt-0 bg-white/10 p-4 rounded-lg backdrop-blur-sm border border-white/20">
+              <p className="text-sm font-medium mb-2">Tiến trình thăng hạng</p>
+              <div className="w-64 h-3 bg-blue-900/50 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-yellow-400 transition-all duration-1000 ease-out"
+                  style={{ width: `${progress}%` }}
+                ></div>
+              </div>
+              {levelInfo.nextLevel ? (
+                <p className="text-xs mt-2 text-right">
+                  Cần thêm {(levelInfo.nextLevel - points).toLocaleString()} điểm để lên cấp {["Bronze", "Silver", "Gold", "Platinum", "Diamond"][levelInfo.level]}
+                </p>
+              ) : (
+                <p className="text-xs mt-2 text-right text-yellow-300 font-bold">Bạn đã đạt cấp độ cao nhất!</p>
+              )}
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Phương thức thanh toán:
-            </label>
-            <select
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-              disabled={loading}
-              className="w-full border-gray-300 rounded-lg shadow-sm focus:ring-[#0071c2] focus:border-[#0071c2] p-2"
-            >
-              <option value="cash">Tiền mặt</option>
-              <option value="credit_card">Thẻ tín dụng</option>
-              <option value="bank_transfer">Chuyển khoản ngân hàng</option>
-              <option value="mobile_payment">Ví MoMo</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="text-center mt-6">
-          <button
-            onClick={handleCheckout}
-            disabled={loading || !selectedBooking}
-            className={`px-6 py-2.5 font-semibold rounded-lg text-white transition ${
-              loading || !selectedBooking
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-[#0071c2] hover:bg-blue-800"
-            }`}
-          >
-            {loading ? "Đang xử lý..." : "Thanh toán & tích điểm"}
-          </button>
-        </div>
-      </div>
-
-      {/* Transactions Section */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <h3 className="text-xl font-semibold text-[#003580] mb-4">
-          Lịch sử giao dịch
-        </h3>
-
-        {transactions.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full border border-gray-200 text-sm">
-              <thead className="bg-[#003580] text-white">
-                <tr>
-                  <th className="py-2 px-3 text-left">Ngày</th>
-                  <th className="py-2 px-3 text-left">Đặt phòng</th>
-                  <th className="py-2 px-3 text-left">Số tiền</th>
-                  <th className="py-2 px-3 text-left">Điểm nhận</th>
-                  <th className="py-2 px-3 text-left">Phương thức</th>
-                  <th className="py-2 px-3 text-left">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.map((t) => (
-                  <tr key={t._id} className="border-b hover:bg-gray-50">
-                    <td className="py-2 px-3 text-gray-600">
-                      {new Date(t.createdAt).toLocaleString("vi-VN")}
-                    </td>
-                    <td className="py-2 px-3 text-gray-600">
-                      {t.bookingId
-                        ? `Check-in: ${new Date(
-                            t.bookingId.checkin
-                          ).toLocaleDateString("vi-VN")} - Check-out: ${new Date(
-                            t.bookingId.checkout
-                          ).toLocaleDateString("vi-VN")}`
-                        : "N/A"}
-                    </td>
-                    <td className="py-2 px-3 text-gray-700 font-medium">
-                      {t.amount ? t.amount.toLocaleString("vi-VN") + "₫" : "N/A"}
-                    </td>
-                    <td className="py-2 px-3 text-green-600 font-semibold">{t.points}</td>
-                    <td className="py-2 px-3 text-gray-600">
-                      {getPaymentDisplay(t.paymentMethod)}
-                    </td>
-                    <td className="py-2 px-3">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          t.status === "completed"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-yellow-100 text-yellow-700"
-                        }`}
-                      >
-                        {t.status === "completed" ? "Hoàn tất" : "Đang xử lý"}
+          {/* Benefits Section */}
+          <div className="p-8">
+            <h3 className="text-xl font-bold text-gray-900 mb-6">Quyền lợi của bạn</h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              {benefits.map((benefit, index) => {
+                const isUnlocked = levelInfo.level >= benefit.level;
+                const rankName = ["Bronze", "Silver", "Gold", "Platinum", "Diamond"][benefit.level - 1];
+                return (
+                  <div
+                    key={index}
+                    className={`flex items-center gap-4 p-4 rounded-lg border ${isUnlocked
+                      ? "bg-blue-50 border-blue-100 text-blue-900"
+                      : "bg-gray-50 border-gray-100 text-gray-400"
+                      }`}
+                  >
+                    <div className={`text-xl ${isUnlocked ? "text-blue-600" : "text-gray-400"}`}>
+                      {isUnlocked ? <FaCheckCircle /> : <FaLock />}
+                    </div>
+                    <div>
+                      <p className="font-medium">{benefit.text}</p>
+                      <span className="text-xs uppercase tracking-wider font-bold opacity-70">
+                        {rankName}
                       </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        ) : (
-          <p className="text-gray-500 text-sm">Bạn chưa có giao dịch nào.</p>
-        )}
+        </div>
+
+        {/* Transaction History */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-blue-100 text-blue-600 rounded-full">
+                <FaHistory />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">Lịch sử tích điểm</h3>
+            </div>
+          </div>
+
+          {transactions.length > 0 ? (
+            <div className="overflow-hidden rounded-lg border border-gray-100">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-gray-50">
+                  <tr className="text-xs font-semibold tracking-wide text-gray-500 uppercase border-b border-gray-200">
+                    <th className="px-6 py-4">Thời gian</th>
+                    <th className="px-6 py-4">Hoạt động</th>
+                    <th className="px-6 py-4 text-right">Giá trị đơn</th>
+                    <th className="px-6 py-4 text-right">Điểm thưởng</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {transactions.map((t) => (
+                    <tr key={t._id} className="hover:bg-blue-50/50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {new Date(t.createdAt).toLocaleDateString("vi-VN")}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(t.createdAt).toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center">
+                          <div className="ml-0">
+                            <div className="text-sm font-medium text-gray-900">
+                              {t.bookingId ? (
+                                <>
+                                  Đặt phòng <span className="font-mono text-blue-600">#{t.bookingId._id.slice(-6).toUpperCase()}</span>
+                                </>
+                              ) : (
+                                "Giao dịch khác"
+                              )}
+                            </div>
+                            {t.bookingId && (
+                              <div className="text-xs text-gray-500 mt-0.5">
+                                {new Date(t.bookingId.checkin).toLocaleDateString("vi-VN")} - {new Date(t.bookingId.checkout).toLocaleDateString("vi-VN")}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right whitespace-nowrap">
+                        <div className="text-sm text-gray-900 font-medium">
+                          {t.amount ? t.amount.toLocaleString("vi-VN") : "0"} ₫
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right whitespace-nowrap">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          +{t.points} điểm
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+              <FaHistory className="mx-auto text-4xl text-gray-300 mb-3" />
+              <p className="text-gray-500 font-medium">Chưa có lịch sử giao dịch nào.</p>
+              <p className="text-sm text-gray-400 mt-1">Các giao dịch tích điểm sẽ xuất hiện tại đây.</p>
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   );
 }
-
-export default PointsPage;

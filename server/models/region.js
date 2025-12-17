@@ -19,7 +19,7 @@ const regionSchema = new mongoose.Schema({
     default: 'other',
     required: true,
   },
-  cities: [citySchema], // 🏙️ Thêm danh sách thành phố trực thuộc
+  cities: [citySchema],
   adminId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
